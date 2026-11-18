@@ -63,7 +63,7 @@ button:disabled{opacity:.4;cursor:default;box-shadow:none}
 input,select,textarea{font:inherit;border:1px solid var(--line2);border-radius:4px;padding:7px 9px;background:rgba(2,8,20,.7);color:var(--ink);width:100%}
 input::placeholder,textarea::placeholder{color:var(--dim)}
 input:focus,select:focus,textarea:focus,button:focus-visible{outline:none;border-color:var(--cyan);box-shadow:0 0 0 2px rgba(0,229,255,.25)}
-input[type=checkbox]{width:auto;accent-color:var(--cyan)}
+input[type=checkbox],input[type=radio]{width:auto;accent-color:var(--cyan)}
 select option{background:var(--bg2)}
 label{display:block;font:600 11px/1.4 var(--mono);color:var(--mute);margin:12px 0 4px;text-transform:uppercase;letter-spacing:.08em}
 label.chk{display:flex;gap:8px;align-items:center;font:14px/1.4 system-ui,sans-serif;color:var(--ink);text-transform:none;letter-spacing:0}
@@ -197,3 +197,36 @@ dialog h4{font:600 11.5px/1.4 var(--mono);text-transform:uppercase;letter-spacin
   #nav{width:100%;overflow-x:auto;gap:14px;padding-bottom:2px}
   #nav .lang{margin-left:auto}
 }
+
+/* ---- M2: Netzscan, Posteingang, Erkennung ---- */
+.tabs a .count{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--cyan);color:var(--bg);font-size:10.5px;text-align:center;letter-spacing:0}
+.dot.off{background:var(--err);opacity:.75}
+td.dotcol,th.dotcol{width:22px;padding-right:0}
+.okc{color:var(--ok)} .offc{color:var(--err)}
+.conf{display:inline-block;width:60px;height:5px;border-radius:3px;background:rgba(0,229,255,.1);overflow:hidden;vertical-align:middle;margin:0 6px 0 8px}
+.conf i{display:block;height:100%}
+.conf.hi i{background:var(--ok);box-shadow:0 0 6px var(--ok)} .conf.mid i{background:var(--warn)} .conf.lo i{background:var(--dim)}
+.reasons{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 2px}
+.reason{font:11.5px/1.5 var(--mono);padding:1px 7px;border:1px solid var(--line);border-radius:3px;color:var(--mute);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inbox{display:flex;flex-direction:column;gap:10px}
+.inrow{display:grid;grid-template-columns:auto minmax(0,2.2fr) minmax(0,1.3fr) auto;gap:14px;align-items:center;padding:12px 16px}
+.inrow::before,.inrow::after{display:none}
+.inrow .facts{display:flex;flex-direction:column;gap:2px;font-size:13px}
+.inrow .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.inrow input[type=checkbox]{margin:0}
+.empty-box{text-align:center;color:var(--mute);padding:28px}
+.empty-box::before,.empty-box::after{display:none}
+details.ignored{margin-top:22px}
+details summary{cursor:pointer;color:var(--mute);font-size:13px;margin:8px 0}
+.warnbox{border-color:rgba(255,176,32,.55);color:var(--warn);margin-bottom:16px}
+label.chk.mode{align-items:flex-start;margin:6px 0}
+label.chk.mode input{margin-top:4px}
+.scanprog{display:flex;align-items:center;gap:10px;margin:10px 0 4px}
+.scanprog .meter{height:8px}
+.identbox{border:1px solid var(--line);border-radius:6px;padding:10px 14px;margin:4px 0 6px;background:rgba(0,229,255,.03)}
+table.kvt{background:transparent;border:0;margin-top:6px}
+table.kvt th{background:transparent;text-transform:none;letter-spacing:0;font:12px/1.4 system-ui,sans-serif;color:var(--mute);width:150px;vertical-align:top}
+table.kvt td{font-size:12.5px;word-break:break-word}
+@media (max-width:720px){.inrow{grid-template-columns:auto minmax(0,1fr)}.inrow .facts,.inrow .acts{grid-column:2}.inrow .acts{justify-content:flex-start}}
+
+.inrow .guess b{font-size:15px;color:var(--ink)}

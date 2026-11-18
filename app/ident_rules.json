@@ -1,0 +1,1213 @@
+[
+ {
+  "key": "amazon",
+  "label": "Amazon-Gerät (Echo, Fire TV oder Kindle)",
+  "label_en": "Amazon device (Echo, Fire TV or Kindle)",
+  "type": "speaker",
+  "weight": 40,
+  "cond": {
+   "vendor": "amazon"
+  }
+ },
+ {
+  "key": "amazon-echo",
+  "label": "Amazon Echo (Alexa)",
+  "label_en": "Amazon Echo (Alexa)",
+  "type": "speaker",
+  "weight": 80,
+  "cond": {
+   "vendor": "amazon",
+   "hostname": "echo|alexa|amazon-"
+  }
+ },
+ {
+  "key": "amazon-echo-host",
+  "label": "Amazon Echo (Alexa)",
+  "label_en": "Amazon Echo (Alexa)",
+  "type": "speaker",
+  "weight": 70,
+  "cond": {
+   "hostname": "\\becho[-_ ]|alexa"
+  }
+ },
+ {
+  "key": "amazon-firetv",
+  "label": "Amazon Fire TV",
+  "label_en": "Amazon Fire TV",
+  "type": "tv",
+  "weight": 84,
+  "cond": {
+   "mdns": "_amzn-wplay|fire ?tv|aftm|afts"
+  }
+ },
+ {
+  "key": "amazon-firetv-host",
+  "label": "Amazon Fire TV",
+  "label_en": "Amazon Fire TV",
+  "type": "tv",
+  "weight": 70,
+  "cond": {
+   "hostname": "fire-?tv|aftm|afts"
+  }
+ },
+ {
+  "key": "google",
+  "label": "Google-Gerät (Nest, Chromecast)",
+  "label_en": "Google device (Nest, Chromecast)",
+  "type": "speaker",
+  "weight": 40,
+  "cond": {
+   "vendor": "google"
+  }
+ },
+ {
+  "key": "googlecast",
+  "label": "Chromecast / Google Cast",
+  "label_en": "Chromecast / Google Cast",
+  "type": "tv",
+  "weight": 65,
+  "cond": {
+   "mdns": "_googlecast"
+  }
+ },
+ {
+  "key": "google-nest",
+  "label": "Google Nest Lautsprecher/Display",
+  "label_en": "Google Nest speaker/display",
+  "type": "speaker",
+  "weight": 80,
+  "cond": {
+   "mdns": "_googlecast",
+   "hostname": "nest|google-home"
+  }
+ },
+ {
+  "key": "google-nest-txt",
+  "label": "Google Nest Lautsprecher/Display",
+  "label_en": "Google Nest speaker/display",
+  "type": "speaker",
+  "weight": 80,
+  "cond": {
+   "mdns": "google (home|nest)|nest (mini|audio|hub)"
+  }
+ },
+ {
+  "key": "chromecast",
+  "label": "Google Chromecast",
+  "label_en": "Google Chromecast",
+  "type": "tv",
+  "weight": 80,
+  "cond": {
+   "mdns": "chromecast"
+  }
+ },
+ {
+  "key": "apple",
+  "label": "Apple-Gerät",
+  "label_en": "Apple device",
+  "type": "phone",
+  "weight": 35,
+  "cond": {
+   "vendor": "apple"
+  }
+ },
+ {
+  "key": "apple-tv",
+  "label": "Apple TV",
+  "label_en": "Apple TV",
+  "type": "tv",
+  "weight": 80,
+  "cond": {
+   "mdns": "appletv|apple ?tv"
+  }
+ },
+ {
+  "key": "airplay",
+  "label": "AirPlay-Gerät",
+  "label_en": "AirPlay device",
+  "type": "tv",
+  "weight": 55,
+  "cond": {
+   "mdns": "_airplay|_raop"
+  }
+ },
+ {
+  "key": "homepod",
+  "label": "Apple HomePod",
+  "label_en": "Apple HomePod",
+  "type": "speaker",
+  "weight": 85,
+  "cond": {
+   "mdns": "homepod|audioaccessory"
+  }
+ },
+ {
+  "key": "iphone",
+  "label": "iPhone",
+  "label_en": "iPhone",
+  "type": "phone",
+  "weight": 80,
+  "cond": {
+   "hostname": "iphone"
+  }
+ },
+ {
+  "key": "ipad",
+  "label": "iPad",
+  "label_en": "iPad",
+  "type": "tablet",
+  "weight": 80,
+  "cond": {
+   "hostname": "ipad"
+  }
+ },
+ {
+  "key": "mac",
+  "label": "Mac",
+  "label_en": "Mac",
+  "type": "laptop",
+  "weight": 75,
+  "cond": {
+   "hostname": "macbook|imac|mac-?mini|mac-?studio"
+  }
+ },
+ {
+  "key": "iphone-port",
+  "label": "iPhone / iPad",
+  "label_en": "iPhone / iPad",
+  "type": "phone",
+  "weight": 60,
+  "cond": {
+   "vendor": "apple",
+   "ports": [
+    62078
+   ]
+  }
+ },
+ {
+  "key": "random-mac",
+  "label": "Smartphone, Tablet oder Laptop mit zufälliger MAC-Adresse (Privatsphäre-Funktion)",
+  "label_en": "Smartphone, tablet or laptop with a random MAC address (privacy feature)",
+  "type": "phone",
+  "weight": 35,
+  "cond": {
+   "random": true
+  }
+ },
+ {
+  "key": "android",
+  "label": "Android-Smartphone",
+  "label_en": "Android smartphone",
+  "type": "phone",
+  "weight": 70,
+  "cond": {
+   "hostname": "android|galaxy|pixel|redmi|oneplus|huawei"
+  }
+ },
+ {
+  "key": "samsung-phone",
+  "label": "Samsung-Smartphone/-Tablet",
+  "label_en": "Samsung smartphone/tablet",
+  "type": "phone",
+  "weight": 55,
+  "cond": {
+   "vendor": "samsung",
+   "hostname": "galaxy|sm-"
+  }
+ },
+ {
+  "key": "avm",
+  "label": "AVM FRITZ!-Gerät",
+  "label_en": "AVM FRITZ! device",
+  "type": "router",
+  "weight": 55,
+  "cond": {
+   "vendor": "\\bavm\\b"
+  }
+ },
+ {
+  "key": "fritzbox",
+  "label": "AVM FRITZ!Box",
+  "label_en": "AVM FRITZ!Box",
+  "type": "router",
+  "weight": 85,
+  "cond": {
+   "http": "fritz!box"
+  }
+ },
+ {
+  "key": "fritzbox-ssdp",
+  "label": "AVM FRITZ!Box",
+  "label_en": "AVM FRITZ!Box",
+  "type": "router",
+  "weight": 85,
+  "cond": {
+   "ssdp": "fritz!box"
+  }
+ },
+ {
+  "key": "fritzrepeater",
+  "label": "AVM FRITZ!Repeater",
+  "label_en": "AVM FRITZ!Repeater",
+  "type": "repeater",
+  "weight": 88,
+  "cond": {
+   "ssdp": "fritz!repeater"
+  }
+ },
+ {
+  "key": "fritzrepeater-http",
+  "label": "AVM FRITZ!Repeater",
+  "label_en": "AVM FRITZ!Repeater",
+  "type": "repeater",
+  "weight": 88,
+  "cond": {
+   "http": "fritz!repeater"
+  }
+ },
+ {
+  "key": "fritzpowerline",
+  "label": "AVM FRITZ!Powerline",
+  "label_en": "AVM FRITZ!Powerline",
+  "type": "powerline",
+  "weight": 88,
+  "cond": {
+   "ssdp": "fritz!powerline"
+  }
+ },
+ {
+  "key": "fritzdect",
+  "label": "AVM FRITZ!DECT / FRITZ!Smart",
+  "label_en": "AVM FRITZ!DECT / FRITZ!Smart",
+  "type": "iot",
+  "weight": 80,
+  "cond": {
+   "hostname": "fritz-?dect|fritz-?smart"
+  }
+ },
+ {
+  "key": "asus",
+  "label": "ASUS Router / Mesh-Knoten",
+  "label_en": "ASUS router / mesh node",
+  "type": "mesh",
+  "weight": 50,
+  "cond": {
+   "vendor": "asustek"
+  }
+ },
+ {
+  "key": "asus-http",
+  "label": "ASUS Router / Mesh-Knoten",
+  "label_en": "ASUS router / mesh node",
+  "type": "mesh",
+  "weight": 80,
+  "cond": {
+   "http": "asus|expertwifi|zenwifi|rt-ax|rt-be"
+  }
+ },
+ {
+  "key": "zyxel",
+  "label": "Zyxel-Gerät",
+  "label_en": "Zyxel device",
+  "type": "switch",
+  "weight": 50,
+  "cond": {
+   "vendor": "zyxel"
+  }
+ },
+ {
+  "key": "zyxel-switch",
+  "label": "Zyxel Switch",
+  "label_en": "Zyxel switch",
+  "type": "switch",
+  "weight": 85,
+  "cond": {
+   "http": "xgs1|gs19|gs12|xmg|zyxel"
+  }
+ },
+ {
+  "key": "tplink",
+  "label": "TP-Link-Gerät (Router, Access Point oder Smart Plug)",
+  "label_en": "TP-Link device (router, access point or smart plug)",
+  "type": "iot",
+  "weight": 30,
+  "cond": {
+   "vendor": "tp-?link"
+  }
+ },
+ {
+  "key": "omada",
+  "label": "TP-Link Omada",
+  "label_en": "TP-Link Omada",
+  "type": "ap",
+  "weight": 75,
+  "cond": {
+   "http": "omada|eap\\d"
+  }
+ },
+ {
+  "key": "tapo",
+  "label": "TP-Link Tapo / Kasa",
+  "label_en": "TP-Link Tapo / Kasa",
+  "type": "iot",
+  "weight": 75,
+  "cond": {
+   "hostname": "tapo|kasa|hs1\\d\\d|p1\\d\\d"
+  }
+ },
+ {
+  "key": "deco",
+  "label": "TP-Link Deco Mesh",
+  "label_en": "TP-Link Deco mesh",
+  "type": "mesh",
+  "weight": 80,
+  "cond": {
+   "hostname": "deco"
+  }
+ },
+ {
+  "key": "ubiquiti",
+  "label": "Ubiquiti UniFi",
+  "label_en": "Ubiquiti UniFi",
+  "type": "ap",
+  "weight": 55,
+  "cond": {
+   "vendor": "ubiquiti"
+  }
+ },
+ {
+  "key": "unifi-http",
+  "label": "UniFi-Konsole",
+  "label_en": "UniFi console",
+  "type": "router",
+  "weight": 80,
+  "cond": {
+   "http": "unifi"
+  }
+ },
+ {
+  "key": "netgear",
+  "label": "Netgear-Gerät",
+  "label_en": "Netgear device",
+  "type": "switch",
+  "weight": 45,
+  "cond": {
+   "vendor": "netgear"
+  }
+ },
+ {
+  "key": "devolo",
+  "label": "devolo Powerline",
+  "label_en": "devolo powerline",
+  "type": "powerline",
+  "weight": 80,
+  "cond": {
+   "vendor": "devolo"
+  }
+ },
+ {
+  "key": "mikrotik",
+  "label": "MikroTik",
+  "label_en": "MikroTik",
+  "type": "router",
+  "weight": 70,
+  "cond": {
+   "vendor": "routerboard|mikrotik"
+  }
+ },
+ {
+  "key": "proxmox",
+  "label": "Proxmox VE",
+  "label_en": "Proxmox VE",
+  "type": "hypervisor",
+  "weight": 92,
+  "cond": {
+   "ports": [
+    8006
+   ]
+  }
+ },
+ {
+  "key": "proxmox-http",
+  "label": "Proxmox VE",
+  "label_en": "Proxmox VE",
+  "type": "hypervisor",
+  "weight": 95,
+  "cond": {
+   "http": "proxmox"
+  }
+ },
+ {
+  "key": "homeassistant",
+  "label": "Home Assistant",
+  "label_en": "Home Assistant",
+  "type": "server",
+  "weight": 90,
+  "cond": {
+   "ports": [
+    8123
+   ]
+  }
+ },
+ {
+  "key": "homeassistant-mdns",
+  "label": "Home Assistant",
+  "label_en": "Home Assistant",
+  "type": "server",
+  "weight": 92,
+  "cond": {
+   "mdns": "_home-assistant"
+  }
+ },
+ {
+  "key": "synology",
+  "label": "Synology NAS",
+  "label_en": "Synology NAS",
+  "type": "nas",
+  "weight": 85,
+  "cond": {
+   "vendor": "synology"
+  }
+ },
+ {
+  "key": "synology-http",
+  "label": "Synology NAS",
+  "label_en": "Synology NAS",
+  "type": "nas",
+  "weight": 88,
+  "cond": {
+   "http": "synology|diskstation"
+  }
+ },
+ {
+  "key": "qnap",
+  "label": "QNAP NAS",
+  "label_en": "QNAP NAS",
+  "type": "nas",
+  "weight": 85,
+  "cond": {
+   "vendor": "qnap"
+  }
+ },
+ {
+  "key": "nas-ports",
+  "label": "NAS (Synology/QNAP-Weboberfläche)",
+  "label_en": "NAS (Synology/QNAP web interface)",
+  "type": "nas",
+  "weight": 45,
+  "cond": {
+   "ports": [
+    5000,
+    5001
+   ]
+  }
+ },
+ {
+  "key": "plex",
+  "label": "Medienserver (Plex)",
+  "label_en": "Media server (Plex)",
+  "type": "server",
+  "weight": 60,
+  "cond": {
+   "ports": [
+    32400
+   ]
+  }
+ },
+ {
+  "key": "raspberrypi",
+  "label": "Raspberry Pi",
+  "label_en": "Raspberry Pi",
+  "type": "computer",
+  "weight": 70,
+  "cond": {
+   "vendor": "raspberry"
+  }
+ },
+ {
+  "key": "proxmox-vm",
+  "label": "VM / Container auf Proxmox",
+  "label_en": "VM / container on Proxmox",
+  "type": "vm",
+  "weight": 75,
+  "cond": {
+   "vendor": "proxmox"
+  }
+ },
+ {
+  "key": "vmware-vm",
+  "label": "VM (VMware)",
+  "label_en": "VM (VMware)",
+  "type": "vm",
+  "weight": 70,
+  "cond": {
+   "vendor": "vmware"
+  }
+ },
+ {
+  "key": "qemu-vm",
+  "label": "VM (QEMU/KVM)",
+  "label_en": "VM (QEMU/KVM)",
+  "type": "vm",
+  "weight": 60,
+  "cond": {
+   "vendor": "qemu|red hat"
+  }
+ },
+ {
+  "key": "ssh-only",
+  "label": "Linux-Server",
+  "label_en": "Linux server",
+  "type": "server",
+  "weight": 30,
+  "cond": {
+   "ports": [
+    22
+   ]
+  }
+ },
+ {
+  "key": "espressif",
+  "label": "IoT-Gerät mit ESP-Chip (z. B. Shelly, Tasmota, ESPHome)",
+  "label_en": "IoT device with ESP chip (e.g. Shelly, Tasmota, ESPHome)",
+  "type": "iot",
+  "weight": 60,
+  "cond": {
+   "vendor": "espressif"
+  }
+ },
+ {
+  "key": "esphome",
+  "label": "ESPHome-Gerät",
+  "label_en": "ESPHome device",
+  "type": "iot",
+  "weight": 88,
+  "cond": {
+   "mdns": "_esphomelib"
+  }
+ },
+ {
+  "key": "shelly",
+  "label": "Shelly",
+  "label_en": "Shelly",
+  "type": "iot",
+  "weight": 88,
+  "cond": {
+   "hostname": "shelly"
+  }
+ },
+ {
+  "key": "shelly-mdns",
+  "label": "Shelly",
+  "label_en": "Shelly",
+  "type": "iot",
+  "weight": 88,
+  "cond": {
+   "mdns": "shelly"
+  }
+ },
+ {
+  "key": "tasmota",
+  "label": "Tasmota-Gerät",
+  "label_en": "Tasmota device",
+  "type": "iot",
+  "weight": 88,
+  "cond": {
+   "http": "tasmota"
+  }
+ },
+ {
+  "key": "hue",
+  "label": "Philips Hue Bridge",
+  "label_en": "Philips Hue Bridge",
+  "type": "iot",
+  "weight": 88,
+  "cond": {
+   "vendor": "signify|philips lighting"
+  }
+ },
+ {
+  "key": "hue-mdns",
+  "label": "Philips Hue Bridge",
+  "label_en": "Philips Hue Bridge",
+  "type": "iot",
+  "weight": 88,
+  "cond": {
+   "mdns": "_hue|philips hue"
+  }
+ },
+ {
+  "key": "ikea",
+  "label": "IKEA Gateway (TRÅDFRI/DIRIGERA)",
+  "label_en": "IKEA gateway (TRÅDFRI/DIRIGERA)",
+  "type": "iot",
+  "weight": 75,
+  "cond": {
+   "vendor": "ikea"
+  }
+ },
+ {
+  "key": "homekit",
+  "label": "HomeKit-Gerät",
+  "label_en": "HomeKit device",
+  "type": "iot",
+  "weight": 50,
+  "cond": {
+   "mdns": "_hap"
+  }
+ },
+ {
+  "key": "tuya",
+  "label": "Smart-Home-Gerät (Tuya)",
+  "label_en": "Smart home device (Tuya)",
+  "type": "iot",
+  "weight": 70,
+  "cond": {
+   "vendor": "tuya"
+  }
+ },
+ {
+  "key": "vacuum",
+  "label": "Saugroboter",
+  "label_en": "Robot vacuum",
+  "type": "iot",
+  "weight": 86,
+  "cond": {
+   "hostname": "vacuum|dreame|roborock|roomba|deebot"
+  }
+ },
+ {
+  "key": "xiaomi",
+  "label": "Xiaomi / Roborock (z. B. Saugroboter)",
+  "label_en": "Xiaomi / Roborock (e.g. robot vacuum)",
+  "type": "iot",
+  "weight": 55,
+  "cond": {
+   "vendor": "xiaomi|roborock|dreame"
+  }
+ },
+ {
+  "key": "bsh",
+  "label": "Hausgerät (Home Connect: Bosch, Siemens, Neff)",
+  "label_en": "Home appliance (Home Connect: Bosch, Siemens, Neff)",
+  "type": "iot",
+  "weight": 80,
+  "cond": {
+   "vendor": "bsh hausger"
+  }
+ },
+ {
+  "key": "miele",
+  "label": "Miele-Hausgerät",
+  "label_en": "Miele appliance",
+  "type": "iot",
+  "weight": 80,
+  "cond": {
+   "vendor": "miele"
+  }
+ },
+ {
+  "key": "tado",
+  "label": "tado° Thermostat-Bridge",
+  "label_en": "tado° thermostat bridge",
+  "type": "iot",
+  "weight": 80,
+  "cond": {
+   "vendor": "tado"
+  }
+ },
+ {
+  "key": "netatmo",
+  "label": "Netatmo",
+  "label_en": "Netatmo",
+  "type": "iot",
+  "weight": 80,
+  "cond": {
+   "vendor": "netatmo"
+  }
+ },
+ {
+  "key": "nuki",
+  "label": "Nuki Smart Lock / Bridge",
+  "label_en": "Nuki smart lock / bridge",
+  "type": "iot",
+  "weight": 80,
+  "cond": {
+   "vendor": "nuki"
+  }
+ },
+ {
+  "key": "sonos",
+  "label": "Sonos-Lautsprecher",
+  "label_en": "Sonos speaker",
+  "type": "speaker",
+  "weight": 85,
+  "cond": {
+   "vendor": "sonos"
+  }
+ },
+ {
+  "key": "sonos-port",
+  "label": "Sonos-Lautsprecher",
+  "label_en": "Sonos speaker",
+  "type": "speaker",
+  "weight": 75,
+  "cond": {
+   "ports": [
+    1400
+   ],
+   "ssdp": "sonos"
+  }
+ },
+ {
+  "key": "mqtt",
+  "label": "MQTT-Broker",
+  "label_en": "MQTT broker",
+  "type": "server",
+  "weight": 50,
+  "cond": {
+   "ports": [
+    1883
+   ]
+  }
+ },
+ {
+  "key": "samsung-tv",
+  "label": "Samsung Smart TV",
+  "label_en": "Samsung smart TV",
+  "type": "tv",
+  "weight": 80,
+  "cond": {
+   "ssdp": "samsung.*(tv|tizen)|tizen"
+  }
+ },
+ {
+  "key": "lg-tv",
+  "label": "LG Smart TV (webOS)",
+  "label_en": "LG smart TV (webOS)",
+  "type": "tv",
+  "weight": 80,
+  "cond": {
+   "ssdp": "webos|lg.*tv"
+  }
+ },
+ {
+  "key": "sony-tv",
+  "label": "Sony Bravia TV",
+  "label_en": "Sony Bravia TV",
+  "type": "tv",
+  "weight": 80,
+  "cond": {
+   "ssdp": "bravia"
+  }
+ },
+ {
+  "key": "dlna",
+  "label": "Medienwiedergabe (DLNA/UPnP)",
+  "label_en": "Media player (DLNA/UPnP)",
+  "type": "tv",
+  "weight": 45,
+  "cond": {
+   "ssdp": "mediarenderer|dlna"
+  }
+ },
+ {
+  "key": "spotify",
+  "label": "Lautsprecher mit Spotify Connect",
+  "label_en": "Speaker with Spotify Connect",
+  "type": "speaker",
+  "weight": 50,
+  "cond": {
+   "mdns": "_spotify-connect"
+  }
+ },
+ {
+  "key": "playstation",
+  "label": "Sony PlayStation",
+  "label_en": "Sony PlayStation",
+  "type": "console",
+  "weight": 85,
+  "cond": {
+   "vendor": "sony interactive"
+  }
+ },
+ {
+  "key": "nintendo",
+  "label": "Nintendo-Konsole",
+  "label_en": "Nintendo console",
+  "type": "console",
+  "weight": 85,
+  "cond": {
+   "vendor": "nintendo"
+  }
+ },
+ {
+  "key": "xbox",
+  "label": "Microsoft Xbox",
+  "label_en": "Microsoft Xbox",
+  "type": "console",
+  "weight": 75,
+  "cond": {
+   "hostname": "xbox"
+  }
+ },
+ {
+  "key": "printer-mdns",
+  "label": "Netzwerkdrucker",
+  "label_en": "Network printer",
+  "type": "printer",
+  "weight": 80,
+  "cond": {
+   "mdns": "_ipp|_printer|_pdl-datastream"
+  }
+ },
+ {
+  "key": "printer-port",
+  "label": "Netzwerkdrucker",
+  "label_en": "Network printer",
+  "type": "printer",
+  "weight": 65,
+  "cond": {
+   "ports": [
+    9100
+   ]
+  }
+ },
+ {
+  "key": "ipp-port",
+  "label": "Drucker oder Computer mit Druckdienst (IPP)",
+  "label_en": "Printer or computer with print service (IPP)",
+  "type": "printer",
+  "weight": 32,
+  "cond": {
+   "ports": [
+    631
+   ]
+  }
+ },
+ {
+  "key": "printer-vendor",
+  "label": "Drucker",
+  "label_en": "Printer",
+  "type": "printer",
+  "weight": 45,
+  "cond": {
+   "vendor": "brother|seiko epson|canon|hewlett|hp inc|kyocera|lexmark"
+  }
+ },
+ {
+  "key": "camera-rtsp",
+  "label": "Kamera (RTSP-Stream)",
+  "label_en": "Camera (RTSP stream)",
+  "type": "camera",
+  "weight": 55,
+  "cond": {
+   "ports": [
+    554
+   ]
+  }
+ },
+ {
+  "key": "camera-vendor",
+  "label": "IP-Kamera",
+  "label_en": "IP camera",
+  "type": "camera",
+  "weight": 85,
+  "cond": {
+   "vendor": "hikvision|dahua|reolink|axis comm|amcrest|wyze|ezviz|foscam"
+  }
+ },
+ {
+  "key": "windows",
+  "label": "Windows-PC",
+  "label_en": "Windows PC",
+  "type": "computer",
+  "weight": 60,
+  "cond": {
+   "hostname": "^desktop-|^laptop-|^win-"
+  }
+ },
+ {
+  "key": "smb",
+  "label": "Computer oder NAS mit Dateifreigabe",
+  "label_en": "Computer or NAS with file sharing",
+  "type": "computer",
+  "weight": 35,
+  "cond": {
+   "ports": [
+    445
+   ]
+  }
+ },
+ {
+  "key": "intel-nic",
+  "label": "Computer (Intel-Netzwerkkarte)",
+  "label_en": "Computer (Intel network card)",
+  "type": "computer",
+  "weight": 30,
+  "cond": {
+   "vendor": "^intel"
+  }
+ },
+ {
+  "key": "wifi-module",
+  "label": "Laptop oder Mobilgerät (WLAN-Modul)",
+  "label_en": "Laptop or mobile device (Wi-Fi module)",
+  "type": "laptop",
+  "weight": 25,
+  "cond": {
+   "vendor": "azurewave|liteon|murata|universal global|hon hai|chongqing fugui"
+  }
+ },
+ {
+  "key": "amazon-echo-ports",
+  "label": "Amazon Echo (Alexa)",
+  "label_en": "Amazon Echo (Alexa)",
+  "type": "speaker",
+  "weight": 78,
+  "cond": {
+   "vendor": "amazon",
+   "any_ports": [
+    55442,
+    55443,
+    4070
+   ]
+  }
+ },
+ {
+  "key": "asus-ebm68",
+  "label": "ASUS ExpertWiFi EBM68",
+  "label_en": "ASUS ExpertWiFi EBM68",
+  "type": "mesh",
+  "weight": 92,
+  "cond": {
+   "ssdp": "ebm68"
+  }
+ },
+ {
+  "key": "asus-expertwifi-mdns",
+  "label": "ASUS ExpertWiFi",
+  "label_en": "ASUS ExpertWiFi",
+  "type": "mesh",
+  "weight": 88,
+  "cond": {
+   "mdns": "_expertwifi"
+  }
+ },
+ {
+  "key": "shelly-http",
+  "label": "Shelly",
+  "label_en": "Shelly",
+  "type": "iot",
+  "weight": 90,
+  "cond": {
+   "http": "shelly"
+  }
+ },
+ {
+  "key": "reolink-http",
+  "label": "Reolink-Kamera",
+  "label_en": "Reolink camera",
+  "type": "camera",
+  "weight": 90,
+  "cond": {
+   "http": "reolink"
+  }
+ },
+ {
+  "key": "slzb",
+  "label": "Zigbee-Koordinator (SMLIGHT SLZB)",
+  "label_en": "Zigbee coordinator (SMLIGHT SLZB)",
+  "type": "iot",
+  "weight": 90,
+  "cond": {
+   "mdns": "slzb"
+  }
+ },
+ {
+  "key": "ai-on-the-edge",
+  "label": "Zählerauslesung (AI on the edge, ESP32-CAM)",
+  "label_en": "Meter reader (AI on the edge, ESP32-CAM)",
+  "type": "iot",
+  "weight": 90,
+  "cond": {
+   "http": "ai on the edge"
+  }
+ },
+ {
+  "key": "matter",
+  "label": "Matter-Gerät",
+  "label_en": "Matter device",
+  "type": "iot",
+  "weight": 45,
+  "cond": {
+   "mdns": "_matter"
+  }
+ },
+ {
+  "key": "windows-dosvc",
+  "label": "Windows-PC",
+  "label_en": "Windows PC",
+  "type": "computer",
+  "weight": 65,
+  "cond": {
+   "mdns": "_dosvc"
+  }
+ },
+ {
+  "key": "proxmox-server",
+  "label": "Proxmox VE",
+  "label_en": "Proxmox VE",
+  "type": "hypervisor",
+  "weight": 95,
+  "cond": {
+   "http": "pve-api-daemon"
+  }
+ },
+ {
+  "key": "homeassistant-http",
+  "label": "Home Assistant",
+  "label_en": "Home Assistant",
+  "type": "server",
+  "weight": 93,
+  "cond": {
+   "http": "home assistant"
+  }
+ },
+ {
+  "key": "esphome-builder",
+  "label": "Home Assistant (ESPHome Builder)",
+  "label_en": "Home Assistant (ESPHome Builder)",
+  "type": "server",
+  "weight": 91,
+  "cond": {
+   "mdns": "_esphomebuilder"
+  }
+ },
+ {
+  "key": "trilium",
+  "label": "Trilium Notes (Server)",
+  "label_en": "Trilium Notes (server)",
+  "type": "server",
+  "weight": 85,
+  "cond": {
+   "http": "trilium"
+  }
+ },
+ {
+  "key": "panelatlas",
+  "label": "PanelAtlas (Server)",
+  "label_en": "PanelAtlas (server)",
+  "type": "server",
+  "weight": 85,
+  "cond": {
+   "http": "panelatlas"
+  }
+ },
+ {
+  "key": "diktyo",
+  "label": "díktyo (Server)",
+  "label_en": "díktyo (server)",
+  "type": "server",
+  "weight": 85,
+  "cond": {
+   "http": "díktyo|diktyo"
+  }
+ },
+ {
+  "key": "netbox",
+  "label": "NetBox (Server)",
+  "label_en": "NetBox (server)",
+  "type": "server",
+  "weight": 85,
+  "cond": {
+   "http": "netbox"
+  }
+ },
+ {
+  "key": "ring",
+  "label": "Ring (Türklingel oder Kamera)",
+  "label_en": "Ring (doorbell or camera)",
+  "type": "camera",
+  "weight": 82,
+  "cond": {
+   "vendor": "\\bring\\b"
+  }
+ },
+ {
+  "key": "ring-host",
+  "label": "Ring (Türklingel oder Kamera)",
+  "label_en": "Ring (doorbell or camera)",
+  "type": "camera",
+  "weight": 82,
+  "cond": {
+   "hostname": "^ring-"
+  }
+ },
+ {
+  "key": "switchbot",
+  "label": "SwitchBot Hub",
+  "label_en": "SwitchBot hub",
+  "type": "iot",
+  "weight": 86,
+  "cond": {
+   "hostname": "switchbot"
+  }
+ },
+ {
+  "key": "smart-plug",
+  "label": "Smarte Steckdose",
+  "label_en": "Smart plug",
+  "type": "iot",
+  "weight": 72,
+  "cond": {
+   "hostname": "steckdose|plug|socket|outlet"
+  }
+ },
+ {
+  "key": "esphome-host",
+  "label": "ESPHome-Gerät",
+  "label_en": "ESPHome device",
+  "type": "iot",
+  "weight": 84,
+  "cond": {
+   "hostname": "esphome|bluetooth-proxy|esp32-|esp8266-"
+  }
+ },
+ {
+  "key": "asus-8443",
+  "label": "ASUS Router / Mesh-Knoten",
+  "label_en": "ASUS router / mesh node",
+  "type": "mesh",
+  "weight": 75,
+  "cond": {
+   "vendor": "asustek",
+   "ports": [
+    8443
+   ]
+  }
+ },
+ {
+  "key": "iot-module",
+  "label": "Wahrscheinlich ein IoT-Gerät (WLAN-Modul eines Zulieferers)",
+  "label_en": "Probably an IoT device (Wi-Fi module from a supplier)",
+  "type": "iot",
+  "weight": 25,
+  "cond": {
+   "vendor": "fn-link|hui zhou|gsd viet|ampak|shenzhen|hangzhou|lwip|beken|bouffalo|realtek|mediatek|silicon labs|texas instruments|ti\\b|cyx|china dragon|qingdao"
+  }
+ },
+ {
+  "key": "android-tv",
+  "label": "Android TV / Google TV",
+  "label_en": "Android TV / Google TV",
+  "type": "tv",
+  "weight": 70,
+  "cond": {
+   "ssdp": "android",
+   "any_ports": [
+    8009
+   ]
+  }
+ }
+]

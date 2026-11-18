@@ -6,9 +6,10 @@ to be a slim, self-hosted alternative to NetBox for private users. It runs as a 
 file, either in a Proxmox LXC or in a Docker container, and is managed in the browser. The interface is available
 in German and English.
 
-> **Status: early development (v0.2, milestone M1).** Accounts, profiles, devices with ports and connections, IPAM,
-> the device catalog, PDF/CSV output and backups work. Network scan, topology view and integrations (FRITZ!Box,
-> SNMP, ASUS, Proxmox, Home Assistant) follow – see [docs/architecture.md](docs/architecture.md) for the plan.
+> **Status: early development (v0.3, milestone M2).** Accounts, profiles, devices with ports and connections, IPAM,
+> the device catalog, PDF/CSV output, backups and the network scan with device identification work. Topology view
+> and integrations (FRITZ!Box, SNMP, ASUS, Proxmox, Home Assistant) follow – see
+> [docs/architecture.md](docs/architecture.md) for the plan.
 
 ## Installation
 
@@ -64,7 +65,8 @@ On any other Debian or Ubuntu machine (VM, bare metal), run `bash install/setup.
 |---|---|
 | Program | `/opt/diktyo` |
 | Data (database, key) | `/var/lib/diktyo` |
-| Service | `systemctl status diktyo`, logs: `journalctl -u diktyo` |
+| Services | web app `diktyo`, background service (network scan) `diktyo-worker`: `systemctl status diktyo diktyo-worker` |
+| Logs | `journalctl -u diktyo -u diktyo-worker` |
 | Command line | `diktyo --help` (inside the container) |
 | Shell in the container | on the host: `pct enter <CTID>` |
 
@@ -79,7 +81,8 @@ docker compose up -d --build
 ```
 
 The container uses the **host network** so that the network scan sees the LAN directly; the port is set with
-`DIKTYO_PORT` in `docker-compose.yml`. All data lives in the named volume `diktyo-data`.
+`DIKTYO_PORT` in `docker-compose.yml`. All data lives in the named volume `diktyo-data`. Web app and background
+service (network scan) run in the same container; nmap's operating-system detection is not available in Docker.
 
 | Task | Command |
 |---|---|
@@ -120,6 +123,39 @@ Each profile has the tabs **Devices**, **IPAM**, **Locations**, **Output** and *
   static use vs. inside the DHCP pool). Notes point out duplicate IPs or MACs, static IPs inside the DHCP range,
   addresses outside every subnet and overlapping subnets.
 - **Locations:** a tree such as house › ground floor › office.
+
+## Network scan and identification
+
+The tab **Network scan** finds the devices in the network; new ones land in the **Inbox** with a guess of what
+they are, for example "Amazon Echo (Alexa) · 78 %" with the reasons (manufacturer of the MAC address, open ports,
+mDNS services, UPnP model, title of the web interface, DNS name). Accept them into the device list (directly or
+after editing), or ignore them; ignored devices are recognised in later scans and not reported again. Known devices
+are matched by MAC address (otherwise by IP); the scan only fills in empty fields and never overwrites manual
+entries. A changed DHCP address is updated, static addresses stay untouched.
+
+| Mode | What happens |
+|---|---|
+| Passive | reads the ARP table, asks mDNS/Bonjour and UPnP, resolves DNS names; no pings, no port probes |
+| Light | adds ping and about 20 common TCP ports per address, reads the title of web interfaces |
+| Full (default) | adds about 60 ports, NetBIOS names and service detection with nmap; takes a few minutes for a /24 |
+
+- **Networks:** without a selection, the IPv4 subnets from IPAM are scanned, otherwise the networks of the
+  container's own interfaces (one per VLAN, see installation). Networks that are not in IPAM yet are created, so a
+  first scan can initialise an empty profile. At most /20 per network.
+- **Exclusions:** addresses or networks that are never probed actively, for example sensitive older cameras.
+- **Schedule:** manually, hourly, every 6/12 hours, daily or weekly. Every scan updates online/offline and the
+  status history of the devices (shown in the device dialog).
+- **Identification rules** live in the catalog (tab "Detection rules") as data: conditions on manufacturer,
+  hostname, mDNS, UPnP, web interface, open ports and random MAC addresses, each with a weight. Administrators can
+  add and edit rules or import/export them as CSV. A catalog model is suggested when the model name appears in the
+  UPnP data or the web interface (for example "ExpertWiFi_EBM68" → ASUS ExpertWiFi EBM68 with its ports).
+- **Manufacturer list:** the IEEE OUI lists are downloaded at runtime (not shipped in the repository) and renewed
+  every 30 days; Settings → Detection shows the state.
+- **Fingerbank** (optional, external): with a free API key (Settings → Detection) and switched on per profile,
+  MAC address and hostname of unknown devices are sent to fingerbank.org for a better guess.
+- **Privileges:** discovery needs no root rights (ping and TCP connections fill the kernel's ARP table). Only the
+  operating-system detection of nmap needs `CAP_NET_RAW`; in the LXC the background service gets it, in Docker it
+  stays off.
 
 ## Catalog
 

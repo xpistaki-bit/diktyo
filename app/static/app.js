@@ -77,7 +77,7 @@ async function route() {
     if (p[0] === 'reset' && p[1]) return viewReset(p[1]);
     if (!STATE.user) { crumbs([]); return STATE.first_run ? (p[0] === 'wiederherstellen' ? viewRestore() : viewSetup()) : viewLogin(p[0] === 'registrieren' ? 'register' : p[0] === 'vergessen' ? 'forgot' : 'login'); }
     if (p[0] === 'p' && p[1]) await viewProfile(+p[1], p[2] || 'geraete');
-    else if (p[0] === 'katalog') await viewCatalog();
+    else if (p[0] === 'katalog') await (p[1] === 'regeln' ? viewRules() : viewCatalog());
     else if (p[0] === 'einstellungen') await viewSettings();
     else await viewProfiles();
   } catch (e) {
@@ -213,7 +213,7 @@ function profileDialog(title, p, ok, save) {
     { ok, onOk: f => save(fd(f)) });
 }
 
-const TABS = [['geraete', 'Geräte'], ['ipam', 'IPAM'], ['standorte', 'Standorte'], ['ausgabe', 'Ausgabe'], ['freigabe', 'Freigabe']];
+const TABS = [['geraete', 'Geräte'], ['posteingang', 'Posteingang'], ['netzscan', 'Netzscan'], ['ipam', 'IPAM'], ['standorte', 'Standorte'], ['ausgabe', 'Ausgabe'], ['freigabe', 'Freigabe']];
 async function viewProfile(pid, tab) {
   if (!TABS.some(x => x[0] === tab)) tab = 'geraete';
   const r = await api('GET', `/api/profiles/${pid}`);
@@ -226,7 +226,7 @@ async function viewProfile(pid, tab) {
         ${canEdit ? `<button class="sm" data-edit>${t('Bearbeiten')}</button>` : ''}
         ${isOwner ? `<button class="sm danger" data-del>${t('Löschen')}</button>` : ''}</div>
     </div>
-    <nav class="tabs">${TABS.map(([k, n]) => `<a href="#/p/${pid}/${k}" class="${k === tab ? 'on' : ''}">${t(n)}</a>`).join('')}</nav>
+    <nav class="tabs">${TABS.map(([k, n]) => `<a href="#/p/${pid}/${k}" class="${k === tab ? 'on' : ''}">${t(n)}${k === 'posteingang' && r.inbox ? ` <span class="count">${r.inbox}</span>` : ''}</a>`).join('')}</nav>
     <div id="tab"></div></div>`;
   const ed = $('[data-edit]', app);
   if (ed) ed.onclick = async () => { if (await profileDialog(t('Profil bearbeiten'), p, t('Speichern'), v => api('PUT', `/api/profiles/${pid}`, v))) viewProfile(pid, tab); };
@@ -308,6 +308,7 @@ async function viewSettings() {
       <label>${t('Adresse der Weboberfläche (für Links in E-Mails, optional)')}</label><input name="app_url" value="${h(smtp.app_url || '')}" placeholder="http://192.168.178.50:8090">
       <div class="row" style="margin-top:14px"><button class="pri">${t('Speichern')}</button><button type="button" data-test ${smtp.host ? '' : 'disabled'}>${t('Testmail an mich senden')}</button></div>
     </form>
+    <h2>${t('Erkennung')}</h2><div id="detection"></div>
     <h2>${t('Sicherung')}</h2><div id="backup"></div>` : ''}
   </div>`;
 
@@ -348,7 +349,28 @@ async function viewSettings() {
   $('[data-test]', app).onclick = async () => {
     try { const r = await api('POST', '/api/settings/smtp/test'); toast(t('Testmail an {e} gesendet', { e: r.to })); } catch (e) { toast(e.message, true); }
   };
+  await renderDetection($('#detection'));
   await renderBackup($('#backup'));
+}
+
+async function renderDetection(el) {
+  const r = await api('GET', '/api/settings/detection');
+  el.innerHTML = `<form class="panel stack" id="det">
+    <div class="grid2">
+      <div><label>${t('Fingerbank-API-Schlüssel (optional)')}</label><input name="fingerbank_key" type="password" autocomplete="off" value="${h(r.fingerbank_key)}">
+        <small class="muted">${t('Kostenlos auf fingerbank.org. Wird nur genutzt, wenn er in einem Profil unter Netzscan eingeschaltet ist; dann gehen MAC-Adresse und Hostname an fingerbank.org.')}</small></div>
+      <div><label>${t('Herstellerliste (IEEE)')}</label><p style="margin:4px 0">${r.oui.entries ? t('{n} Einträge, Stand {d}', { n: r.oui.entries.toLocaleString(), d: h(r.oui.updated) }) : t('noch nicht geladen')}</p>
+        <button type="button" class="sm" id="ouiup">${t('Jetzt aktualisieren')}</button>
+        <small class="muted block">${t('Wird zur Laufzeit von der IEEE geladen und alle 30 Tage erneuert.')}</small></div>
+    </div>
+    <p class="muted small" style="margin:0">${t('Hintergrunddienst')}: ${r.worker.running ? `<span class="okc">${t('läuft')}</span>` : `<span class="offc">${t('läuft nicht')}</span>`} · nmap: ${r.worker.nmap ? t('ja') : t('nein')} · ${t('Betriebssystem-Erkennung')}: ${r.worker.raw ? t('ja') : t('nein')}</p>
+    <div class="row"><button class="pri">${t('Speichern')}</button></div></form>`;
+  $('#det', el).onsubmit = async ev => { ev.preventDefault(); try { await api('PUT', '/api/settings/detection', fd(ev.target)); toast(t('gespeichert')); renderDetection(el); } catch (e) { toast(e.message, true); } };
+  $('#ouiup', el).onclick = async ev => {
+    ev.target.disabled = true;
+    try { const x = await api('POST', '/api/settings/oui/update'); toast(t('{n} Einträge geladen', { n: x.entries.toLocaleString() })); renderDetection(el); }
+    catch (e) { toast(e.message, true); ev.target.disabled = false; }
+  };
 }
 
 /* Sicherung: Ziele wie bei PanelAtlas (Ordner/NAS, WebDAV, rclone), tägliche Sicherung, Passphrase für Zugangsdaten */

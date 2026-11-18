@@ -15,7 +15,7 @@ async function viewCatalog() {
   const admin = STATE.user.is_admin;
   const f = viewCatalog.f;
   const mans = [...new Set(models.map(m => m.manufacturer))].sort(cmp);
-  app.innerHTML = `<div class="page wide"><h1>${t('Katalog')}</h1>
+  app.innerHTML = `<div class="page wide"><h1>${t('Katalog')}</h1>${catalogTabs('geraete')}
     <p class="sub">${t('Gängige Geräte mit ihren Ports. Ein Katalogmodell legt beim Gerät die Ports an; die Angaben lassen sich je Gerät anpassen. Einträge des Startkatalogs sind nach Herstellerangaben erfasst, aber nicht einzeln geprüft.')}</p>
     <div class="toolbar"><input type="search" id="q" placeholder="${t('Suchen …')}" value="${h(f.q)}">
       <select id="ft"><option value="">${t('Alle Typen')}</option>${TYPE_KEYS.filter(k => models.some(m => m.type === k)).map(k => `<option value="${k}" ${f.type === k ? 'selected' : ''}>${catType(k)}</option>`).join('')}</select>
@@ -93,4 +93,82 @@ async function catalogDialog(m) {
     },
   });
   if (r) { toast(t('gespeichert')); viewCatalog(); }
+}
+
+/* ---------------------------------------------------------------- Erkennungsregeln */
+const RULE_FIELDS = [['vendor', 'Hersteller (MAC)'], ['hostname', 'Hostname'], ['mdns', 'mDNS'], ['ssdp', 'UPnP'], ['http', 'Weboberfläche']];
+function catalogTabs(active) {
+  return `<nav class="tabs"><a href="#/katalog" class="${active === 'geraete' ? 'on' : ''}">${t('Geräte')}</a><a href="#/katalog/regeln" class="${active === 'regeln' ? 'on' : ''}">${t('Erkennungsregeln')}</a></nav>`;
+}
+const condText = c => [...RULE_FIELDS.filter(([k]) => c[k]).map(([k, n]) => `${t(n)} ~ ${c[k]}`), c.ports ? t('Ports {p} offen', { p: c.ports.join('+') }) : '',
+  c.any_ports ? t('einer der Ports {p} offen', { p: c.any_ports.join('/') }) : '', c.random ? t('zufällige MAC') : ''].filter(Boolean).join(' · ');
+
+async function viewRules() {
+  crumbs([[t('Katalog'), '#/katalog'], [t('Erkennungsregeln')]]);
+  const { rules } = await api('GET', '/api/rules');
+  const admin = STATE.user.is_admin;
+  const f = viewRules.f;
+  app.innerHTML = `<div class="page wide"><h1>${t('Katalog')}</h1>${catalogTabs('regeln')}
+    <p class="sub">${t('Regeln, mit denen der Netzscan unbekannte Geräte einordnet. Eine Regel trifft zu, wenn alle ihre Bedingungen zutreffen (reguläre Ausdrücke, Groß-/Kleinschreibung egal); die Regel mit dem höchsten Gewicht gewinnt.')}</p>
+    <div class="toolbar"><input type="search" id="q" placeholder="${t('Suchen …')}" value="${h(f.q)}"><span class="grow"></span><span class="muted" id="cnt"></span>
+      <a class="btn sm" href="/api/rules/export.csv">${t('CSV exportieren')}</a>
+      ${admin ? `<button class="sm" id="imp">${t('CSV importieren')}</button><button class="pri" id="add">${t('+ Eigene Regel')}</button>` : ''}</div>
+    <div id="list"></div><input type="file" id="file" accept=".csv,text/csv" hidden></div>`;
+  const cols = [
+    { k: 'label', label: t('Erkannt als'), html: r => `<b>${h(LANG === 'en' ? r.label_en || r.label : r.label)}</b>` },
+    { k: 'type', label: t('Typ'), val: r => catType(r.type), html: r => h(catType(r.type)) },
+    { k: 'cond', label: t('Bedingungen'), cls: 'small', val: r => condText(r.cond), html: r => `<span class="mono">${h(condText(r.cond))}</span>` },
+    { k: 'weight', label: t('Gewicht'), cls: 'mono' },
+    { k: 'custom', label: t('Status'), val: r => r.custom ? 0 : 1, html: r => r.custom ? `<span class="badge owner">${t('eigen')}</span>` : `<span class="badge">${t('Standard')}</span>` },
+  ];
+  const draw = () => {
+    const q = f.q.trim().toLowerCase();
+    const rows = rules.filter(r => !q || [r.label, r.label_en, r.type, condText(r.cond)].join(' ').toLowerCase().includes(q));
+    $('#cnt').textContent = t('{n} Einträge', { n: rows.length });
+    sortTable($('#list'), cols, rows, { key: 'rules', initial: { k: 'weight', dir: -1 }, onRow: admin ? r => ruleDialog(r) : null });
+  };
+  $('#q').oninput = e => { f.q = e.target.value; draw(); };
+  if (admin) {
+    $('#add').onclick = () => ruleDialog(null);
+    $('#imp').onclick = () => $('#file').click();
+    $('#file').onchange = async ev => {
+      const file = ev.target.files[0]; if (!file) return;
+      const fdata = new FormData(); fdata.append('file', file);
+      try {
+        const r = await api('POST', '/api/rules/import/csv', fdata);
+        await dialog(t('CSV-Import'), `<p>${t('{n} neu, {u} aktualisiert.', { n: r.new, u: r.updated })}</p>${r.errors.length ? `<ul>${r.errors.map(e => `<li>${h(e)}</li>`).join('')}</ul>` : ''}`, { ok: null });
+        viewRules();
+      } catch (e) { toast(e.message, true); }
+    };
+  }
+  draw();
+}
+viewRules.f = { q: '' };
+
+async function ruleDialog(r) {
+  r = r || { label: '', label_en: '', type: 'iot', weight: 70, cond: {} };
+  const c = r.cond;
+  const res = await dialog(r.id ? t('Regel bearbeiten') : t('Eigene Regel'), `
+    ${r.id ? `<div class="dlg-actions"><button type="button" class="sm danger" data-del>${t('Löschen')}</button></div>` : ''}
+    <div class="grid2">
+      <div><label>${t('Erkannt als (Deutsch)')}</label><input name="label" required value="${h(r.label)}" placeholder="${t('z. B. Saugroboter')}"></div>
+      <div><label>${t('Erkannt als (Englisch)')}</label><input name="label_en" value="${h(r.label_en)}"></div>
+      <div><label>${t('Typ')}</label><select name="type">${TYPE_KEYS.map(k => `<option value="${k}" ${k === r.type ? 'selected' : ''}>${catType(k)}</option>`).join('')}</select></div>
+      <div><label>${t('Gewicht (1–99)')}</label><input name="weight" type="number" min="1" max="99" value="${h(r.weight)}"></div>
+    </div>
+    <h4>${t('Bedingungen (alle müssen zutreffen)')}</h4>
+    <div class="grid2">${RULE_FIELDS.map(([k, n]) => `<div><label>${t(n)}</label><input name="${k}" class="mono" value="${h(c[k] || '')}" placeholder="${k === 'vendor' ? 'roborock|dreame' : ''}"></div>`).join('')}
+      <div><label>${t('Alle diese Ports offen')}</label><input name="ports" class="mono" value="${h((c.ports || []).join(', '))}" placeholder="8123"></div>
+      <div><label>${t('Einer dieser Ports offen')}</label><input name="any_ports" class="mono" value="${h((c.any_ports || []).join(', '))}" placeholder="9100, 631"></div>
+      <div><label>&nbsp;</label><label class="chk"><input type="checkbox" name="random" ${c.random ? 'checked' : ''}> ${t('zufällige MAC-Adresse')}</label></div></div>
+    <p class="muted small">${t('Reguläre Ausdrücke, z. B. „echo|alexa“. Leere Felder werden nicht geprüft.')}</p>
+    ${r.id && !r.custom ? `<p class="muted small">${t('Standardregel. Nach dem Speichern gilt sie als eigene Regel und wird bei Updates nicht mehr überschrieben.')}</p>` : ''}`, {
+    wide: true,
+    onOpen: (f, close) => {
+      const d = $('[data-del]', f);
+      if (d) d.onclick = async () => { close(null); if (await confirmDlg(t('Regel löschen'), t('„{n}“ löschen?', { n: h(r.label) }), t('Löschen'))) { await api('DELETE', `/api/rules/${r.id}`); viewRules(); } };
+    },
+    onOk: f => { const v = fd(f); v.random = !!v.random; return r.id ? api('PUT', `/api/rules/${r.id}`, v) : api('POST', '/api/rules', v); },
+  });
+  if (res) { toast(t('gespeichert')); viewRules(); }
 }

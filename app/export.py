@@ -52,7 +52,7 @@ def devices_csv(c, pid, lang="de"):
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")
     w.writerow([tr(k, lang) for k in ("name", "type", "model", "ip", "mac", "hostname", "location", "uplink", "tags", "note")])
-    for d in inventory.list_devices(c, pid):
+    for d in inventory.list_devices(c, pid, "confirmed"):
         w.writerow([d["name"], catalog.type_name(d["type"], lang), _model_text(d), _ips(d), d["mac"], d["hostname"], d["location"],
                     _uplink_text(d, lang), ", ".join(d["tags"]), d["notes"]])
     return "﻿" + buf.getvalue()
@@ -71,7 +71,7 @@ def ips_csv(c, pid, lang="de"):
 # ------------------------------------------------------------ PDF
 def profile_pdf(c, pid, sections=SECTIONS, lang="de"):
     p = c.execute("SELECT * FROM profiles WHERE id=?", (pid,)).fetchone()
-    devs = inventory.list_devices(c, pid)
+    devs = inventory.list_devices(c, pid, "confirmed")
     d = datetime.datetime.now().strftime("%d.%m.%Y %H:%M" if lang == "de" else "%Y-%m-%d %H:%M")
     doc = Doc(p["name"], tr("title", lang) + (" · " + p["description"] if p["description"] else ""), tr("created", lang, d=d), tr("page", lang))
     secs = [s for s in SECTIONS if s in sections]

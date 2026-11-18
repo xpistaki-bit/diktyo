@@ -1,6 +1,7 @@
 """SQLite-Zugriff und versionierte Migrationen (PRAGMA user_version)."""
 import contextlib
 import datetime
+import fcntl
 import json
 import os
 import pathlib
@@ -144,6 +145,52 @@ MIGRATIONS = [
         tagged INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY(interface_id, vlan_id));
     """,
+    # 3: Netzscan, Erkennung, Aufträge für den Hintergrunddienst
+    """
+    ALTER TABLE devices ADD COLUMN online INTEGER;
+    ALTER TABLE devices ADD COLUMN last_seen TEXT;
+    CREATE TABLE jobs(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER REFERENCES profiles(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL,
+        params TEXT NOT NULL DEFAULT '{}',
+        status TEXT NOT NULL DEFAULT 'queued' CHECK(status IN ('queued', 'running', 'done', 'error')),
+        progress INTEGER NOT NULL DEFAULT 0,
+        message TEXT NOT NULL DEFAULT '',
+        result TEXT NOT NULL DEFAULT '{}',
+        user_id INTEGER,
+        created TEXT NOT NULL,
+        started TEXT,
+        finished TEXT);
+    CREATE INDEX jobs_status ON jobs(status);
+    CREATE TABLE observations(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        job_id INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
+        device_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+        ip TEXT NOT NULL DEFAULT '',
+        mac TEXT NOT NULL DEFAULT '',
+        data TEXT NOT NULL DEFAULT '{}',
+        seen TEXT NOT NULL);
+    CREATE INDEX observations_profile ON observations(profile_id, seen);
+    CREATE INDEX observations_device ON observations(device_id);
+    CREATE TABLE status_events(
+        id INTEGER PRIMARY KEY,
+        device_id INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+        ts TEXT NOT NULL,
+        online INTEGER NOT NULL,
+        source TEXT NOT NULL DEFAULT 'scan');
+    CREATE INDEX status_events_device ON status_events(device_id, ts);
+    CREATE TABLE ident_rules(
+        id INTEGER PRIMARY KEY,
+        key TEXT NOT NULL UNIQUE,
+        label TEXT NOT NULL,
+        label_en TEXT NOT NULL DEFAULT '',
+        type TEXT NOT NULL DEFAULT 'other',
+        cond TEXT NOT NULL DEFAULT '{}',
+        weight INTEGER NOT NULL DEFAULT 50,
+        custom INTEGER NOT NULL DEFAULT 0);
+    """,
 ]
 
 
@@ -168,6 +215,13 @@ def db():
 
 
 def migrate():
+    # Web-App und Hintergrunddienst starten gleichzeitig: nur einer darf migrieren.
+    with open(DATA / ".migrate.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        _migrate()
+
+
+def _migrate():
     con = connect()
     try:
         con.execute("PRAGMA journal_mode=WAL")

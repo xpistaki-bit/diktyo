@@ -7,7 +7,8 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import catalog, mailer, routes_backup, routes_catalog, routes_inventory, security, users
+from . import catalog, mailer, routes_backup, routes_catalog, routes_inventory, routes_scan, security, users
+from .scan import ident
 from .auth import (COOKIE, ROLES, client_ip, current_user, lang_of, profile_access, rate_limit, require_admin, require_user,
                    start_session, text, touch)
 from .db import audit, db, get_setting, migrate, now, set_setting
@@ -19,10 +20,13 @@ CSRF_HEADER = "diktyo"  # Wert des Headers X-Requested-With bei ändernden API-A
 migrate()
 with db() as _c:
     catalog.merge_seed(_c)
+    ident.merge_seed(_c)
 app = FastAPI(title="díktyo", docs_url=None, redoc_url=None)
 app.include_router(routes_inventory.router)
 app.include_router(routes_catalog.router)
+app.include_router(routes_catalog.rules_router)
 app.include_router(routes_backup.router)
+app.include_router(routes_scan.router)
 
 
 def owner_count(c, pid):
@@ -231,7 +235,8 @@ def profile_get(pid: int, user=Depends(require_user)):
     with db() as c:
         p, role = profile_access(c, user, pid)
         member = c.execute("SELECT 1 FROM profile_members WHERE profile_id=? AND user_id=?", (pid, user["id"])).fetchone() is not None
-        return dict(profile=profile_out(p, role, member), members=members_of(c, pid))
+        inbox = c.execute("SELECT COUNT(*) FROM devices WHERE profile_id=? AND status='discovered'", (pid,)).fetchone()[0]
+        return dict(profile=profile_out(p, role, member), members=members_of(c, pid), inbox=inbox)
 
 
 @app.put("/api/profiles/{pid}")
@@ -395,12 +400,18 @@ ERR_EN = {
     "Wiederherstellen ist nur in einer leeren Installation möglich": "Restoring is only possible in an empty installation",
     "Die Backup-Passphrase ist falsch": "The backup passphrase is wrong",
     "Die Backup-Passphrase muss mindestens 8 Zeichen haben": "The backup passphrase must be at least 8 characters long",
+    "Gescannt werden IPv4-Netze": "Only IPv4 networks are scanned", "Für dieses Profil läuft schon ein Scan": "A scan is already running for this profile",
+    "Auftrag nicht gefunden": "Job not found", "Unbekannte Aktion": "Unknown action", "Regel nicht gefunden": "Rule not found",
+    "Bezeichnung und mindestens eine Bedingung sind erforderlich": "Label and at least one condition are required",
 }
 # Meldungen mit Werten: Präfix übersetzen, Rest übernehmen
 ERR_EN_PREFIX = {"Ungültige MAC-Adresse: ": "Invalid MAC address: ", "Ungültige IP-Adresse: ": "Invalid IP address: ",
+                 "Ungültiges Netz: ": "Invalid network: ", "Ungültige Adresse: ": "Invalid address: ",
+                 "Herstellerliste konnte nicht geladen werden: ": "Vendor list could not be loaded: ", "Ungültiger Ausdruck: ": "Invalid expression: ",
                  "Versand fehlgeschlagen: ": "Sending failed: "}
 ERR_EN_RE = [(r"^Port (.+) ist schon mit (.+) belegt$", r"Port \1 is already connected to \2"),
-             (r"^VLAN (\d+) gibt es schon$", r"VLAN \1 already exists")]
+             (r"^VLAN (\d+) gibt es schon$", r"VLAN \1 already exists"),
+             (r"^Netz (.+) ist zu groß zum Scannen \(höchstens /20\)$", r"Network \1 is too large to scan (at most /20)")]
 
 
 def err_response(request, status, detail):
@@ -435,7 +446,7 @@ async def user_err(request, exc):
 def index():
     # Versionsnummer an CSS/JS hängen: nach einem Update lädt der Browser die neuen Dateien statt der zwischengespeicherten.
     html = (BASE / "static" / "index.html").read_text(encoding="utf-8")
-    for f in ("style.css", "i18n.js", "app.js", "inventory.js", "catalog.js"):
+    for f in ("style.css", "i18n.js", "app.js", "inventory.js", "scan.js", "catalog.js"):
         html = html.replace(f'"/{f}"', f'"/{f}?v={VERSION}"')
     return Response(html, media_type="text/html; charset=utf-8", headers={"Cache-Control": "no-cache"})
 

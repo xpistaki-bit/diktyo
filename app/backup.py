@@ -79,6 +79,7 @@ def export_data(c):
         vlans=q("SELECT * FROM vlans"), subnets=q("SELECT * FROM subnets"), ip_addresses=q("SELECT * FROM ip_addresses"),
         port_vlans=q("SELECT * FROM port_vlans"),
         device_models=[m for m in models if m["custom"]],
+        ident_rules=q("SELECT * FROM ident_rules WHERE custom=1"),
         model_keys={str(m["id"]): [m["manufacturer"], m["model"]] for m in models if m["id"] in used_models or m["custom"]},
         settings=_settings_for_export(c, f),
     )
@@ -172,9 +173,17 @@ def _model_map(c, exp):
     return {int(k): have.get(tuple(v)) for k, v in exp.get("model_keys", {}).items()}
 
 
+def _import_rules(c, exp):
+    have = {r["key"] for r in c.execute("SELECT key FROM ident_rules")}
+    for r in exp.get("ident_rules", []):
+        if r["key"] not in have:
+            _insert(c, "ident_rules", dict(r, custom=1))
+
+
 def _import_profiles(c, exp, umap, rename):
     """Importiert alle Profile samt Inhalt. umap: alte Benutzer-ID -> neue ID (oder None)."""
     mmap = _model_map(c, exp)
+    _import_rules(c, exp)
     names = {r["name"] for r in c.execute("SELECT name FROM profiles")}
     pmap, lmap, dmap, imap, vmap = {}, {}, {}, {}, {}
     for p in exp.get("profiles", []):

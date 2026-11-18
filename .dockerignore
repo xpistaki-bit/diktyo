@@ -5,7 +5,8 @@ __pycache__
 venv
 .venv
 .pytest_cache
-install
+install/*.sh
+!install/docker-entrypoint.sh
 tools
 tests
 docs

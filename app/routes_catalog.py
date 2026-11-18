@@ -93,3 +93,134 @@ async def catalog_import(file: UploadFile = File(...), admin=Depends(require_adm
         audit(c, "catalog.import", admin["id"], detail=dict(new=new, updated=upd))
         touch(c)
     return dict(new=new, updated=upd, errors=errs)
+
+
+# ------------------------------------------------------------ Erkennungsregeln
+rules_router = APIRouter(prefix="/api/rules")
+RULE_TEXT = ("vendor", "hostname", "mdns", "ssdp", "http")
+RULE_COLS = ["key", "label", "label_en", "type", "weight", *RULE_TEXT, "ports", "any_ports", "random"]
+
+
+def _rule_out(r):
+    return dict(id=r["id"], key=r["key"], label=r["label"], label_en=r["label_en"], type=r["type"], weight=r["weight"],
+                cond=json.loads(r["cond"] or "{}"), custom=bool(r["custom"]))
+
+
+def _ports(v):
+    if isinstance(v, list):
+        return [int(x) for x in v if str(x).strip().isdigit()]
+    return [int(x) for x in str(v or "").replace(";", ",").split(",") if x.strip().isdigit()]
+
+
+def _rule_body(body):
+    import re as _re
+    cond = {}
+    src = body.get("cond") if isinstance(body.get("cond"), dict) else body
+    for k in RULE_TEXT:
+        v = str(src.get(k) or "").strip()
+        if v:
+            try:
+                _re.compile(v)
+            except _re.error:
+                raise HTTPException(400, f"Ungültiger Ausdruck: {v}")
+            cond[k] = v[:200]
+    for k in ("ports", "any_ports"):
+        p = _ports(src.get(k))
+        if p:
+            cond[k] = p[:20]
+    if str(src.get("random", "")).lower() in ("1", "true", "ja", "yes", "on") or src.get("random") is True:
+        cond["random"] = True
+    label = str(body.get("label") or "").strip()[:120]
+    if not label or not cond:
+        raise HTTPException(400, "Bezeichnung und mindestens eine Bedingung sind erforderlich")
+    typ = body.get("type") if body.get("type") in catalog.TYPES else "other"
+    try:
+        weight = max(1, min(int(body.get("weight") or 50), 99))
+    except ValueError:
+        weight = 50
+    return dict(label=label, label_en=str(body.get("label_en") or "").strip()[:120], type=typ, weight=weight,
+                cond=json.dumps(cond, ensure_ascii=False))
+
+
+@rules_router.get("")
+def rules_list(user=Depends(require_user)):
+    with db() as c:
+        return dict(rules=[_rule_out(r) for r in c.execute("SELECT * FROM ident_rules ORDER BY weight DESC, label")])
+
+
+@rules_router.post("")
+def rule_create(body: dict = Body(...), admin=Depends(require_admin)):
+    import secrets as _s
+    r = _rule_body(body)
+    with db() as c:
+        cur = c.execute("INSERT INTO ident_rules(key, label, label_en, type, weight, cond, custom) VALUES(?,?,?,?,?,?,1)",
+                        ("eigen-" + _s.token_hex(4), r["label"], r["label_en"], r["type"], r["weight"], r["cond"]))
+        touch(c)
+        return _rule_out(c.execute("SELECT * FROM ident_rules WHERE id=?", (cur.lastrowid,)).fetchone())
+
+
+@rules_router.put("/{rid}")
+def rule_update(rid: int, body: dict = Body(...), admin=Depends(require_admin)):
+    r = _rule_body(body)
+    with db() as c:
+        if not c.execute("UPDATE ident_rules SET label=?, label_en=?, type=?, weight=?, cond=?, custom=1 WHERE id=?",
+                         (r["label"], r["label_en"], r["type"], r["weight"], r["cond"], rid)).rowcount:
+            raise HTTPException(404, "Regel nicht gefunden")
+        touch(c)
+        return _rule_out(c.execute("SELECT * FROM ident_rules WHERE id=?", (rid,)).fetchone())
+
+
+@rules_router.delete("/{rid}")
+def rule_delete(rid: int, admin=Depends(require_admin)):
+    with db() as c:
+        if not c.execute("DELETE FROM ident_rules WHERE id=?", (rid,)).rowcount:
+            raise HTTPException(404, "Regel nicht gefunden")
+        touch(c)
+    return dict(ok=True)
+
+
+@rules_router.get("/export.csv")
+def rules_export(user=Depends(require_user)):
+    import csv as _csv
+    import io as _io
+    buf = _io.StringIO()
+    w = _csv.writer(buf, delimiter=";")
+    w.writerow(RULE_COLS)
+    with db() as c:
+        for r in c.execute("SELECT * FROM ident_rules ORDER BY weight DESC, label"):
+            cd = json.loads(r["cond"] or "{}")
+            w.writerow([r["key"], r["label"], r["label_en"], r["type"], r["weight"], *[cd.get(k, "") for k in RULE_TEXT],
+                        ",".join(map(str, cd.get("ports", []))), ",".join(map(str, cd.get("any_ports", []))), "1" if cd.get("random") else ""])
+    return Response("﻿" + buf.getvalue(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="diktyo-erkennungsregeln.csv"'})
+
+
+@rules_router.post("/import/csv")
+async def rules_import(file: UploadFile = File(...), admin=Depends(require_admin)):
+    import csv as _csv
+    import io as _io
+    text = (await file.read()).decode("utf-8-sig", errors="replace")
+    first = text.splitlines()[0] if text.strip() else ""
+    rows = list(_csv.DictReader(_io.StringIO(text), delimiter=";" if first.count(";") >= first.count(",") else ","))
+    new = upd = 0
+    errs = []
+    with db() as c:
+        for n, row in enumerate(rows, start=2):
+            row = {(k or "").strip().lower(): (v or "").strip() for k, v in row.items()}
+            try:
+                r = _rule_body(row)
+            except HTTPException as ex:
+                errs.append(f"Zeile {n}: {ex.detail}")
+                continue
+            key = row.get("key") or ""
+            if key and c.execute("SELECT 1 FROM ident_rules WHERE key=?", (key,)).fetchone():
+                c.execute("UPDATE ident_rules SET label=?, label_en=?, type=?, weight=?, cond=?, custom=1 WHERE key=?",
+                          (r["label"], r["label_en"], r["type"], r["weight"], r["cond"], key))
+                upd += 1
+            else:
+                import secrets as _s
+                c.execute("INSERT INTO ident_rules(key, label, label_en, type, weight, cond, custom) VALUES(?,?,?,?,?,?,1)",
+                          (key or "eigen-" + _s.token_hex(4), r["label"], r["label_en"], r["type"], r["weight"], r["cond"]))
+                new += 1
+        touch(c)
+    return dict(new=new, updated=upd, errors=errs)

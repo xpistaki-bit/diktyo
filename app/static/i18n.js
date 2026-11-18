@@ -130,3 +130,56 @@ Object.assign(window.I18N_EN, {
   'Ohne Passphrase werden Konten und Daten übernommen, gespeicherte Zugangsdaten (z. B. SMTP-Passwort) aber nicht.': 'Without a passphrase, accounts and data are restored but stored credentials (e.g. the SMTP password) are not.',
   'Wiederherstellen': 'Restore', 'Wiederhergestellt: {u} Konten, {p} Profile, {d} Geräte': 'Restored: {u} accounts, {p} profiles, {d} devices',
 });
+
+/* M2: Netzscan, Posteingang, Erkennung */
+Object.assign(window.I18N_EN, {
+  'Posteingang': 'Inbox', 'Netzscan': 'Network scan', 'Erkennung': 'Detection', 'Erkennungsregeln': 'Detection rules', 'Scan': 'Scan', 'Verlauf': 'History',
+  'Start': 'Start', 'Modus': 'Mode', 'Netze': 'Networks', 'Dauer': 'Duration', 'neu': 'new', 'offline': 'offline', 'online': 'online', 'fertig': 'done',
+  'läuft': 'running', 'läuft nicht': 'not running', 'wartet': 'queued', 'geplant': 'scheduled', 'ja': 'yes', 'nein': 'no', 'alle': 'all', 'Oder': 'Or',
+  'Standard': 'default', 'Subnetz': 'subnet', 'Übernehmen': 'Accept', 'Ignorieren': 'Ignore', 'Dienste': 'Services', 'Betriebssystem': 'Operating system',
+  'Passiv': 'Passive', 'Leicht': 'Light', 'Voll': 'Full',
+  'Nur mithören: ARP-Tabelle, mDNS, UPnP, DNS-Namen. Keine Pings, keine Port-Abfragen.': 'Listen only: ARP table, mDNS, UPnP, DNS names. No pings, no port probes.',
+  'Zusätzlich Ping und ca. 20 typische Ports je Adresse, Titel der Weboberflächen.': 'Adds ping and about 20 common ports per address, titles of web interfaces.',
+  'Zusätzlich ca. 60 Ports, NetBIOS-Namen und Diensterkennung mit nmap. Dauert einige Minuten.': 'Adds about 60 ports, NetBIOS names and service detection with nmap. Takes a few minutes.',
+  'nur von Hand': 'manually only', 'stündlich': 'hourly', 'alle 6 Stunden': 'every 6 hours',
+  'Hersteller (MAC): {v}': 'Manufacturer (MAC): {v}', 'Name: {v}': 'Name: {v}', 'mDNS: {v}': 'mDNS: {v}', 'UPnP: {v}': 'UPnP: {v}', 'Weboberfläche: {v}': 'Web interface: {v}',
+  'Port {v} offen': 'port {v} open', 'zufällige MAC-Adresse': 'random MAC address', 'Modell erkannt: {v}': 'model recognised: {v}', 'Fingerbank: {v}': 'Fingerbank: {v}',
+  'dieser Rechner': 'this machine', 'Sicherheit der Vermutung': 'Confidence of the guess', 'gerade eben': 'just now', 'vor {n} min': '{n} min ago', 'vor {n} h': '{n} h ago',
+  'noch nicht geprüft': 'not checked yet', 'zuletzt gesehen': 'last seen', 'Unbekanntes Gerät': 'Unknown device',
+  // Posteingang
+  'Hier landen Geräte, die der Netzscan neu gefunden hat. Übernimm sie in die Geräteliste, bearbeite sie vorher oder ignoriere sie; ignorierte Geräte werden bei späteren Scans wiedererkannt und nicht erneut gemeldet.': 'Devices newly found by the network scan land here. Accept them into the device list, edit them first or ignore them; ignored devices are recognised in later scans and not reported again.',
+  'Auswahl übernehmen': 'Accept selection', 'Auswahl ignorieren': 'Ignore selection', '{n} neue Geräte': '{n} new devices', 'Bitte Geräte auswählen': 'Please select devices',
+  'Keine neuen Geräte.': 'No new devices.', 'Netzscan starten': 'Start network scan', 'Ignorierte Geräte': 'Ignored devices', 'Zurück in den Posteingang': 'Back to inbox',
+  'Noch keine bestätigten Geräte. Im Posteingang warten {n} gefundene Geräte.': 'No confirmed devices yet. {n} discovered devices are waiting in the inbox.',
+  'Zum Posteingang': 'Go to inbox', 'Netz scannen': 'Scan network',
+  'Noch keine Geräte. Lass das Netz scannen oder lege das erste Gerät von Hand an.': 'No devices yet. Scan the network or add the first device by hand.',
+  // Gerätedialog
+  'Erkannt als': 'Recognised as', 'Wechsel': 'Changes', 'Beobachtet beim letzten Scan': 'Observed in the last scan', 'Hersteller (MAC)': 'Manufacturer (MAC)',
+  'DNS-Name': 'DNS name', 'mDNS-Dienste': 'mDNS services', 'Weboberfläche': 'Web interface', 'Offene Ports': 'Open ports',
+  // Netzscan
+  'Der Hintergrunddienst läuft nicht. Scans werden erst ausgeführt, wenn er läuft (LXC: systemctl status diktyo-worker).': 'The background service is not running. Scans run once it is running (LXC: systemctl status diktyo-worker).',
+  'Kein Netz bekannt.': 'No network known.', '+ Netz': '+ Network', 'Schnittstelle {n}': 'interface {n}', 'eigene Angabe': 'custom',
+  'Ohne Auswahl werden die Subnetze aus dem IPAM gescannt, sonst die Netze der eigenen Schnittstellen. Neue Netze werden im IPAM angelegt.': 'Without a selection the IPAM subnets are scanned, otherwise the networks of the own interfaces. New networks are added to IPAM.',
+  'Ausnahmen (nie aktiv abfragen)': 'Exclusions (never probe actively)',
+  'Für empfindliche Geräte, z. B. ältere Kameras. Sie erscheinen trotzdem, wenn sie sich per ARP oder mDNS zeigen.': 'For sensitive devices, e.g. older cameras. They still appear if they show up via ARP or mDNS.',
+  'Automatisch scannen': 'Scan automatically', 'Externe Erkennung': 'External detection', 'Sendet MAC-Adresse und Hostname an fingerbank.org.': 'Sends MAC address and hostname to fingerbank.org.',
+  'API-Schlüssel unter Einstellungen → Erkennung hinterlegen.': 'Enter an API key under Settings → Detection.',
+  'Der Scan findet Geräte, erkennt sie und legt neue im Posteingang ab. Vorhandene Geräte werden aktualisiert; manuelle Angaben bleiben unangetastet.': 'The scan finds devices, identifies them and puts new ones into the inbox. Existing devices are updated; manual entries stay untouched.',
+  'Jetzt scannen': 'Scan now', 'Herstellerliste': 'Vendor list', '{n} Einträge, Stand {d}': '{n} entries, as of {d}', 'wird beim ersten Scan geladen': 'loaded with the first scan',
+  'Betriebssystem-Erkennung': 'OS detection', 'Noch kein Scan.': 'No scan yet.', 'wartet auf den Hintergrunddienst …': 'waiting for the background service …',
+  'Scan fertig: {n} Geräte, {m} neu': 'Scan done: {n} devices, {m} new', 'Scan fehlgeschlagen: {e}': 'Scan failed: {e}',
+  // Einstellungen → Erkennung
+  'Fingerbank-API-Schlüssel (optional)': 'Fingerbank API key (optional)',
+  'Kostenlos auf fingerbank.org. Wird nur genutzt, wenn er in einem Profil unter Netzscan eingeschaltet ist; dann gehen MAC-Adresse und Hostname an fingerbank.org.': 'Free at fingerbank.org. Only used when switched on in a profile under Network scan; MAC address and hostname are then sent to fingerbank.org.',
+  'Herstellerliste (IEEE)': 'Vendor list (IEEE)', 'noch nicht geladen': 'not loaded yet', 'Jetzt aktualisieren': 'Update now',
+  'Wird zur Laufzeit von der IEEE geladen und alle 30 Tage erneuert.': 'Downloaded from the IEEE at runtime and renewed every 30 days.', 'Hintergrunddienst': 'Background service',
+  '{n} Einträge geladen': '{n} entries loaded',
+  // Regeln
+  'Regeln, mit denen der Netzscan unbekannte Geräte einordnet. Eine Regel trifft zu, wenn alle ihre Bedingungen zutreffen (reguläre Ausdrücke, Groß-/Kleinschreibung egal); die Regel mit dem höchsten Gewicht gewinnt.': 'Rules the network scan uses to classify unknown devices. A rule matches when all its conditions match (regular expressions, case-insensitive); the rule with the highest weight wins.',
+  '+ Eigene Regel': '+ Custom rule', 'Eigene Regel': 'Custom rule', 'Regel bearbeiten': 'Edit rule', 'Regel löschen': 'Delete rule', 'Bedingungen': 'Conditions', 'Gewicht': 'Weight',
+  'Erkannt als (Deutsch)': 'Recognised as (German)', 'Erkannt als (Englisch)': 'Recognised as (English)', 'Gewicht (1–99)': 'Weight (1–99)', 'z. B. Saugroboter': 'e.g. robot vacuum',
+  'Bedingungen (alle müssen zutreffen)': 'Conditions (all must match)', 'Alle diese Ports offen': 'All these ports open', 'Einer dieser Ports offen': 'One of these ports open',
+  'Reguläre Ausdrücke, z. B. „echo|alexa“. Leere Felder werden nicht geprüft.': 'Regular expressions, e.g. “echo|alexa”. Empty fields are not checked.',
+  'Standardregel. Nach dem Speichern gilt sie als eigene Regel und wird bei Updates nicht mehr überschrieben.': 'Default rule. After saving it counts as a custom rule and is no longer overwritten by updates.',
+  'Ports {p} offen': 'ports {p} open', 'einer der Ports {p} offen': 'one of ports {p} open', 'zufällige MAC': 'random MAC', '„{n}“ löschen?': 'Delete “{n}”?',
+});

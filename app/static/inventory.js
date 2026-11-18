@@ -62,7 +62,9 @@ const portCount = groups => (groups || []).reduce((n, g) => n + (+g.count || 0),
 /* ---------------------------------------------------------------- Geräte */
 async function tabDevices(ctx) {
   await meta(ctx.pid);
-  const [{ devices }, { locations }] = await Promise.all([api('GET', `/api/profiles/${ctx.pid}/devices`), api('GET', `/api/profiles/${ctx.pid}/locations`)]);
+  const [{ devices: all }, { locations }] = await Promise.all([api('GET', `/api/profiles/${ctx.pid}/devices`), api('GET', `/api/profiles/${ctx.pid}/locations`)]);
+  const devices = all.filter(d => d.status === 'confirmed');
+  const inboxN = all.filter(d => d.status === 'discovered').length;
   const f = tabDevices.filter[ctx.pid] || (tabDevices.filter[ctx.pid] = { q: '', type: '', loc: '' });
   ctx.el.innerHTML = `<div class="toolbar">
       <input type="search" id="q" placeholder="${t('Suchen: Name, IP, MAC, Notiz …')}" value="${h(f.q)}">
@@ -71,7 +73,8 @@ async function tabDevices(ctx) {
       <span class="grow"></span><span class="muted" id="cnt"></span>
       ${ctx.canEdit ? `<button class="pri" id="add">${t('+ Gerät')}</button>` : ''}</div><div id="list"></div>`;
   const cols = [
-    { k: 'name', label: t('Name'), html: d => `<b>${h(d.name)}</b>${d.hostname ? `<small class="muted block mono">${h(d.hostname)}</small>` : ''}` },
+    { k: 'online', label: '', cls: 'dotcol', val: d => d.online == null ? 2 : d.online ? 0 : 1, html: onlineDot },
+    { k: 'name', label: t('Name'), html: d => `<b>${h(d.name)}</b>${d.hostname && d.hostname.toLowerCase() !== d.name.toLowerCase() ? `<small class="muted block mono">${h(d.hostname)}</small>` : ''}` },
     { k: 'type', label: t('Typ'), val: d => typeName(d.type), html: d => h(typeName(d.type)) },
     { k: 'model', label: t('Hersteller / Modell'), val: d => `${d.manufacturer} ${d.model}`, html: d => h(`${d.manufacturer} ${d.model}`.trim()) },
     { k: 'ip', label: t('IP'), cls: 'mono', val: d => d.ips.length ? ipNum(d.ips[0].address) : 1e13, html: d => d.ips.map(i => h(i.address)).join('<br>') },
@@ -86,8 +89,10 @@ async function tabDevices(ctx) {
       && (!q || [d.name, d.hostname, d.mac, d.manufacturer, d.model, d.notes, d.location, ...d.tags, ...d.ips.map(i => i.address), uplinkText(d.uplink)].join(' ').toLowerCase().includes(q)));
     $('#cnt').textContent = rows.length === devices.length ? t('{n} Geräte', { n: devices.length }) : t('{n} von {m} Geräten', { n: rows.length, m: devices.length });
     sortTable($('#list'), cols, rows, {
-      key: 'dev', onRow: d => deviceDialog(ctx, d.id),
-      empty: devices.length ? t('Kein Gerät passt zum Filter.') : t('Noch keine Geräte. Lege das erste an, zum Beispiel deinen Router. Die automatische Erkennung per Netzscan folgt.'),
+      key: 'dev', initial: { k: 'name', dir: 1 }, onRow: d => deviceDialog(ctx, d.id),
+      empty: devices.length ? t('Kein Gerät passt zum Filter.') : inboxN
+        ? t('Noch keine bestätigten Geräte. Im Posteingang warten {n} gefundene Geräte.', { n: inboxN }) + ` <a href="#/p/${ctx.pid}/posteingang">${t('Zum Posteingang')}</a>`
+        : t('Noch keine Geräte. Lass das Netz scannen oder lege das erste Gerät von Hand an.') + ` <a href="#/p/${ctx.pid}/netzscan">${t('Netz scannen')}</a>`,
     });
   };
   $('#q').oninput = e => { f.q = e.target.value; draw(); };
@@ -106,7 +111,7 @@ async function deviceDialog(ctx, did) {
   const dis = ctx.canEdit ? '' : 'disabled';
   const v = d || { name: '', type: 'other', ips: [{ address: '', kind: 'static' }], uplink: null, port_groups: [], tags: [] };
   const up = v.uplink || {};
-  const others = devices.filter(x => x.id !== did).sort((a, b) => cmp(a.name, b.name));
+  const others = devices.filter(x => x.id !== did && x.status === 'confirmed').sort((a, b) => cmp(a.name, b.name));
   const byMan = {};
   models.forEach(m => (byMan[m.manufacturer] = byMan[m.manufacturer] || []).push(m));
   const ipRow = ip => `<div class="iprow"><input data-ip value="${h(ip.address)}" placeholder="192.168.178.10" ${dis}>
@@ -114,6 +119,7 @@ async function deviceDialog(ctx, did) {
       ${dis ? '' : `<button type="button" class="sm" data-rmip title="${t('Entfernen')}">×</button>`}</div>`;
   const html = `
     ${did && ctx.canEdit ? `<div class="dlg-actions"><button type="button" class="sm danger" data-del>${t('Gerät löschen')}</button></div>` : ''}
+    ${d && (d.ident_full || d.seen) ? identBox(d) : ''}
     <div class="grid2">
       <div><label>${t('Name')}</label><input name="name" required maxlength="120" value="${h(v.name)}" ${dis}></div>
       <div><label>${t('Typ')}</label><select name="type" ${dis}>${META.types.map(x => `<option value="${x.key}" ${x.key === v.type ? 'selected' : ''}>${h(x.name)}</option>`).join('')}</select></div>
@@ -152,8 +158,9 @@ async function deviceDialog(ctx, did) {
       ${d.connected.map(k => `<tr><td>${h(k.name)}</td><td>${t(MEDIUM_SHORT[k.medium])}${k.port_name ? ' · ' + t('Port') + ' ' + h(k.port_name) : ''}</td><td class="mono">${h(k.ip)}</td><td class="mono">${h(k.mac)}</td></tr>`).join('')}
       </tbody></table></div>` : ''}`;
 
+  const discovered = d && d.status === 'discovered';
   const res = await dialog(did ? v.name : t('Neues Gerät'), html, {
-    wide: true, ok: ctx.canEdit ? t('Speichern') : null,
+    wide: true, ok: ctx.canEdit ? (discovered ? t('Übernehmen') : t('Speichern')) : null,
     onOpen: (f, close) => {
       const sel = n => $(`[name=${n}]`, f);
       const pc = () => { const n = portCount(readPorts($('#pe', f))); $('#pcount', f).textContent = n ? `(${n})` : ''; };
@@ -204,10 +211,27 @@ async function deviceDialog(ctx, did) {
         uplink: x.medium && x.up_device ? { medium: x.medium, device_id: +x.up_device, port_id: x.medium === 'lan' && x.up_port ? +x.up_port : null,
           local_port_id: x.medium === 'lan' && x.local_port ? +x.local_port : null } : null,
       };
+      if (discovered) body.status = 'confirmed';
       return did ? api('PUT', `${P}/devices/${did}`, body) : api('POST', `${P}/devices`, body);
     },
   });
   if (res) { toast(t('gespeichert')); ctx.reload(); }
+}
+
+function identBox(d) {
+  const i = d.ident_full, s = d.seen || {};
+  const rows = [
+    [t('Hersteller (MAC)'), s.vendor], [t('DNS-Name'), s.hostname], [t('NetBIOS'), s.netbios], [t('mDNS'), (s.mdns_names || []).join(', ')],
+    [t('mDNS-Dienste'), (s.mdns_services || []).join(', ')], [t('UPnP'), [s.ssdp_name, s.ssdp_model].filter(Boolean).join(' · ')],
+    [t('Weboberfläche'), [s.http_title, s.http_server].filter(Boolean).join(' · ')], [t('Offene Ports'), (s.ports || []).join(', ')],
+    [t('Dienste'), Object.entries(s.services || {}).map(([p, v]) => `${p}: ${v}`).join(' · ')], [t('Betriebssystem'), s.os],
+  ].filter(r => r[1]);
+  return `<div class="identbox">
+    ${i && identLabel(i) ? `<div class="row"><b>${t('Erkannt als')}: ${h(identLabel(i))}</b> ${confBar(i.confidence || 0)}</div><div class="reasons">${reasonsHtml(i)}</div>` : ''}
+    <div class="row small muted" style="margin-top:6px">${onlineDot(d)} ${d.online ? t('online') : d.online === 0 ? t('offline') : t('noch nicht geprüft')}${d.last_seen ? ' · ' + t('zuletzt gesehen') + ' ' + h(fmtDate(d.last_seen)) : ''}
+      ${d.events && d.events.length > 1 ? ' · ' + t('Wechsel') + ': ' + d.events.slice(0, 5).map(e => `<span class="${e.online ? 'okc' : 'offc'}">${e.online ? '▲' : '▼'} ${h(fmtDate(e.ts))}</span>`).join(' ') : ''}</div>
+    ${rows.length ? `<details><summary>${t('Beobachtet beim letzten Scan')}</summary><table class="compact kvt">${rows.map(([k, v]) => `<tr><th>${h(k)}</th><td>${h(v)}</td></tr>`).join('')}</table></details>` : ''}
+  </div>`;
 }
 
 /* ---------------------------------------------------------------- IPAM */

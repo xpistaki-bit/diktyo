@@ -165,6 +165,8 @@ def save_device(c, pid, body, did=None):
     if did:
         c.execute("""UPDATE devices SET name=?, type=?, model_id=?, manufacturer=?, model=?, location_id=?, hostname=?, notes=?,
                      tags=?, data=?, updated=? WHERE id=?""", vals + (did,))
+        if body.get("status") in ("confirmed", "discovered", "ignored"):
+            c.execute("UPDATE devices SET status=? WHERE id=?", (body["status"], did))
     else:
         cur = c.execute("""INSERT INTO devices(name, type, model_id, manufacturer, model, location_id, hostname, notes, tags, data, updated,
                            profile_id, status, created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
@@ -218,7 +220,14 @@ def _links_by_device(c, pid):
     return uplinks, children, port_peer
 
 
-def list_devices(c, pid):
+def _ident_short(data):
+    i = json.loads(data or "{}").get("ident")
+    if not i:
+        return None
+    return {k: i.get(k) for k in ("label", "label_en", "type", "confidence", "reasons", "vendor", "random", "model", "manufacturer", "also")}
+
+
+def list_devices(c, pid, status=None):
     locs = location_paths(c, pid)
     nics = {r["device_id"]: r for r in c.execute(
         "SELECT i.* FROM interfaces i JOIN devices d ON d.id=i.device_id WHERE d.profile_id=? AND i.role='nic' ORDER BY i.id DESC", (pid,))}
@@ -231,6 +240,8 @@ def list_devices(c, pid):
     uplinks, children, port_peer = _links_by_device(c, pid)
     out = []
     for d in c.execute("SELECT * FROM devices WHERE profile_id=? ORDER BY name COLLATE NOCASE", (pid,)):
+        if status and d["status"] != status:
+            continue
         nic = nics.get(d["id"])
         pl = ports.get(d["id"], [])
         out.append(dict(
@@ -239,7 +250,7 @@ def list_devices(c, pid):
             notes=d["notes"], tags=json.loads(d["tags"] or "[]"), mac=nic["mac"] if nic else "",
             ips=sorted(ips.get(d["id"], []), key=lambda x: ip_key(x["address"])), uplink=uplinks.get(d["id"]),
             ports_total=len(pl), ports_used=sum(1 for i in pl if i in port_peer), children=len(children.get(d["id"], [])),
-            updated=d["updated"]))
+            updated=d["updated"], online=d["online"], last_seen=d["last_seen"], ident=_ident_short(d["data"])))
     return sorted(out, key=lambda x: natural(x["name"]))
 
 
@@ -260,7 +271,10 @@ def device_detail(c, pid, did):
     kids = [dict(id=k, name=by_id[k]["name"], type=by_id[k]["type"], medium=uplinks[k]["medium"], port_name=uplinks[k]["port_name"],
                  ip=(by_id[k]["ips"] or [{}])[0].get("address", ""), mac=by_id[k]["mac"]) for k in children.get(did, []) if k in by_id]
     data = json.loads(d["data"] or "{}")
-    return dict(base, ports=ports, port_groups=data.get("ports", []), connected=sorted(kids, key=lambda x: x["name"].lower()))
+    events = [dict(ts=r["ts"], online=bool(r["online"])) for r in c.execute(
+        "SELECT ts, online FROM status_events WHERE device_id=? ORDER BY id DESC LIMIT 10", (did,))]
+    return dict(base, ports=ports, port_groups=data.get("ports", []), connected=sorted(kids, key=lambda x: x["name"].lower()),
+                seen=data.get("seen"), ident_full=data.get("ident"), events=events)
 
 
 def ports_of(c, pid, did):
