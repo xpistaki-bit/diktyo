@@ -1,0 +1,2573 @@
+[
+ {
+  "type": "router",
+  "manufacturer": "AVM",
+  "model": "FRITZ!Box 6591 Cable",
+  "data": {
+   "ports": [
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "coax",
+     "speed": "",
+     "label": "Kabel",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 5 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "fritzbox_tr064",
+   "note": "DOCSIS 3.1, DECT, 2× USB",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "AVM"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "AVM",
+  "model": "FRITZ!Box 6660 Cable",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "2.5G",
+     "label": "LAN",
+     "poe": false
+    },
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "coax",
+     "speed": "",
+     "label": "Kabel",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "fritzbox_tr064",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "AVM"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "AVM",
+  "model": "FRITZ!Box 6690 Cable",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "2.5G",
+     "label": "WAN/LAN",
+     "poe": false
+    },
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "coax",
+     "speed": "",
+     "label": "Kabel",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "fritzbox_tr064",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "AVM"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "AVM",
+  "model": "FRITZ!Box 7590",
+  "data": {
+   "ports": [
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "dsl",
+     "speed": "",
+     "label": "DSL",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 5 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "fritzbox_tr064",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "AVM"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "AVM",
+  "model": "FRITZ!Box 7590 AX",
+  "data": {
+   "ports": [
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "dsl",
+     "speed": "",
+     "label": "DSL",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "fritzbox_tr064",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "AVM"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "AVM",
+  "model": "FRITZ!Box 7530 AX",
+  "data": {
+   "ports": [
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "dsl",
+     "speed": "",
+     "label": "DSL",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "fritzbox_tr064",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "AVM"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "AVM",
+  "model": "FRITZ!Box 5590 Fiber",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "2.5G",
+     "label": "WAN/LAN",
+     "poe": false
+    },
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "sfp",
+     "speed": "",
+     "label": "Glasfaser",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "fritzbox_tr064",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "AVM"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "AVM",
+  "model": "FRITZ!Box 4060",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "2.5G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 3,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 Tri-Band",
+   "managed": true,
+   "driver": "fritzbox_tr064",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "AVM"
+    ]
+   }
+  }
+ },
+ {
+  "type": "repeater",
+  "manufacturer": "AVM",
+  "model": "FRITZ!Repeater 1200 AX",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "fritzbox_tr064",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "AVM"
+    ]
+   }
+  }
+ },
+ {
+  "type": "repeater",
+  "manufacturer": "AVM",
+  "model": "FRITZ!Repeater 3000 AX",
+  "data": {
+   "ports": [
+    {
+     "count": 2,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 Tri-Band",
+   "managed": true,
+   "driver": "fritzbox_tr064",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "AVM"
+    ]
+   }
+  }
+ },
+ {
+  "type": "repeater",
+  "manufacturer": "AVM",
+  "model": "FRITZ!Repeater 600",
+  "data": {
+   "ports": [],
+   "wifi": "Wi-Fi 4 (2,4 GHz)",
+   "managed": true,
+   "driver": "fritzbox_tr064",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "AVM"
+    ]
+   }
+  }
+ },
+ {
+  "type": "powerline",
+  "manufacturer": "AVM",
+  "model": "FRITZ!Powerline 1260E",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 5 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "fritzbox_tr064",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "AVM"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Zyxel",
+  "model": "XGS1935-28",
+  "data": {
+   "ports": [
+    {
+     "count": 24,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    },
+    {
+     "count": 4,
+     "kind": "sfp+",
+     "speed": "10G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "snmp",
+   "note": "Lite-L3 Smart Managed",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Zyxel"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Zyxel",
+  "model": "XGS1935-28HP",
+  "data": {
+   "ports": [
+    {
+     "count": 24,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": true
+    },
+    {
+     "count": 4,
+     "kind": "sfp+",
+     "speed": "10G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "snmp",
+   "note": "Lite-L3 Smart Managed, PoE+",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Zyxel"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Zyxel",
+  "model": "XGS1930-28",
+  "data": {
+   "ports": [
+    {
+     "count": 24,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    },
+    {
+     "count": 4,
+     "kind": "sfp+",
+     "speed": "10G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "snmp",
+   "note": "Smart Managed",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Zyxel"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Zyxel",
+  "model": "GS1900-8",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "snmp",
+   "note": "Smart Managed",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Zyxel"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Zyxel",
+  "model": "GS1900-8HP",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": true
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "snmp",
+   "note": "Smart Managed, PoE",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Zyxel"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Zyxel",
+  "model": "GS1900-10HP",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": true
+    },
+    {
+     "count": 2,
+     "kind": "sfp",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "snmp",
+   "note": "Smart Managed, PoE",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Zyxel"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Zyxel",
+  "model": "GS1900-24",
+  "data": {
+   "ports": [
+    {
+     "count": 24,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    },
+    {
+     "count": 2,
+     "kind": "sfp",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "snmp",
+   "note": "Smart Managed",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Zyxel"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Zyxel",
+  "model": "GS1900-24E",
+  "data": {
+   "ports": [
+    {
+     "count": 24,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "snmp",
+   "note": "Smart Managed",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Zyxel"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Zyxel",
+  "model": "XMG1915-10E",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "2.5G",
+     "label": "",
+     "poe": false
+    },
+    {
+     "count": 2,
+     "kind": "sfp+",
+     "speed": "10G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "snmp",
+   "note": "Smart Managed",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Zyxel"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Zyxel",
+  "model": "GS1200-8",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "",
+   "note": "Web Managed, kein SNMP",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Zyxel"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Zyxel",
+  "model": "GS1200-5",
+  "data": {
+   "ports": [
+    {
+     "count": 5,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "",
+   "note": "Web Managed, kein SNMP",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Zyxel"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Zyxel",
+  "model": "GS-108B",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": false,
+   "driver": "",
+   "note": "unmanaged",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Zyxel"
+    ]
+   }
+  }
+ },
+ {
+  "type": "mesh",
+  "manufacturer": "ASUS",
+  "model": "ExpertWiFi EBM68",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "2.5G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 3,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6E Tri-Band (2,4/5/6 GHz)",
+   "managed": true,
+   "driver": "asuswrt",
+   "note": "AiMesh",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "ASUSTek"
+    ]
+   }
+  }
+ },
+ {
+  "type": "mesh",
+  "manufacturer": "ASUS",
+  "model": "ZenWiFi XT8",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "2.5G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 3,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 Tri-Band",
+   "managed": true,
+   "driver": "asuswrt",
+   "note": "AiMesh",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "ASUSTek"
+    ]
+   }
+  }
+ },
+ {
+  "type": "mesh",
+  "manufacturer": "ASUS",
+  "model": "ZenWiFi XD5",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "asuswrt",
+   "note": "AiMesh",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "ASUSTek"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "ASUS",
+  "model": "RT-AX88U",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "asuswrt",
+   "note": "AiMesh",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "ASUSTek"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "ASUS",
+  "model": "RT-AX86U",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "2.5G",
+     "label": "WAN/LAN",
+     "poe": false
+    },
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "asuswrt",
+   "note": "AiMesh",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "ASUSTek"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "ASUS",
+  "model": "RT-AX58U",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "asuswrt",
+   "note": "AiMesh",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "ASUSTek"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "TP-Link",
+  "model": "Omada ER605",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 3,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "WAN/LAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "omada",
+   "note": "VPN-Router",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "TP-Link",
+  "model": "Omada ER7206",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "sfp",
+     "speed": "1G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 2,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "WAN/LAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "sfp",
+     "speed": "1G",
+     "label": "WAN/LAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "omada",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "TP-Link",
+  "model": "Omada TL-SG2008",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "omada",
+   "note": "Smart Switch",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "TP-Link",
+  "model": "Omada TL-SG2008P",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": true
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "omada",
+   "note": "Smart Switch, 4 Ports PoE+",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "TP-Link",
+  "model": "Omada TL-SG2210P",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": true
+    },
+    {
+     "count": 2,
+     "kind": "sfp",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "omada",
+   "note": "Smart Switch, PoE+",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "TP-Link",
+  "model": "Omada TL-SG2428P",
+  "data": {
+   "ports": [
+    {
+     "count": 24,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": true
+    },
+    {
+     "count": 4,
+     "kind": "sfp",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "omada",
+   "note": "Smart Switch, 24 Ports PoE+",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "TP-Link",
+  "model": "Omada TL-SG3428",
+  "data": {
+   "ports": [
+    {
+     "count": 24,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    },
+    {
+     "count": 4,
+     "kind": "sfp",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "omada",
+   "note": "L2+ Managed",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "TP-Link",
+  "model": "Omada SX3008F",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "sfp+",
+     "speed": "10G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "omada",
+   "note": "L2+ Managed",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "ap",
+  "manufacturer": "TP-Link",
+  "model": "Omada EAP610",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "omada",
+   "note": "Deckenmontage, PoE",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "ap",
+  "manufacturer": "TP-Link",
+  "model": "Omada EAP650",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "omada",
+   "note": "Deckenmontage, PoE",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "ap",
+  "manufacturer": "TP-Link",
+  "model": "Omada EAP670",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "2.5G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "omada",
+   "note": "Deckenmontage, PoE+",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "ap",
+  "manufacturer": "TP-Link",
+  "model": "Omada EAP615-Wall",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "Uplink",
+     "poe": false
+    },
+    {
+     "count": 3,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "omada",
+   "note": "Wandmontage",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "server",
+  "manufacturer": "TP-Link",
+  "model": "Omada OC200",
+  "data": {
+   "ports": [
+    {
+     "count": 2,
+     "kind": "rj45",
+     "speed": "100M",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "omada",
+   "note": "Hardware-Controller",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "mesh",
+  "manufacturer": "TP-Link",
+  "model": "Deco X50",
+  "data": {
+   "ports": [
+    {
+     "count": 3,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "",
+   "note": "Deco-Mesh",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "TP-Link",
+  "model": "TL-SG108",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": false,
+   "driver": "",
+   "note": "unmanaged",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "TP-Link",
+  "model": "TL-SG105",
+  "data": {
+   "ports": [
+    {
+     "count": 5,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": false,
+   "driver": "",
+   "note": "unmanaged",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "TP-Link"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Netgear",
+  "model": "GS105",
+  "data": {
+   "ports": [
+    {
+     "count": 5,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": false,
+   "driver": "",
+   "note": "unmanaged",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Netgear"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Netgear",
+  "model": "GS108",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": false,
+   "driver": "",
+   "note": "unmanaged",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Netgear"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Netgear",
+  "model": "GS308E",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "",
+   "note": "Plus Switch, kein SNMP",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Netgear"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Netgear",
+  "model": "GS108Tv3",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "snmp",
+   "note": "Smart Managed Pro",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Netgear"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Netgear",
+  "model": "GS110TP",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": true
+    },
+    {
+     "count": 2,
+     "kind": "sfp",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "snmp",
+   "note": "Smart Managed Pro, PoE",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Netgear"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Netgear",
+  "model": "MS510TXPP",
+  "data": {
+   "ports": [
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": true
+    },
+    {
+     "count": 2,
+     "kind": "rj45",
+     "speed": "2.5G",
+     "label": "",
+     "poe": true
+    },
+    {
+     "count": 2,
+     "kind": "rj45",
+     "speed": "5G",
+     "label": "",
+     "poe": true
+    },
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "10G",
+     "label": "",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "sfp+",
+     "speed": "10G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "snmp",
+   "note": "Multi-Gigabit, PoE+",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Netgear"
+    ]
+   }
+  }
+ },
+ {
+  "type": "mesh",
+  "manufacturer": "Netgear",
+  "model": "Orbi RBR750",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 3,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 Tri-Band",
+   "managed": true,
+   "driver": "",
+   "note": "Orbi-Router",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Netgear"
+    ]
+   }
+  }
+ },
+ {
+  "type": "mesh",
+  "manufacturer": "Netgear",
+  "model": "Orbi RBS750",
+  "data": {
+   "ports": [
+    {
+     "count": 2,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 Tri-Band",
+   "managed": true,
+   "driver": "",
+   "note": "Orbi-Satellit",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Netgear"
+    ]
+   }
+  }
+ },
+ {
+  "type": "powerline",
+  "manufacturer": "devolo",
+  "model": "Magic 2 LAN triple",
+  "data": {
+   "ports": [
+    {
+     "count": 3,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "",
+   "note": "G.hn",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "devolo"
+    ]
+   }
+  }
+ },
+ {
+  "type": "powerline",
+  "manufacturer": "devolo",
+  "model": "Magic 2 LAN 1-1",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "",
+   "note": "G.hn",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "devolo"
+    ]
+   }
+  }
+ },
+ {
+  "type": "powerline",
+  "manufacturer": "devolo",
+  "model": "Magic 2 WiFi 6",
+  "data": {
+   "ports": [
+    {
+     "count": 2,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "",
+   "note": "G.hn, Mesh",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "devolo"
+    ]
+   }
+  }
+ },
+ {
+  "type": "powerline",
+  "manufacturer": "devolo",
+  "model": "Magic 2 WiFi next",
+  "data": {
+   "ports": [
+    {
+     "count": 2,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 5 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "",
+   "note": "G.hn, Mesh",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "devolo"
+    ]
+   }
+  }
+ },
+ {
+  "type": "powerline",
+  "manufacturer": "devolo",
+  "model": "Magic 1 WiFi",
+  "data": {
+   "ports": [
+    {
+     "count": 2,
+     "kind": "rj45",
+     "speed": "100M",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 4 (2,4 GHz)",
+   "managed": true,
+   "driver": "",
+   "note": "HomePlug AV2",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "devolo"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "Ubiquiti",
+  "model": "UniFi Dream Machine Pro",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "sfp+",
+     "speed": "10G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "sfp+",
+     "speed": "10G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "unifi",
+   "note": "UniFi OS Konsole",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Ubiquiti"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "Ubiquiti",
+  "model": "UniFi Cloud Gateway Ultra",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "2.5G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "unifi",
+   "note": "UniFi OS Konsole",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Ubiquiti"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "Ubiquiti",
+  "model": "UniFi Dream Router",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "unifi",
+   "note": "UniFi OS Konsole, 2 Ports PoE",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Ubiquiti"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Ubiquiti",
+  "model": "UniFi Switch Flex Mini",
+  "data": {
+   "ports": [
+    {
+     "count": 5,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "unifi",
+   "note": "PoE-versorgt",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Ubiquiti"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Ubiquiti",
+  "model": "UniFi Switch Lite 8 PoE",
+  "data": {
+   "ports": [
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": true
+    },
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "unifi",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Ubiquiti"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Ubiquiti",
+  "model": "UniFi Switch Lite 16 PoE",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": true
+    },
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "unifi",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Ubiquiti"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Ubiquiti",
+  "model": "UniFi Switch 24",
+  "data": {
+   "ports": [
+    {
+     "count": 24,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    },
+    {
+     "count": 2,
+     "kind": "sfp",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "unifi",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Ubiquiti"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Ubiquiti",
+  "model": "UniFi Switch Pro 24",
+  "data": {
+   "ports": [
+    {
+     "count": 24,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    },
+    {
+     "count": 2,
+     "kind": "sfp+",
+     "speed": "10G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "unifi",
+   "note": "Layer 3",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Ubiquiti"
+    ]
+   }
+  }
+ },
+ {
+  "type": "ap",
+  "manufacturer": "Ubiquiti",
+  "model": "UniFi U6 Lite",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "unifi",
+   "note": "Deckenmontage, PoE",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Ubiquiti"
+    ]
+   }
+  }
+ },
+ {
+  "type": "ap",
+  "manufacturer": "Ubiquiti",
+  "model": "UniFi U6+",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "unifi",
+   "note": "Deckenmontage, PoE",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Ubiquiti"
+    ]
+   }
+  }
+ },
+ {
+  "type": "ap",
+  "manufacturer": "Ubiquiti",
+  "model": "UniFi U6 Pro",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "unifi",
+   "note": "Deckenmontage, PoE+",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Ubiquiti"
+    ]
+   }
+  }
+ },
+ {
+  "type": "ap",
+  "manufacturer": "Ubiquiti",
+  "model": "UniFi U7 Pro",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "2.5G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 7 (2,4/5/6 GHz)",
+   "managed": true,
+   "driver": "unifi",
+   "note": "Deckenmontage, PoE+",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Ubiquiti"
+    ]
+   }
+  }
+ },
+ {
+  "type": "ap",
+  "manufacturer": "Ubiquiti",
+  "model": "UniFi U6 In-Wall",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "Uplink",
+     "poe": false
+    },
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "unifi",
+   "note": "Wandmontage",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Ubiquiti"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Generisch",
+  "model": "Switch 5 Ports",
+  "data": {
+   "ports": [
+    {
+     "count": 5,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": false,
+   "driver": "",
+   "note": "unmanaged",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft"
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Generisch",
+  "model": "Switch 8 Ports",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": false,
+   "driver": "",
+   "note": "unmanaged",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft"
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Generisch",
+  "model": "Switch 16 Ports",
+  "data": {
+   "ports": [
+    {
+     "count": 16,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": false,
+   "driver": "",
+   "note": "unmanaged",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft"
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Generisch",
+  "model": "Switch 24 Ports",
+  "data": {
+   "ports": [
+    {
+     "count": 24,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": false,
+   "driver": "",
+   "note": "unmanaged",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft"
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "Generisch",
+  "model": "Switch 48 Ports + 4 SFP+",
+  "data": {
+   "ports": [
+    {
+     "count": 48,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    },
+    {
+     "count": 4,
+     "kind": "sfp+",
+     "speed": "10G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "snmp",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft"
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "Generisch",
+  "model": "Router 4 Ports",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "WAN",
+     "poe": false
+    },
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft"
+  }
+ },
+ {
+  "type": "ap",
+  "manufacturer": "Generisch",
+  "model": "Access Point",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi",
+   "managed": true,
+   "driver": "",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft"
+  }
+ },
+ {
+  "type": "hypervisor",
+  "manufacturer": "Generisch",
+  "model": "Proxmox-Host",
+  "data": {
+   "ports": [
+    {
+     "count": 2,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "NIC",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "proxmox",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft"
+  }
+ },
+ {
+  "type": "nas",
+  "manufacturer": "Synology",
+  "model": "DS224+",
+  "data": {
+   "ports": [
+    {
+     "count": 2,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "snmp",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Synology"
+    ]
+   }
+  }
+ },
+ {
+  "type": "nas",
+  "manufacturer": "Synology",
+  "model": "DS923+",
+  "data": {
+   "ports": [
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "snmp",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Synology"
+    ]
+   }
+  }
+ },
+ {
+  "type": "computer",
+  "manufacturer": "Raspberry Pi",
+  "model": "Raspberry Pi 5",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 5",
+   "managed": false,
+   "driver": "",
+   "note": "",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Raspberry Pi"
+    ]
+   }
+  }
+ }
+]

@@ -1,93 +1,28 @@
 """díktyo – Web-App (FastAPI + SQLite)."""
-import json
 import pathlib
+import re
 import threading
-import time
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import mailer, security, users
+from . import catalog, mailer, routes_backup, routes_catalog, routes_inventory, security, users
+from .auth import (COOKIE, ROLES, client_ip, current_user, lang_of, profile_access, rate_limit, require_admin, require_user,
+                   start_session, text, touch)
 from .db import audit, db, get_setting, migrate, now, set_setting
 from .version import REPO_URL, VERSION
 
 BASE = pathlib.Path(__file__).resolve().parent
-COOKIE = "dk_session"
-SESSION_DAYS = 30
 CSRF_HEADER = "diktyo"  # Wert des Headers X-Requested-With bei ändernden API-Aufrufen
-ROLES = {"view": 1, "edit": 2, "owner": 3}
 
 migrate()
+with db() as _c:
+    catalog.merge_seed(_c)
 app = FastAPI(title="díktyo", docs_url=None, redoc_url=None)
-
-
-# ------------------------------------------------------------------ Hilfen
-def lang_of(request):
-    v = (request.headers.get("x-lang") or request.query_params.get("lang") or "de").lower()
-    return "en" if v.startswith("en") else "de"
-
-
-def client_ip(request):
-    return request.client.host if request.client else "?"
-
-
-_attempts = {}
-_attempts_lock = threading.Lock()
-
-
-def rate_limit(key, limit=10, window=900):
-    t = time.time()
-    with _attempts_lock:
-        for k in [k for k, v in _attempts.items() if v[1] < t]:
-            del _attempts[k]
-        n, reset = _attempts.get(key, (0, t + window))
-        _attempts[key] = (n + 1, reset)
-    if n + 1 > limit:
-        raise HTTPException(429, "Zu viele Versuche. Bitte einige Minuten warten.")
-
-
-def start_session(c, response, uid):
-    tok, th = security.new_token()
-    c.execute("INSERT INTO sessions(token_hash, user_id, created, expires) VALUES(?,?,?,?)",
-              (th, uid, time.time(), time.time() + SESSION_DAYS * 86400))
-    c.execute("UPDATE users SET last_login=? WHERE id=?", (now(), uid))
-    response.set_cookie(COOKIE, tok, httponly=True, samesite="lax", max_age=SESSION_DAYS * 86400, path="/")
-
-
-def current_user(request: Request):
-    tok = request.cookies.get(COOKIE)
-    if not tok:
-        return None
-    with db() as c:
-        r = c.execute("SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash=? AND s.expires>?",
-                      (security.sha256(tok), time.time())).fetchone()
-    return users.public(r)
-
-
-def require_user(request: Request):
-    u = current_user(request)
-    if not u:
-        raise HTTPException(401, "Bitte anmelden")
-    return u
-
-
-def require_admin(user=Depends(require_user)):
-    if not user["is_admin"]:
-        raise HTTPException(403, "Nur für Administratoren")
-    return user
-
-
-def profile_access(c, user, pid, need="view"):
-    """-> (Profilzeile, Rolle). Administratoren haben in allen Profilen Besitzerrechte."""
-    p = c.execute("SELECT * FROM profiles WHERE id=?", (pid,)).fetchone()
-    m = p and c.execute("SELECT role FROM profile_members WHERE profile_id=? AND user_id=?", (pid, user["id"])).fetchone()
-    role = m["role"] if m else ("owner" if p and user["is_admin"] else None)
-    if not p or not role:
-        raise HTTPException(404, "Profil nicht gefunden")
-    if ROLES[role] < ROLES[need]:
-        raise HTTPException(403, "Dafür fehlen dir in diesem Profil die Rechte")
-    return p, role
+app.include_router(routes_inventory.router)
+app.include_router(routes_catalog.router)
+app.include_router(routes_backup.router)
 
 
 def owner_count(c, pid):
@@ -103,10 +38,6 @@ def members_of(c, pid):
 def profile_out(p, role, member):
     return dict(id=p["id"], name=p["name"], description=p["description"], created=p["created"], updated=p["updated"],
                 role=role, member=member)
-
-
-def text(body, key, maxlen=200):
-    return str(body.get(key) or "").strip()[:maxlen]
 
 
 @app.middleware("http")
@@ -290,6 +221,7 @@ def profile_create(body: dict = Body(...), user=Depends(require_user)):
         pid = cur.lastrowid
         c.execute("INSERT INTO profile_members(profile_id, user_id, role) VALUES(?,?,'owner')", (pid, user["id"]))
         audit(c, "profile.create", user["id"], pid, dict(name=name))
+        touch(c, pid)
         p, role = profile_access(c, user, pid)
         return dict(profile=profile_out(p, role, True), members=members_of(c, pid))
 
@@ -312,6 +244,7 @@ def profile_update(pid: int, body: dict = Body(...), user=Depends(require_user))
         desc = text(body, "description", 2000) if "description" in body else p["description"]
         c.execute("UPDATE profiles SET name=?, description=?, updated=? WHERE id=?", (name, desc, now(), pid))
         audit(c, "profile.update", user["id"], pid, dict(name=name))
+        touch(c, pid)
         p, role = profile_access(c, user, pid)
         return dict(profile=profile_out(p, role, True), members=members_of(c, pid))
 
@@ -322,6 +255,7 @@ def profile_delete(pid: int, user=Depends(require_user)):
         p, _ = profile_access(c, user, pid, "owner")
         c.execute("DELETE FROM profiles WHERE id=?", (pid,))
         audit(c, "profile.delete", user["id"], pid, dict(name=p["name"]))
+        touch(c)
     return dict(ok=True)
 
 
@@ -341,6 +275,7 @@ def member_add(pid: int, body: dict = Body(...), user=Depends(require_user)):
         if old and old["role"] == "owner" and owner_count(c, pid) == 0:
             raise HTTPException(400, "Ein Profil braucht mindestens einen Besitzer")
         audit(c, "profile.share", user["id"], pid, dict(email=u["email"], role=role))
+        touch(c, pid)
         return dict(members=members_of(c, pid))
 
 
@@ -356,6 +291,7 @@ def member_update(pid: int, uid: int, body: dict = Body(...), user=Depends(requi
         if owner_count(c, pid) == 0:
             raise HTTPException(400, "Ein Profil braucht mindestens einen Besitzer")
         audit(c, "profile.role", user["id"], pid, dict(user=uid, role=role))
+        touch(c, pid)
         return dict(members=members_of(c, pid))
 
 
@@ -369,6 +305,7 @@ def member_remove(pid: int, uid: int, user=Depends(require_user)):
         if owner_count(c, pid) == 0:
             raise HTTPException(400, "Ein Profil braucht mindestens einen Besitzer")
         audit(c, "profile.unshare", user["id"], pid, dict(user=uid))
+        touch(c, pid)
         return dict(members=members_of(c, pid))
 
 
@@ -406,6 +343,7 @@ def settings_put(body: dict = Body(...), admin=Depends(require_admin)):
                 smtp["password"] = security.encrypt(pw)
             set_setting(c, "smtp", smtp)
         audit(c, "settings.update", admin["id"], detail=sorted(k for k in body if k in ("registration_open", "smtp")))
+        touch(c)
         return _settings_out(c)
 
 
@@ -438,16 +376,48 @@ ERR_EN = {
     "Name fehlt": "Name missing", "Unbekannte Rolle": "Unknown role", "Kein Konto mit dieser E-Mail-Adresse": "No account with this e-mail address",
     "Ein Profil braucht mindestens einen Besitzer": "A profile needs at least one owner", "Mitglied nicht gefunden": "Member not found",
     "E-Mail-Versand ist nicht eingerichtet": "Sending e-mail is not set up",
+    "Gerät nicht gefunden": "Device not found", "Standort nicht gefunden": "Location not found", "VLAN nicht gefunden": "VLAN not found",
+    "Subnetz nicht gefunden": "Subnet not found", "Katalogeintrag nicht gefunden": "Catalog entry not found", "Port nicht gefunden": "Port not found",
+    "Standort gehört nicht zu diesem Profil": "Location does not belong to this profile",
+    "Gegenstelle gehört nicht zu diesem Profil": "Connected device does not belong to this profile",
+    "VLAN gehört nicht zu diesem Profil": "VLAN does not belong to this profile",
+    "Ein Gerät kann nicht mit sich selbst verbunden werden": "A device cannot be connected to itself",
+    "Diese Verbindung würde einen Ring ergeben": "This connection would create a loop",
+    "Ein Standort kann nicht in sich selbst liegen": "A location cannot be inside itself",
+    "Ungültiges Netz, Beispiel: 192.168.178.0/24": "Invalid network, example: 192.168.178.0/24",
+    "Das Gateway liegt nicht im Netz": "The gateway is not inside the network",
+    "Für den DHCP-Bereich Anfang und Ende angeben": "Enter start and end of the DHCP range",
+    "Der DHCP-Bereich muss im Netz liegen und mit der kleineren Adresse beginnen": "The DHCP range must be inside the network and start with the lower address",
+    "Die VLAN-ID muss zwischen 1 und 4094 liegen": "The VLAN ID must be between 1 and 4094",
+    "Hersteller und Modell sind erforderlich": "Manufacturer and model are required",
+    "Diesen Katalogeintrag gibt es schon": "This catalog entry already exists",
+    "Kein Sicherungsziel eingerichtet": "No backup target configured", "Keine gültige Sicherungsdatei": "Not a valid backup file",
+    "Wiederherstellen ist nur in einer leeren Installation möglich": "Restoring is only possible in an empty installation",
+    "Die Backup-Passphrase ist falsch": "The backup passphrase is wrong",
+    "Die Backup-Passphrase muss mindestens 8 Zeichen haben": "The backup passphrase must be at least 8 characters long",
 }
+# Meldungen mit Werten: Präfix übersetzen, Rest übernehmen
+ERR_EN_PREFIX = {"Ungültige MAC-Adresse: ": "Invalid MAC address: ", "Ungültige IP-Adresse: ": "Invalid IP address: ",
+                 "Versand fehlgeschlagen: ": "Sending failed: "}
+ERR_EN_RE = [(r"^Port (.+) ist schon mit (.+) belegt$", r"Port \1 is already connected to \2"),
+             (r"^VLAN (\d+) gibt es schon$", r"VLAN \1 already exists")]
 
 
 def err_response(request, status, detail):
     if lang_of(request) == "en" and isinstance(detail, str):
-        if detail.startswith("Versand fehlgeschlagen: "):
-            rest = detail[len("Versand fehlgeschlagen: "):]
-            detail = "Sending failed: " + ERR_EN.get(rest, rest)
-        else:
-            detail = ERR_EN.get(detail, detail)
+        en = ERR_EN.get(detail)
+        if en is None:
+            for de_p, en_p in ERR_EN_PREFIX.items():
+                if detail.startswith(de_p):
+                    rest = detail[len(de_p):]
+                    en = en_p + ERR_EN.get(rest, rest)
+                    break
+        if en is None:
+            for pat, rep in ERR_EN_RE:
+                if re.match(pat, detail):
+                    en = re.sub(pat, rep, detail)
+                    break
+        detail = en or detail
     return JSONResponse({"error": detail}, status_code=status)
 
 
@@ -465,9 +435,12 @@ async def user_err(request, exc):
 def index():
     # Versionsnummer an CSS/JS hängen: nach einem Update lädt der Browser die neuen Dateien statt der zwischengespeicherten.
     html = (BASE / "static" / "index.html").read_text(encoding="utf-8")
-    for f in ("style.css", "i18n.js", "app.js"):
+    for f in ("style.css", "i18n.js", "app.js", "inventory.js", "catalog.js"):
         html = html.replace(f'"/{f}"', f'"/{f}?v={VERSION}"')
     return Response(html, media_type="text/html; charset=utf-8", headers={"Cache-Control": "no-cache"})
+
+
+routes_backup.start_auto_backup()
 
 
 class NoCacheStatic(StaticFiles):

@@ -20,7 +20,8 @@ function toast(msg, err) {
 }
 async function api(method, url, body) {
   const opt = { method, headers: { 'X-Lang': LANG, 'X-Requested-With': 'diktyo' } };
-  if (body !== undefined) { opt.body = JSON.stringify(body); opt.headers['Content-Type'] = 'application/json'; }
+  if (body instanceof FormData) opt.body = body;
+  else if (body !== undefined) { opt.body = JSON.stringify(body); opt.headers['Content-Type'] = 'application/json'; }
   const r = await fetch(url, opt);
   const data = (r.headers.get('content-type') || '').includes('json') ? await r.json() : await r.text();
   if (!r.ok) {
@@ -57,7 +58,7 @@ function drawHeader() {
   document.documentElement.lang = LANG;
   const u = STATE.user, sect = location.hash.replace(/^#\/?/, '').split('/')[0];
   $('#nav').innerHTML = `<a class="gh" href="${h(STATE.repo)}" target="_blank" rel="noopener" title="${t('Projekt auf GitHub')}">${ghIcon}<span>${STATE.version ? 'v' + h(STATE.version) : 'GitHub'}</span></a>`
-    + (u ? `<a href="#/" class="${sect === '' || sect === 'p' ? 'on' : ''}">${t('Profile')}</a><a href="#/einstellungen" class="${sect === 'einstellungen' ? 'on' : ''}">${t('Einstellungen')}</a><span class="who" title="${h(u.email)}">${h(u.email)}</span><button class="sm" data-logout>${t('Abmelden')}</button>` : '')
+    + (u ? `<a href="#/" class="${sect === '' || sect === 'p' ? 'on' : ''}">${t('Profile')}</a><a href="#/katalog" class="${sect === 'katalog' ? 'on' : ''}">${t('Katalog')}</a><a href="#/einstellungen" class="${sect === 'einstellungen' ? 'on' : ''}">${t('Einstellungen')}</a><span class="who" title="${h(u.email)}">${h(u.email)}</span><button class="sm" data-logout>${t('Abmelden')}</button>` : '')
     + `<span class="lang" role="group" aria-label="Sprache / Language"><button data-l="de" class="${LANG === 'de' ? 'on' : ''}">DE</button><button data-l="en" class="${LANG === 'en' ? 'on' : ''}">EN</button></span>`;
   $$('#nav [data-l]').forEach(b => b.onclick = () => {
     LANG = b.dataset.l; try { localStorage.setItem('dk_lang', LANG); } catch { }
@@ -74,8 +75,9 @@ async function route() {
   drawHeader();
   try {
     if (p[0] === 'reset' && p[1]) return viewReset(p[1]);
-    if (!STATE.user) { crumbs([]); return STATE.first_run ? viewSetup() : viewLogin(p[0] === 'registrieren' ? 'register' : p[0] === 'vergessen' ? 'forgot' : 'login'); }
-    if (p[0] === 'p' && p[1]) await viewProfile(+p[1]);
+    if (!STATE.user) { crumbs([]); return STATE.first_run ? (p[0] === 'wiederherstellen' ? viewRestore() : viewSetup()) : viewLogin(p[0] === 'registrieren' ? 'register' : p[0] === 'vergessen' ? 'forgot' : 'login'); }
+    if (p[0] === 'p' && p[1]) await viewProfile(+p[1], p[2] || 'geraete');
+    else if (p[0] === 'katalog') await viewCatalog();
     else if (p[0] === 'einstellungen') await viewSettings();
     else await viewProfiles();
   } catch (e) {
@@ -104,13 +106,32 @@ function viewSetup() {
     `<form id="f"><label>${t('E-Mail-Adresse')}</label><input name="email" type="email" autocomplete="username" required>
      <label>${t('Passwort')}</label><input name="password" type="password" autocomplete="new-password" minlength="${STATE.min_pw}" required placeholder="${h(pwHint())}">
      <label>${t('Passwort wiederholen')}</label><input name="password2" type="password" autocomplete="new-password" required>
-     <div class="actions"><span></span><button class="pri">${t('Konto anlegen')}</button></div></form>`);
+     <div class="actions"><span></span><button class="pri">${t('Konto anlegen')}</button></div></form>
+     <p class="hint">${t('Umzug oder Neuinstallation?')} <a href="#/wiederherstellen">${t('Aus einer Sicherung wiederherstellen')}</a></p>`);
   $('#f').onsubmit = async ev => {
     ev.preventDefault(); const v = fd(ev.target);
     if (v.password !== v.password2) return toast(t('Die Passwörter stimmen nicht überein'), true);
     try { afterAuth((await api('POST', '/api/auth/register', { email: v.email, password: v.password })).user); } catch (e) { toast(e.message, true); }
   };
   $('input', app).focus();
+}
+
+function viewRestore() {
+  authFrame(t('Aus Sicherung wiederherstellen'), t('Übernimmt Konten, Profile, Geräte und Einstellungen aus einer díktyo-Sicherung (ZIP). Danach meldest du dich mit deinem bisherigen Konto an.'),
+    `<form id="f"><label>${t('Sicherungsdatei (ZIP)')}</label><input name="file" type="file" accept=".zip,application/zip" required>
+     <label>${t('Backup-Passphrase (falls vergeben)')}</label><input name="passphrase" type="password" autocomplete="off">
+     <p class="hint">${t('Ohne Passphrase werden Konten und Daten übernommen, gespeicherte Zugangsdaten (z. B. SMTP-Passwort) aber nicht.')}</p>
+     <div class="actions"><a href="#/">${t('Zurück')}</a><button class="pri">${t('Wiederherstellen')}</button></div></form>`);
+  $('#f').onsubmit = async ev => {
+    ev.preventDefault();
+    const btn = $('button.pri', ev.target); btn.disabled = true;
+    try {
+      const r = await api('POST', '/api/restore', new FormData(ev.target));
+      STATE.first_run = false;
+      toast(t('Wiederhergestellt: {u} Konten, {p} Profile, {d} Geräte', { u: r.users, p: r.profiles, d: r.devices }));
+      location.hash = '#/';
+    } catch (e) { toast(e.message, true); btn.disabled = false; }
+  };
 }
 
 function viewLogin(mode) {
@@ -174,7 +195,7 @@ async function viewProfiles() {
   app.innerHTML = `<div class="page"><h1>${t('Profile')}</h1>
     <p class="sub">${t('Ein Profil ist ein Netz bzw. Standort, zum Beispiel Zuhause, Eltern oder Ferienhaus. Profile lassen sich mit anderen Konten teilen.')}</p>
     <div class="cards">${profiles.map(p => `<button class="card" data-id="${p.id}">
-        <b>${h(p.name)}</b>${p.description ? `<p>${h(p.description)}</p>` : '<p></p>'}
+        <b>${h(p.name)}</b>${p.description ? `<p>${h(p.description)}</p>` : ''}
         <span class="row"><span class="badge ${p.role}">${t(ROLE[p.role])}</span>${!p.member ? `<span class="badge admin">${t('Admin-Zugriff')}</span>` : ''}
         <small>${p.members === 2 ? t('geteilt mit 1 Konto') : p.members > 2 ? t('geteilt mit {n} Konten', { n: p.members - 1 }) : t('nicht geteilt')}</small></span>
       </button>`).join('')}
@@ -192,64 +213,61 @@ function profileDialog(title, p, ok, save) {
     { ok, onOk: f => save(fd(f)) });
 }
 
-async function viewProfile(pid) {
+const TABS = [['geraete', 'Geräte'], ['ipam', 'IPAM'], ['standorte', 'Standorte'], ['ausgabe', 'Ausgabe'], ['freigabe', 'Freigabe']];
+async function viewProfile(pid, tab) {
+  if (!TABS.some(x => x[0] === tab)) tab = 'geraete';
   const r = await api('GET', `/api/profiles/${pid}`);
   const p = r.profile, isOwner = p.role === 'owner', canEdit = p.role !== 'view';
-  const owners = r.members.filter(m => m.role === 'owner').length;
   crumbs([[t('Profile'), '#/'], [p.name]]);
-  const modules = [
-    ['Geräte', 'Router, Switches, Access Points, Server, VMs, IoT – mit IP, MAC, Standort und Notizen.'],
-    ['IPAM', 'Subnetze, VLANs, IP-Adressen, freie Adressen und Konflikte.'],
-    ['Topologie', 'Gesamtbaum und Detailansicht mit Switch-Frontplatte und Ports.'],
-    ['Netzscan', 'Automatische Erkennung mit Vorschlag, was ein unbekanntes Gerät sein könnte.'],
-    ['Integrationen', 'FRITZ!Box, Zyxel (SNMP), ASUS AiMesh, Proxmox, Home Assistant.'],
-    ['Ausgabe', 'Tabellen, CSV und PDF mit wählbarem Inhalt.'],
-  ];
-  app.innerHTML = `<div class="page">
-    <div class="row" style="justify-content:space-between;align-items:flex-start">
-      <div><h1>${h(p.name)}</h1><p class="sub">${p.description ? h(p.description) : t('Keine Beschreibung')}</p></div>
+  app.innerHTML = `<div class="page wide">
+    <div class="row between top">
+      <div><h1>${h(p.name)}</h1>${p.description ? `<p class="sub">${h(p.description)}</p>` : ''}</div>
       <div class="row"><span class="badge ${p.role}">${t(ROLE[p.role])}</span>
         ${canEdit ? `<button class="sm" data-edit>${t('Bearbeiten')}</button>` : ''}
         ${isOwner ? `<button class="sm danger" data-del>${t('Löschen')}</button>` : ''}</div>
     </div>
-    <h2>${t('Module')}</h2>
-    <div class="modules">${modules.map(([n, d]) => `<div class="module"><b>${t(n)}</b>${t(d)}</div>`).join('')}</div>
-    <p class="muted" style="margin-top:10px">${t('Diese Module werden gerade gebaut und erscheinen mit den nächsten Versionen.')}</p>
-    <h2>${t('Mitglieder')}</h2>
-    <div class="table-wrap"><table><thead><tr><th>${t('E-Mail-Adresse')}</th><th>${t('Rolle')}</th><th></th></tr></thead><tbody>
-      ${r.members.map(m => `<tr data-uid="${m.user_id}"><td>${h(m.email)}${m.user_id === STATE.user.id ? ` <span class="muted">(${t('du')})</span>` : ''}</td>
-        <td>${isOwner ? `<select data-role style="max-width:160px">${Object.keys(ROLE).map(k => `<option value="${k}" ${k === m.role ? 'selected' : ''}>${t(ROLE[k])}</option>`).join('')}</select>` : `<span class="badge ${m.role}">${t(ROLE[m.role])}</span>`}</td>
-        <td class="act">${isOwner && m.user_id !== STATE.user.id ? `<button class="sm danger" data-rm>${t('Entfernen')}</button>` : ''}${m.user_id === STATE.user.id && p.member && !(m.role === 'owner' && owners === 1) ? `<button class="sm" data-leave>${t('Verlassen')}</button>` : ''}</td></tr>`).join('')}
-    </tbody></table></div>
-    ${isOwner ? `<form class="row" id="share" style="margin-top:12px"><input name="email" type="email" required placeholder="${t('E-Mail-Adresse eines vorhandenen Kontos')}" style="flex:1;min-width:220px">
-      <select name="role" style="width:auto">${['view', 'edit', 'owner'].map(k => `<option value="${k}">${t(ROLE[k])}</option>`).join('')}</select>
-      <button class="pri">${t('Teilen')}</button></form>
-      <p class="muted">${t('Lesen: nur ansehen. Bearbeiten: Geräte und Netz ändern. Besitzer: zusätzlich teilen und löschen.')}</p>` : ''}
-  </div>`;
-  const reload = () => viewProfile(pid);
+    <nav class="tabs">${TABS.map(([k, n]) => `<a href="#/p/${pid}/${k}" class="${k === tab ? 'on' : ''}">${t(n)}</a>`).join('')}</nav>
+    <div id="tab"></div></div>`;
   const ed = $('[data-edit]', app);
-  if (ed) ed.onclick = async () => { if (await profileDialog(t('Profil bearbeiten'), p, t('Speichern'), v => api('PUT', `/api/profiles/${pid}`, v))) reload(); };
+  if (ed) ed.onclick = async () => { if (await profileDialog(t('Profil bearbeiten'), p, t('Speichern'), v => api('PUT', `/api/profiles/${pid}`, v))) viewProfile(pid, tab); };
   const del = $('[data-del]', app);
   if (del) del.onclick = async () => {
     if (!await confirmDlg(t('Profil löschen'), t('Profil „{n}“ mit allen Daten endgültig löschen?', { n: h(p.name) }), t('Löschen'))) return;
     await api('DELETE', `/api/profiles/${pid}`); toast(t('Profil gelöscht')); location.hash = '#/';
   };
-  $$('[data-role]', app).forEach(s => s.onchange = async () => {
+  const ctx = { pid, p, members: r.members, canEdit, isOwner, el: $('#tab'), reload: () => viewProfile(pid, tab) };
+  if (tab === 'freigabe') renderSharing(ctx); else await window.INV[tab](ctx);
+}
+
+function renderSharing(ctx) {
+  const { pid, p, isOwner } = ctx;
+  const owners = ctx.members.filter(m => m.role === 'owner').length;
+  ctx.el.innerHTML = `
+    <div class="table-wrap"><table><thead><tr><th>${t('E-Mail-Adresse')}</th><th>${t('Rolle')}</th><th></th></tr></thead><tbody>
+      ${ctx.members.map(m => `<tr data-uid="${m.user_id}"><td>${h(m.email)}${m.user_id === STATE.user.id ? ` <span class="muted">(${t('du')})</span>` : ''}</td>
+        <td>${isOwner ? `<select data-role style="max-width:160px">${Object.keys(ROLE).map(k => `<option value="${k}" ${k === m.role ? 'selected' : ''}>${t(ROLE[k])}</option>`).join('')}</select>` : `<span class="badge ${m.role}">${t(ROLE[m.role])}</span>`}</td>
+        <td class="act">${isOwner && m.user_id !== STATE.user.id ? `<button class="sm danger" data-rm>${t('Entfernen')}</button>` : ''}${m.user_id === STATE.user.id && p.member && !(m.role === 'owner' && owners === 1) ? `<button class="sm" data-leave>${t('Verlassen')}</button>` : ''}</td></tr>`).join('')}
+    </tbody></table></div>
+    ${isOwner ? `<form class="row" id="share" style="margin-top:12px"><input name="email" type="email" required placeholder="${t('E-Mail-Adresse eines vorhandenen Kontos')}" style="flex:1;min-width:220px">
+      <select name="role" style="width:auto">${['view', 'edit', 'owner'].map(k => `<option value="${k}">${t(ROLE[k])}</option>`).join('')}</select>
+      <button class="pri">${t('Teilen')}</button></form>` : ''}
+    <p class="muted">${t('Lesen: nur ansehen. Bearbeiten: Geräte und Netz ändern. Besitzer: zusätzlich teilen und löschen.')}</p>`;
+  $$('[data-role]', ctx.el).forEach(s => s.onchange = async () => {
     try { await api('PUT', `/api/profiles/${pid}/members/${s.closest('tr').dataset.uid}`, { role: s.value }); toast(t('gespeichert')); } catch (e) { toast(e.message, true); }
-    reload();
+    ctx.reload();
   });
-  $$('[data-rm]', app).forEach(b => b.onclick = async () => {
-    try { await api('DELETE', `/api/profiles/${pid}/members/${b.closest('tr').dataset.uid}`); reload(); } catch (e) { toast(e.message, true); }
+  $$('[data-rm]', ctx.el).forEach(b => b.onclick = async () => {
+    try { await api('DELETE', `/api/profiles/${pid}/members/${b.closest('tr').dataset.uid}`); ctx.reload(); } catch (e) { toast(e.message, true); }
   });
-  const lv = $('[data-leave]', app);
+  const lv = $('[data-leave]', ctx.el);
   if (lv) lv.onclick = async () => {
     if (!await confirmDlg(t('Profil verlassen'), t('Du verlierst den Zugriff auf „{n}“, bis dich ein Besitzer wieder einlädt.', { n: h(p.name) }), t('Verlassen'))) return;
     try { await api('DELETE', `/api/profiles/${pid}/members/${STATE.user.id}`); location.hash = '#/'; } catch (e) { toast(e.message, true); }
   };
-  const sh = $('#share', app);
+  const sh = $('#share', ctx.el);
   if (sh) sh.onsubmit = async ev => {
     ev.preventDefault();
-    try { await api('POST', `/api/profiles/${pid}/members`, fd(ev.target)); toast(t('Profil geteilt')); reload(); } catch (e) { toast(e.message, true); }
+    try { await api('POST', `/api/profiles/${pid}/members`, fd(ev.target)); toast(t('Profil geteilt')); ctx.reload(); } catch (e) { toast(e.message, true); }
   };
 }
 
@@ -289,7 +307,8 @@ async function viewSettings() {
       </div>
       <label>${t('Adresse der Weboberfläche (für Links in E-Mails, optional)')}</label><input name="app_url" value="${h(smtp.app_url || '')}" placeholder="http://192.168.178.50:8090">
       <div class="row" style="margin-top:14px"><button class="pri">${t('Speichern')}</button><button type="button" data-test ${smtp.host ? '' : 'disabled'}>${t('Testmail an mich senden')}</button></div>
-    </form>` : ''}
+    </form>
+    <h2>${t('Sicherung')}</h2><div id="backup"></div>` : ''}
   </div>`;
 
   $('#pw').onsubmit = async ev => {
@@ -328,6 +347,58 @@ async function viewSettings() {
   };
   $('[data-test]', app).onclick = async () => {
     try { const r = await api('POST', '/api/settings/smtp/test'); toast(t('Testmail an {e} gesendet', { e: r.to })); } catch (e) { toast(e.message, true); }
+  };
+  await renderBackup($('#backup'));
+}
+
+/* Sicherung: Ziele wie bei PanelAtlas (Ordner/NAS, WebDAV, rclone), tägliche Sicherung, Passphrase für Zugangsdaten */
+const TARGET = { local: 'Ordner / NAS', webdav: 'WebDAV (z. B. Nextcloud)', rclone: 'rclone (Google Drive, OneDrive, S3 …)' };
+async function renderBackup(el) {
+  const { settings: s, last } = await api('GET', '/api/backup');
+  const row = tg => `<div class="target panel" data-type="${tg.type}">
+      <div class="row between"><b>${t(TARGET[tg.type])}</b><button type="button" class="sm danger" data-rmt>${t('Entfernen')}</button></div>
+      ${tg.type === 'local' ? `<label>${t('Pfad im Container')}</label><input data-f="path" value="${h(tg.path || '')}" placeholder="/mnt/sicherung">`
+      : tg.type === 'webdav' ? `<label>${t('Adresse')}</label><input data-f="url" value="${h(tg.url || '')}" placeholder="https://cloud.example.com/remote.php/dav/files/NAME/diktyo">
+        <div class="grid2"><div><label>${t('Benutzername')}</label><input data-f="user" value="${h(tg.user || '')}"></div><div><label>${t('Passwort')}</label><input data-f="password" type="password" autocomplete="new-password" value="${h(tg.password || '')}"></div></div>`
+      : `<label>${t('rclone-Ziel')}</label><input data-f="remote" value="${h(tg.remote || '')}" placeholder="gdrive:diktyo">`}</div>`;
+  el.innerHTML = `<form class="panel stack" id="bk">
+    <p class="muted" style="margin:0">${t('Jede Sicherung ist eine ZIP-Datei mit allen Konten, Profilen, Geräten und Einstellungen sowie einem PDF und CSV je Profil.')}</p>
+    <div id="targets" class="stack">${s.targets.map(row).join('') || `<p class="muted" id="notargets">${t('Noch kein Sicherungsziel.')}</p>`}</div>
+    <div class="row"><select id="newt" style="width:auto">${Object.keys(TARGET).map(k => `<option value="${k}">${t(TARGET[k])}</option>`).join('')}</select><button type="button" class="sm" id="addt">${t('+ Ziel hinzufügen')}</button></div>
+    <div class="grid2">
+      <div><label>${t('Automatisch sichern')}</label><select name="auto_hours">${[[0, 'aus'], [12, 'alle 12 Stunden'], [24, 'täglich'], [168, 'wöchentlich']].map(([v, n]) => `<option value="${v}" ${+s.auto_hours === v ? 'selected' : ''}>${t(n)}</option>`).join('')}</select>
+        <small class="muted">${t('Nur wenn sich seit der letzten Sicherung etwas geändert hat.')}</small></div>
+      <div><label>${t('Backup-Passphrase')}</label><input name="passphrase" type="password" autocomplete="new-password" value="${h(s.passphrase)}" placeholder="${t('mindestens 8 Zeichen')}">
+        <small class="muted">${t('Verschlüsselt gespeicherte Zugangsdaten in der Sicherung. Ohne Passphrase bleiben sie draußen. Gut aufheben: ohne sie lassen sich die Zugangsdaten nicht wiederherstellen.')}</small></div>
+    </div>
+    <div class="row"><button class="pri">${t('Speichern')}</button><button type="button" id="runbk">${t('Jetzt sichern')}</button>
+      <a class="btn" href="/api/backup/download">${t('Sicherung herunterladen')}</a><button type="button" id="impbk">${t('Profile aus Sicherung importieren')}</button>
+      <input type="file" id="impfile" accept=".zip,application/zip" hidden></div>
+    ${last ? `<div class="last"><b>${t('Letzte Sicherung')}:</b> ${fmtDate(last.time)} · ${(last.size / 1024).toFixed(0)} KB
+      <ul>${last.results.map(r => `<li class="${r.ok ? 'ok' : 'err'}">${r.ok ? '✓' : '✗'} ${h(r.target)} – ${h(r.detail)}</li>`).join('')}</ul></div>` : ''}
+  </form>`;
+  const bindRm = () => $$('[data-rmt]', el).forEach(b => b.onclick = () => b.closest('.target').remove());
+  bindRm();
+  $('#addt', el).onclick = () => { const n = $('#notargets', el); if (n) n.remove(); $('#targets', el).insertAdjacentHTML('beforeend', row({ type: $('#newt', el).value })); bindRm(); };
+  const collect = () => ({
+    targets: $$('.target', el).map(d => Object.fromEntries([['type', d.dataset.type], ...$$('[data-f]', d).map(i => [i.dataset.f, i.value.trim()])])),
+    auto_hours: +$('[name=auto_hours]', el).value, passphrase: $('[name=passphrase]', el).value,
+  });
+  $('#bk', el).onsubmit = async ev => {
+    ev.preventDefault();
+    try { await api('PUT', '/api/backup', collect()); toast(t('gespeichert')); renderBackup(el); } catch (e) { toast(e.message, true); }
+  };
+  $('#runbk', el).onclick = async ev => {
+    ev.target.disabled = true;
+    try { await api('PUT', '/api/backup', collect()); const r = await api('POST', '/api/backup/run'); toast(r.results.every(x => x.ok) ? t('Sicherung erstellt') : t('Sicherung mit Fehlern, siehe unten'), !r.results.every(x => x.ok)); renderBackup(el); }
+    catch (e) { toast(e.message, true); ev.target.disabled = false; }
+  };
+  $('#impbk', el).onclick = () => $('#impfile', el).click();
+  $('#impfile', el).onchange = async ev => {
+    const file = ev.target.files[0]; if (!file) return;
+    const fdata = new FormData(); fdata.append('file', file);
+    try { const r = await api('POST', '/api/backup/import', fdata); toast(t('{p} Profile mit {d} Geräten importiert', { p: r.profiles, d: r.devices })); } catch (e) { toast(e.message, true); }
+    ev.target.value = '';
   };
 }
 
