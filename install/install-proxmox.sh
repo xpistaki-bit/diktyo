@@ -84,14 +84,16 @@ add_vlan_nics() {  # $1 = CTID
 }
 check_vlans
 
-echo "==> Looking for a Debian template (13, otherwise 12)"
+# The template list contains several architectures (amd64, arm64); only the host's one can run.
+ARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
+echo "==> Looking for a Debian template (13, otherwise 12) for $ARCH"
 pveam update >/dev/null
 TPL=""
 for v in 13 12; do
-  TPL="$(pveam available --section system | awk -v v="debian-${v}-standard" '$2 ~ v {print $2}' | sort -V | tail -1)"
+  TPL="$(pveam available --section system | awk -v v="^debian-${v}-standard_" -v a="_${ARCH}\\\\.tar" '$2 ~ v && $2 ~ a {print $2}' | sort -V | tail -1)"
   [ -n "$TPL" ] && break
 done
-[ -n "$TPL" ] || { echo "No Debian 13/12 template found."; exit 1; }
+[ -n "$TPL" ] || { echo "No Debian 13/12 template for $ARCH found."; exit 1; }
 pveam list "$TPL_STORAGE" | grep -q "$TPL" || pveam download "$TPL_STORAGE" "$TPL"
 
 NET="name=eth0,bridge=${BRIDGE},ip=${IP}"
@@ -102,7 +104,11 @@ pct create "$CTID" "${TPL_STORAGE}:vztmpl/${TPL}" --hostname "$NAME" --cores "$C
   --rootfs "${STORAGE}:${DISK}" --net0 "$NET" --unprivileged 1 --features nesting=1 --onboot 1 \
   --description "díktyo network documentation, port ${PORT}"
 add_vlan_nics "$CTID"
-pct start "$CTID"
+if ! pct start "$CTID"; then
+  echo "Container $CTID was created but does not start. Details: pct start $CTID --debug"
+  echo "Remove it with: pct destroy $CTID"
+  exit 1
+fi
 
 echo "==> Waiting for the network"
 for i in $(seq 1 40); do
