@@ -1,0 +1,18 @@
+# docker compose up -d --build
+services:
+  diktyo:
+    build: .
+    image: diktyo:latest
+    container_name: diktyo
+    restart: unless-stopped
+    # Host network: the network scan needs to see the LAN directly (MAC addresses, mDNS, SSDP).
+    # Port mappings do not apply here; change the port with DIKTYO_PORT.
+    network_mode: host
+    environment:
+      DIKTYO_PORT: "8090"
+    volumes:
+      - diktyo-data:/data
+      # - /mnt/nas/diktyo:/backup   # optional: folder for the "Folder / NAS" backup target (enter /backup in the app)
+
+volumes:
+  diktyo-data:
