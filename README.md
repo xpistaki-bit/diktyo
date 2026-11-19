@@ -6,7 +6,7 @@ to be a slim, self-hosted alternative to NetBox for private users. It runs as a 
 file, either in a Proxmox LXC or in a Docker container, and is managed in the browser. The interface is available
 in German and English.
 
-> **Status: v0.16 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.17 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -146,6 +146,14 @@ without a connection are listed separately.
 - **Full screen** enlarges the topology to the whole window below the header; Esc returns to normal size.
 - **Internet:** a globe in front of the WAN router. With the FRITZ!Box (or UniFi) integration it shows whether the
   internet connection is up (animated green line or red) and the current traffic down/up on the line.
+
+## Overview
+
+Each profile opens with an **overview**: devices online/offline, internet with current traffic, infrastructure
+availability, firmware updates, inbox and changes since yesterday; a "needs attention" list (offline devices, updates,
+failing integrations and actions); charts for WAN traffic, infrastructure response times and the busiest ports; an
+infrastructure table and recent changes. It refreshes every 30 seconds. In the topology, **Throughput** shows the
+current traffic on wired connections (from switch, MikroTik and OPNsense ports), with line width following the load.
 
 ## Reachability and firmware
 

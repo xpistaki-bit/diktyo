@@ -508,7 +508,7 @@ async def user_err(request, exc):
 def index():
     # Versionsnummer an CSS/JS hängen: nach einem Update lädt der Browser die neuen Dateien statt der zwischengespeicherten.
     html = (BASE / "static" / "index.html").read_text(encoding="utf-8")
-    for f in ("style.css", "i18n.js", "app.js", "inventory.js", "scan.js", "integrations.js", "topology.js", "history.js", "catalog.js"):
+    for f in ("style.css", "i18n.js", "app.js", "inventory.js", "scan.js", "integrations.js", "topology.js", "history.js", "dashboard.js", "catalog.js"):
         html = html.replace(f'"/{f}"', f'"/{f}?v={VERSION}"')
     return Response(html, media_type="text/html; charset=utf-8", headers={"Cache-Control": "no-cache"})
 

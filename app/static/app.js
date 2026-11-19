@@ -84,7 +84,7 @@ async function route() {
   try {
     if (p[0] === 'reset' && p[1]) return viewReset(p[1]);
     if (!STATE.user) { crumbs([]); return STATE.first_run ? (p[0] === 'wiederherstellen' ? viewRestore() : viewSetup()) : viewLogin(p[0] === 'registrieren' ? 'register' : p[0] === 'vergessen' ? 'forgot' : 'login'); }
-    if (p[0] === 'p' && p[1]) await viewProfile(+p[1], p[2] || 'geraete', p[3]);
+    if (p[0] === 'p' && p[1]) await viewProfile(+p[1], p[2] || 'uebersicht', p[3]);
     else if (p[0] === 'katalog') await (p[1] === 'regeln' ? viewRules() : viewCatalog());
     else if (p[0] === 'einstellungen') await viewSettings();
     else await viewProfiles();
@@ -221,9 +221,9 @@ function profileDialog(title, p, ok, save) {
     { ok, onOk: f => save(fd(f)) });
 }
 
-const TABS = [['geraete', 'Geräte'], ['topologie', 'Topologie'], ['verlauf', 'Verlauf'], ['posteingang', 'Posteingang'], ['netzscan', 'Netzscan'], ['integrationen', 'Integrationen'], ['ipam', 'IPAM'], ['standorte', 'Standorte'], ['ausgabe', 'Ausgabe'], ['freigabe', 'Freigabe']];
+const TABS = [['uebersicht', 'Übersicht'], ['geraete', 'Geräte'], ['topologie', 'Topologie'], ['verlauf', 'Verlauf'], ['posteingang', 'Posteingang'], ['netzscan', 'Netzscan'], ['integrationen', 'Integrationen'], ['ipam', 'IPAM'], ['standorte', 'Standorte'], ['ausgabe', 'Ausgabe'], ['freigabe', 'Freigabe']];
 async function viewProfile(pid, tab, sub) {
-  if (!TABS.some(x => x[0] === tab)) tab = 'geraete';
+  if (!TABS.some(x => x[0] === tab)) tab = 'uebersicht';
   let r;
   try { r = await api('GET', `/api/profiles/${pid}`); } catch (e) {
     if (e.status === 404) { try { localStorage.removeItem('dk_last_profile'); } catch { } }

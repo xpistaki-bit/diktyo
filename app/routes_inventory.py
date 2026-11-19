@@ -311,11 +311,11 @@ def meta(pid: int, request: Request, user=Depends(require_user)):
 
 # ------------------------------------------------------------ Topologie und Schnell-Ping
 @router.get("/topology")
-def topology_get(pid: int, expanded: str = "", user=Depends(require_user)):
+def topology_get(pid: int, expanded: str = "", traffic: int = 0, user=Depends(require_user)):
     from . import topology
     with db() as c:
         profile_access(c, user, pid)
-        return topology.build(c, pid, [x for x in expanded.split(",") if x])
+        return topology.build(c, pid, [x for x in expanded.split(",") if x], traffic=bool(traffic))
 
 
 @router.put("/topology/positions")

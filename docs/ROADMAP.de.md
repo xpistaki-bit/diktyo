@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.16.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.17.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt
@@ -25,6 +25,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Verlauf | Änderungsverlauf je Gerät und Profil mit Quelle, Zeitleiste, Kurzfassung „seit gestern“, CSV | 0.14 |
 | Erreichbarkeit | Antwortzeit je Gerät, Verfügbarkeit 24 h/7/30 Tage mit Ausfällen; Firmware-Hinweise aus sechs Integrationen | 0.15 |
 | Integrationen | OPNsense (REST-API: Schnittstellen, Clients, WAN, Firmware, Backup, Internetsperre per Alias), Docker (Container als virtuelle Geräte, Starten/Stoppen) | 0.16 |
+| Übersicht | Übersichtsseite (Kennzahlen, „Braucht Aufmerksamkeit“, WAN-/Antwortzeit-/Port-Diagramme, Infrastruktur, Änderungen); Durchsatz in der Topologie | 0.17 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan
 
@@ -73,8 +74,9 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
-| **Datendurchsatz je Gerät in der Topologie**, ein-/ausschaltbar: aktueller Traffic an den Verbindungslinien (aus Switch-Ports, MikroTik/OPNsense-Schnittstellen, WAN) | ★★★ | M |
-| **Übersichtsseite (Dashboard)**: Status aller Geräte auf einen Blick – Verfügbarkeit, Antwortzeit, offene Probleme, Firmware – dazu die Diagramme wie bei Switch- und FRITZ!Box-Integration (WAN, wichtige Ports) | ★★★ | M |
+| ~~Datendurchsatz je Gerät in der Topologie~~ – erledigt in 0.17 (kabelgebunden; WLAN-Geräte liefern keine Werte je Gerät) | ★★★ | M |
+| ~~Übersichtsseite (Dashboard)~~ – erledigt in 0.17 | ★★★ | M |
+| Übersicht anpassbar: eigene Diagramme anheften (z. B. bestimmter Port, bestimmtes Gerät) | ★★ | S |
 
 ### Monitoring
 
@@ -147,6 +149,6 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 ## 6. Vorschlag für die nächsten Schritte
 
 1. Rückmeldungen der Tester (UniFi, MikroTik, OPNsense, Docker) einarbeiten.
-2. **Übersichtsseite (Dashboard)** mit Status, Verfügbarkeit, Antwortzeit und den wichtigsten Diagrammen.
-3. **Datendurchsatz in der Topologie** (ein-/ausschaltbar).
+2. **Übersicht anpassbar** (Diagramme anheften) und **Verfügbarkeitsbericht als PDF**.
+3. **Quarantäne und Internetsperre auch über OPNsense/MikroTik** (bisher Quarantäne nur über die FRITZ!Box).
 4. Weitere Integrationen nach Bedarf (Pi-hole/AdGuard, NAS-Systeme, OpenWrt).

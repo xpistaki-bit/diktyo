@@ -55,6 +55,14 @@ Der Container nutzt das Host-Netzwerk (für den Netzscan), Port und Zeitzone ste
 (z. B. ASUS im Router-Modus hinter der FRITZ!Box), sieht der Scan das FRITZ!Box-Netz nur per Ping/TCP. Die Namen fragt
 díktyo dann beim DNS des Subnetzes ab (Gateway bzw. DNS-Angabe im IPAM), die MAC-Adressen liefert die FRITZ!Box-Integration.
 
+### Übersicht
+
+Beim Öffnen eines Profils erscheint die **Übersicht**: Geräte online/offline, Internet mit aktuellem Traffic,
+Verfügbarkeit der Infrastruktur, Firmware-Updates, Posteingang und Änderungen seit gestern. Darunter *Braucht
+Aufmerksamkeit* (offline, Updates, Integrationen mit Fehlern, fehlgeschlagene Aktionen), die Diagramme für WAN-Traffic,
+Antwortzeiten der Infrastruktur und die aktivsten Ports, eine Infrastruktur-Tabelle und die letzten Änderungen. Die
+Seite aktualisiert sich alle 30 Sekunden.
+
 ## 3. Geräte, IPAM, Standorte
 
 - **Geräte:** Im Gerätedialog Katalogmodell wählen – damit entstehen die Ports (z. B. 24 × RJ45 + 4 × SFP+). Unter
@@ -239,6 +247,9 @@ an echter Hardware.
 - Doppelklick auf einen Switch oder Router öffnet die **Frontplatte** mit allen Ports. Klick auf einen Port zeigt das
   angeschlossene Gerät mit IP und MAC (mit SNMP auch Link, Traffic und LLDP).
 - *Schnell-Ping* prüft alle Geräte sofort.
+- **Durchsatz** (Knopf in der Werkzeugleiste) zeigt an kabelgebundenen Verbindungen den aktuellen Traffic ↓/↑ aus Sicht
+  des angeschlossenen Geräts; die Linie wird mit der Last dicker. Die Werte kommen von Switch- (SNMP), MikroTik- und
+  OPNsense-Ports – für WLAN-Geräte liefert keine Integration Werte je Gerät. Die Einstellung merkt sich der Browser.
 - **Internet:** Links steht die Weltkugel, verbunden mit dem Router. Mit FRITZ!Box-Integration zeigt sie, ob die
   Internetverbindung steht (grün animiert bzw. rot), und an der Leitung den aktuellen Traffic ↓/↑ – alle 30 s aktuell.
 - **Verschieben:** Geräte und Gruppen lassen sich mit der Maus an eine beliebige Stelle ziehen (in alle Richtungen). díktyo merkt sich die

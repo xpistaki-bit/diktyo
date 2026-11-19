@@ -16,7 +16,8 @@ def _rank(d):
     return (ROOT_ORDER.index(d["type"]) if d["type"] in ROOT_ORDER else len(ROOT_ORDER), inventory.natural(d["name"]))
 
 
-def build(c, pid, expanded=(), status="confirmed"):
+def build(c, pid, expanded=(), status="confirmed", traffic=False):
+    COLW = globals()["COLW"] + (90 if traffic else 0)  # Platz für die Durchsatz-Angaben an den Linien
     devs = {d["id"]: d for d in inventory.list_devices(c, pid, status)}
     children = {}
     for d in devs.values():
@@ -62,7 +63,7 @@ def build(c, pid, expanded=(), status="confirmed"):
             child = place(k, depth + 1)
             u = k["uplink"]
             edges.append(dict(source=n["id"], target=child["id"], medium=u["medium"], label=u["port_name"] or "",
-                              child_label=u["local_port_name"] or ""))
+                              child_label=u["local_port_name"] or "", port_id=u.get("port_id"), local_port_id=u.get("local_port_id")))
             ys.append(child["y"])
         n["x"] = depth * COLW
         if ys:
@@ -95,6 +96,11 @@ def build(c, pid, expanded=(), status="confirmed"):
         for n in wan_nodes:
             edges.insert(0, dict(source="internet", target=n["id"], medium="wan", label="", connected=internet["connected"],
                                  rx_bps=internet["rx_bps"], tx_bps=internet["tx_bps"]))
+    if traffic:
+        _add_traffic(c, edges)
+    for e in edges:
+        e.pop("port_id", None)
+        e.pop("local_port_id", None)
     width = (max([n["depth"] for n in nodes] or [0]) + 1) * COLW + (INET_GAP if internet else 0)
     height = max(row[0], 1) * ROWH
     # von Hand verschobene Knoten
@@ -126,6 +132,34 @@ def save_positions(c, pid, positions):
         x, y = (max(-100000.0, min(100000.0, float(v))) for v in xy[:2])
         c.execute("INSERT INTO topo_positions(profile_id, node, x, y) VALUES(?,?,?,?) "
                   "ON CONFLICT(profile_id, node) DO UPDATE SET x=excluded.x, y=excluded.y", (pid, node, x, y))
+
+
+def _add_traffic(c, edges):
+    """Aktueller Durchsatz an kabelgebundenen Verbindungen aus den Port-Daten (SNMP, MikroTik, OPNsense).
+    down_bps/up_bps aus Sicht des angeschlossenen Geräts: am Port des übergeordneten Geräts ist „out“ der Download."""
+    from .integrations import live_ports
+    cache = {}
+
+    def port(iid):
+        if not iid:
+            return None, None
+        r = c.execute("SELECT device_id, port_no FROM interfaces WHERE id=?", (iid,)).fetchone()
+        if not r or r["port_no"] is None:
+            return None, None
+        if r["device_id"] not in cache:
+            cache[r["device_id"]] = live_ports(c, r["device_id"])
+        return cache[r["device_id"]].get(r["port_no"]), r
+
+    for e in edges:
+        if e.get("medium") == "wan":
+            continue
+        lp, _ = port(e.get("port_id"))            # Port am übergeordneten Gerät
+        if lp and lp.get("in_bps") is not None:
+            e["down_bps"], e["up_bps"] = lp.get("out_bps"), lp.get("in_bps")
+            continue
+        lp, _ = port(e.get("local_port_id"))      # Uplink-Port am Gerät selbst (z. B. Switch hinter Switch)
+        if lp and lp.get("in_bps") is not None:
+            e["down_bps"], e["up_bps"] = lp.get("in_bps"), lp.get("out_bps")
 
 
 def _internet(c, pid, devs, root_routers):

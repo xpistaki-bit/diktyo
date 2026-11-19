@@ -169,3 +169,12 @@ def health_device(pid: int, did: int, user=Depends(require_user)):
     with db() as c:
         profile_access(c, user, pid)
         return health.device(c, pid, did)
+
+
+# ------------------------------------------------------------ Übersicht
+@router.get("/dashboard")
+def dashboard_get(pid: int, user=Depends(require_user)):
+    from . import dashboard
+    with db() as c:
+        profile_access(c, user, pid)
+        return dashboard.build(c, pid)

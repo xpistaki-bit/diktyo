@@ -117,6 +117,11 @@ async function drawChart(el, pid, keys, names, since, opts = {}) {
   const colors = ['#00E5FF', '#19F5C8', '#2D7BFF', '#FFB020'];
   el.innerHTML = chartSvg(keys.map((k, i) => ({ name: names[i], color: colors[i % colors.length], points: r.series[k] || [] })), since, opts);
 }
+const fmtBpsShort = v => {
+  if (v == null || isNaN(v)) return '–';
+  const u = [[1e9, 'G'], [1e6, 'M'], [1e3, 'k']].find(([f]) => v >= f) || [1, ''];
+  return (v / u[0]).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: v / u[0] < 10 ? 1 : 0 }) + u[1];
+};
 const fmtMs = v => v == null || isNaN(v) ? '–' : `${(+v).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: v < 10 ? 1 : 0 })} ms`;
 const fmtDur = s => !s ? '–' : s < 60 ? `${s} s` : s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${(s / 3600).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: 1 })} h` : t('{d} Tage {h} h', { d: Math.floor(s / 86400), h: Math.floor(s % 86400 / 3600) });
 const pctCls = p => p == null ? 'muted' : p >= 99.9 ? 'okc' : p >= 98 ? 'warnc' : 'errtxt';

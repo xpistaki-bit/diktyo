@@ -396,3 +396,21 @@ ul.hist li.hc-change.hk-created .hi{color:var(--cyan)} ul.hist li.hc-quarantine 
 .hcell b{font-size:17px}
 .badge.fwup{border-color:rgba(255,184,77,.6);color:var(--warn,#ffb84d)}
 .tn-fw{fill:var(--warn,#ffb84d);font-size:13px;font-weight:700}
+
+/* ---- Übersicht ---- */
+.ov-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+.ov-tile{border:1px solid var(--line);border-radius:10px;padding:10px 14px;background:rgba(2,8,20,.55);display:flex;flex-direction:column;gap:2px;color:inherit;text-decoration:none}
+a.ov-tile:hover{border-color:var(--cyan)}
+.ov-tile b{font:600 24px var(--mono);color:var(--ink)} .ov-tile b small{font-size:14px;color:var(--dim)}
+.ov-tile span{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)} .ov-tile small{font-size:12px;color:var(--dim)}
+.ov-tile.ok{border-left:3px solid var(--ok)} .ov-tile.warn{border-left:3px solid var(--warn,#ffb84d)} .ov-tile.bad{border-left:3px solid var(--err)} .ov-tile.info{border-left:3px solid var(--cyan)}
+.ov-tile.warn b{color:var(--warn,#ffb84d)} .ov-tile.bad b{color:var(--err)}
+.ov-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:12px}
+.ov-grid .panel{margin:0} .ov-grid h3{margin:0 0 8px}
+ul.ov-issues{list-style:none;margin:0;padding:0} ul.ov-issues li{padding:4px 0;border-bottom:1px solid rgba(120,160,200,.08);display:flex;gap:8px}
+ul.ov-issues li span{width:16px;text-align:center} ul.ov-issues li.bad span{color:var(--err)} ul.ov-issues li.warn span{color:var(--warn,#ffb84d)} ul.ov-issues li.info span{color:var(--cyan)}
+@media (max-width: 520px){.ov-grid{grid-template-columns:1fr}}
+/* ---- Topologie: Durchsatz ---- */
+.tplabel{fill:var(--cyan);font:600 13px var(--mono);paint-order:stroke;stroke:var(--bg);stroke-width:4px}
+path.tp-busy{filter:drop-shadow(0 0 3px rgba(0,229,255,.5))}
+button.on{border-color:var(--cyan);color:var(--cyan)}

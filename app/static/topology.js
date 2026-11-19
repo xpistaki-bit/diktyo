@@ -87,7 +87,8 @@ async function tabTopology(ctx) {
   if (ctx.sub) return topoDetail(ctx, +ctx.sub);
   const P = `/api/profiles/${ctx.pid}`;
   const exp = tabTopology.expanded[ctx.pid] || (tabTopology.expanded[ctx.pid] = new Set());
-  const data = await api('GET', `${P}/topology?expanded=${[...exp].join(',')}`);
+  const traffic = () => { try { return localStorage.getItem('dk_topo_traffic') === '1'; } catch { return false; } };
+  const data = await api('GET', `${P}/topology?expanded=${[...exp].join(',')}${traffic() ? '&traffic=1' : ''}`);
   if (!data.nodes.length) {
     ctx.el.innerHTML = `<div class="panel empty-box">${t('Noch keine bestätigten Geräte. Übernimm Geräte aus dem Posteingang oder lege sie an; Verbindungen entstehen über „Anschluss“ im Gerätedialog oder automatisch über die Integrationen.')}</div>`;
     return;
@@ -96,6 +97,7 @@ async function tabTopology(ctx) {
   const VW = Math.max(900, data.width + PAD * 2), VH = Math.max(420, data.height + PAD * 2);
   ctx.el.innerHTML = `<div class="topo-box" id="tbox"><div class="toolbar topo-tools">
       <button class="pri sm" id="qping">${t('Schnell-Ping')}</button>
+      <button class="sm ${traffic() ? 'on' : ''}" id="tput" title="${t('Aktuellen Durchsatz an den Verbindungen anzeigen (aus Switch-, MikroTik- und OPNsense-Ports)')}">${t('Durchsatz')}</button>
       <button class="sm" id="expall">${t('Alle Gruppen aufklappen')}</button><button class="sm" id="colall">${t('Alle zuklappen')}</button>
       ${ctx.canEdit && data.pinned ? `<button class="sm" id="relayout" title="${t('Alle von Hand verschobenen Geräte wieder automatisch anordnen')}">${t('Anordnung zurücksetzen')}</button>` : ''}
       <span class="grow"></span>
@@ -121,6 +123,13 @@ async function tabTopology(ctx) {
         return `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" class="${cls}"/>${lbl}`;
       }
       const [col, dash] = MSTYLE[e.medium] || MSTYLE.lan;
+      if (e.down_bps != null || e.up_bps != null) {  // Durchsatz: Linienstärke nach Last, Werte an der Linie
+        const tot = (e.down_bps || 0) + (e.up_bps || 0), wdt = tot > 0 ? Math.min(7, 1.6 + Math.log10(Math.max(1, tot / 1e5)) * 1.4) : 1.6;
+        const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+        return `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" fill="none" stroke="${col}" stroke-width="${wdt.toFixed(1)}" stroke-dasharray="${dash}" opacity=".9" class="${tot > 1e6 ? 'tp-busy' : ''}"/>
+          ${tot > 1000 ? `<text x="${cx}" y="${cy + 17}" text-anchor="middle" class="tplabel">↓${esc(fmtBpsShort(e.down_bps))} ↑${esc(fmtBpsShort(e.up_bps))}</text>` : ''}
+          ${e.label ? `<text x="${x1 + 8}" y="${y1 - 5}" class="elabel">${esc(e.label)}</text>` : ''}${e.child_label ? `<text x="${x2 - 8}" y="${y2 - 5}" class="elabel" text-anchor="end">${esc(e.child_label)}</text>` : ''}`;
+      }
       return `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" fill="none" stroke="${col}" stroke-width="1.6" stroke-dasharray="${dash}" opacity=".85"/>
         ${e.label ? `<text x="${x1 + 8}" y="${y1 - 5}" class="elabel">${esc(e.label)}</text>` : ''}${e.child_label ? `<text x="${x2 - 8}" y="${y2 - 5}" class="elabel" text-anchor="end">${esc(e.child_label)}</text>` : ''}`;
     }).join('');
@@ -205,6 +214,7 @@ async function tabTopology(ctx) {
   const pz = panZoom(svg, vp, st, fit);
   fullscreenToggle($('#tbox', ctx.el), $('#fs', ctx.el), () => setTimeout(() => pz.fit(), 50));
   $('#zin', ctx.el).onclick = () => pz.zoom(1.25); $('#zout', ctx.el).onclick = () => pz.zoom(1 / 1.25); $('#zfit', ctx.el).onclick = () => pz.fit();
+  $('#tput', ctx.el).onclick = () => { try { localStorage.setItem('dk_topo_traffic', traffic() ? '0' : '1'); } catch { } ctx.reload(); };
   $('#expall', ctx.el).onclick = () => { data.nodes.filter(n => n.kind === 'group').forEach(n => exp.add(`${n.parent}:${n.medium}`)); ctx.reload(); };
   $('#colall', ctx.el).onclick = () => { exp.clear(); ctx.reload(); };
   const rl = $('#relayout', ctx.el);
@@ -242,7 +252,7 @@ async function tabTopology(ctx) {
   async function refresh() {
     if (!document.body.contains(svg)) return;
     try {
-      const fresh = await api('GET', `${P}/topology?expanded=${[...exp].join(',')}`);
+      const fresh = await api('GET', `${P}/topology?expanded=${[...exp].join(',')}${traffic() ? '&traffic=1' : ''}`);
       if (fresh.nodes.length !== data.nodes.length) return ctx.reload();
       if (nd) return;  // nicht während des Verschiebens neu zeichnen
       fresh.nodes.forEach(n => { if (byId[n.id]) Object.assign(byId[n.id], { online: n.online, online_count: n.online_count, rx_bps: n.rx_bps, tx_bps: n.tx_bps }); });
