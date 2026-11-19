@@ -1,9 +1,9 @@
 """API: Schaltaktionen (nur Besitzer des Profils)."""
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from . import actions
+from . import actions, quarantine, schedules
 from .auth import profile_access, require_user
-from .db import db
+from .db import audit, db, now
 
 router = APIRouter(prefix="/api/profiles/{pid}")
 
@@ -45,3 +45,76 @@ def action_cancel_undo(pid: int, aid: int, user=Depends(require_user)):
         if not actions.cancel_undo(c, pid, aid):
             raise HTTPException(404, "Kein geplantes Zurückschalten")
     return dict(ok=True)
+
+
+# ------------------------------------------------------------ Zeitpläne
+@router.get("/schedules")
+def schedules_list(pid: int, device_id: int = 0, user=Depends(require_user)):
+    with db() as c:
+        profile_access(c, user, pid)
+        return dict(schedules=schedules.listing(c, pid, device_id or None))
+
+
+@router.post("/devices/{did}/schedules")
+def schedule_create(pid: int, did: int, body: dict = Body(...), user=Depends(require_user)):
+    with db() as c:
+        profile_access(c, user, pid, "owner")
+        try:
+            sid = schedules.create(c, pid, user["id"], did, str(body.get("key") or ""), body.get("days"), body.get("start"), body.get("end"),
+                                   int(body.get("port") or 0))
+        except schedules.ScheduleError as ex:
+            raise HTTPException(400, str(ex))
+        audit(c, "schedule.create", user["id"], pid, dict(id=sid, device=did))
+        return next(s for s in schedules.listing(c, pid) if s["id"] == sid)
+
+
+@router.put("/schedules/{sid}")
+def schedule_toggle(pid: int, sid: int, body: dict = Body(...), user=Depends(require_user)):
+    with db() as c:
+        profile_access(c, user, pid, "owner")
+        if not c.execute("UPDATE schedules SET enabled=?, last_check=? WHERE id=? AND profile_id=?",
+                         (1 if body.get("enabled") else 0, now(), sid, pid)).rowcount:
+            raise HTTPException(404, "Zeitplan nicht gefunden")
+        return next(s for s in schedules.listing(c, pid) if s["id"] == sid)
+
+
+@router.delete("/schedules/{sid}")
+def schedule_delete(pid: int, sid: int, user=Depends(require_user)):
+    with db() as c:
+        profile_access(c, user, pid, "owner")
+        if not c.execute("DELETE FROM schedules WHERE id=? AND profile_id=?", (sid, pid)).rowcount:
+            raise HTTPException(404, "Zeitplan nicht gefunden")
+        audit(c, "schedule.delete", user["id"], pid, dict(id=sid))
+    return dict(ok=True)
+
+
+# ------------------------------------------------------------ Quarantäne
+@router.get("/quarantine")
+def quarantine_get(pid: int, user=Depends(require_user)):
+    with db() as c:
+        p, role = profile_access(c, user, pid)
+        has_fritz = bool(quarantine._fritz(c, pid))
+        return dict(settings=quarantine.settings(p), available=has_fritz, devices=quarantine.listing(c, pid), owner=role == "owner")
+
+
+@router.put("/quarantine")
+def quarantine_put(pid: int, body: dict = Body(...), user=Depends(require_user)):
+    with db() as c:
+        profile_access(c, user, pid, "owner")
+        if body.get("enabled") and not quarantine._fritz(c, pid):
+            raise HTTPException(400, "Für die Quarantäne wird eine FRITZ!Box-Integration mit Benutzer gebraucht")
+        q = quarantine.save(c, pid, bool(body.get("enabled")), body.get("random", True) is not False)
+        audit(c, "quarantine.settings", user["id"], pid, q)
+        return q
+
+
+@router.post("/quarantine/{qid}/release")
+def quarantine_release(pid: int, qid: int, user=Depends(require_user)):
+    with db() as c:
+        profile_access(c, user, pid, "owner")
+    res = quarantine.release(pid, qid)
+    if res is None:
+        raise HTTPException(404, "Eintrag nicht gefunden")
+    if res["status"] == "error":
+        raise HTTPException(400, res["message"])
+    return res

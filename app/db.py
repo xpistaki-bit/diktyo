@@ -282,6 +282,40 @@ MIGRATIONS = [
         undo_result TEXT);
     CREATE INDEX actions_profile ON actions(profile_id, id);
     """,
+    # 9: Zeitpläne für Aktionen und Quarantäne für neue Geräte
+    """
+    CREATE TABLE schedules(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+        integration_id INTEGER REFERENCES integrations(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL,
+        params TEXT NOT NULL DEFAULT '{}',
+        label TEXT NOT NULL DEFAULT '',
+        port INTEGER NOT NULL DEFAULT 0,
+        days TEXT NOT NULL,
+        start TEXT NOT NULL,
+        end_time TEXT,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created TEXT NOT NULL,
+        created_by INTEGER,
+        last_check TEXT,
+        last_run TEXT,
+        last_result TEXT);
+    CREATE TABLE quarantine(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        device_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+        integration_id INTEGER REFERENCES integrations(id) ON DELETE SET NULL,
+        ip TEXT NOT NULL,
+        mac TEXT NOT NULL DEFAULT '',
+        name TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL,
+        since TEXT NOT NULL,
+        released TEXT,
+        message TEXT NOT NULL DEFAULT '');
+    CREATE INDEX quarantine_profile ON quarantine(profile_id, status);
+    """,
 ]
 
 

@@ -68,7 +68,7 @@ DRIVER_STEPS.mikrotik = [
   'Eigenen Benutzer anlegen – nur lesen:<pre>/user group add name=diktyo-read policy=read,rest-api,api,ssh,!local,!telnet,!ftp,!winbox,!web\n/user add name=diktyo group=diktyo-read password=GEHEIM</pre>Für <b>Aktionen</b> (Port, PoE, WLAN, Neustart, Wake-on-LAN) stattdessen <span class="mono">policy=read,write,reboot,test,rest-api,api,ssh</span>.',
   'Konfigurations-Backup liest „/export“ per SSH (Dienst ssh, Port 22) mit demselben Benutzer – Passwörter sind im Export nicht enthalten.',
 ];
-const EVENT = { device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät', action_undo_failed: 'Zurückschalten fehlgeschlagen' };
+const EVENT = { device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät', action_undo_failed: 'Zurückschalten fehlgeschlagen', quarantined: 'Neues Gerät in Quarantäne', schedule_failed: 'Zeitplan fehlgeschlagen' };
 const RANGES = [[7200, '2 h'], [86400, '24 h'], [172800, '2 Tage'], [604800, '7 Tage']];
 const fmtBps = v => {
   if (v == null || isNaN(v)) return '–';
@@ -193,6 +193,8 @@ async function tabIntegrations(ctx) {
     }
   }
   // Ansicht aktuell halten, solange der Reiter offen ist
+  { const qb = document.createElement('div'); qb.style.marginTop = '16px'; ctx.el.appendChild(qb); quarantinePanel(ctx, qb); }
+  { const sb = document.createElement('div'); sb.className = 'panel'; sb.style.marginTop = '16px'; sb.innerHTML = `<h3>${t('Zeitpläne')}</h3><div></div>`; ctx.el.appendChild(sb); scheduleList(ctx, sb.lastElementChild); }
   { const box = document.createElement('div'); box.id = 'recentact'; box.style.marginTop = '16px'; ctx.el.appendChild(box); recentActions(ctx, box); }
   clearTimeout(tabIntegrations.timer);
   tabIntegrations.timer = setTimeout(() => { if (document.body.contains(ctx.el) && location.hash.endsWith('/integrationen') && !$('#dlg').open) ctx.reload(); }, 60000);
@@ -300,15 +302,95 @@ async function actionsBox(ctx, did, el, port = 0) {
       ${a.blocked ? `disabled title="${h(t(a.blocked))}"` : `title="${h(t(a.detail))}"`}>${h(t(a.label))}</button>`).join('')}</div>
     ${r.actions.some(a => a.blocked) ? `<p class="muted small">${r.actions.filter(a => a.blocked).map(a => `${h(t(a.label))}: ${h(t(a.blocked))}`).join('<br>')}</p>` : ''}`;
   $$('[data-act]', el).forEach(b => b.onclick = async () => { if (await runAction(ctx, did, r.actions[+b.dataset.act], port)) actionsBox(ctx, did, el, port); });
+  if (!port) {
+    const box = document.createElement('div'); el.appendChild(box);
+    scheduleList(ctx, box, did);
+  }
+}
+
+const DAY_NAMES = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const daysText = ds => ds.length === 7 ? t('täglich') : ds.join() === '0,1,2,3,4' ? t('Mo–Fr') : ds.join() === '5,6' ? t('Sa, So') : ds.map(i => t(DAY_NAMES[i])).join(', ');
+
+async function scheduleList(ctx, el, did = 0) {
+  let r;
+  try { r = await api('GET', `/api/profiles/${ctx.pid}/schedules${did ? `?device_id=${did}` : ''}`); } catch { return; }
+  if (!r.schedules.length) { el.innerHTML = did ? '' : `<p class="muted small">${t('Noch keine Zeitpläne. Anlegen über die Aktionen eines Geräts → „Zeitplan anlegen“.')}</p>`; return; }
+  el.innerHTML = `${did ? `<h4>${t('Zeitpläne')}</h4>` : ''}<div class="table-wrap"><table class="compact"><tbody>
+    ${r.schedules.map(s => `<tr class="${s.enabled ? '' : 'off-row'}"><td>${h(t(s.label))}${!did && s.device ? ` · <b>${h(s.device)}</b>` : ''}</td>
+      <td class="small mono">${h(daysText(s.days))} ${h(s.start)}${s.end ? '–' + h(s.end) : ''}</td>
+      <td class="small muted">${s.enabled && s.next_run ? t('nächster Lauf {d}', { d: h(fmtDate(s.next_run)) }) : !s.enabled ? t('pausiert') : ''}
+        ${s.last_result ? `<br><span class="${s.last_result.includes(': done') ? '' : 'errtxt'}">${t('zuletzt')}: ${h(s.last_result)}</span>` : ''}</td>
+      <td class="act">${ctx.isOwner ? `<button class="sm" data-st="${s.id}" data-en="${s.enabled ? 0 : 1}">${s.enabled ? t('pausieren') : t('fortsetzen')}</button>
+        <button class="sm danger" data-sd="${s.id}">${t('Löschen')}</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
+  $$('[data-st]', el).forEach(b => b.onclick = async () => { await api('PUT', `/api/profiles/${ctx.pid}/schedules/${b.dataset.st}`, { enabled: !!+b.dataset.en }); scheduleList(ctx, el, did); });
+  $$('[data-sd]', el).forEach(b => b.onclick = async () => {
+    if (!await confirmDlg(t('Zeitplan löschen'), t('Diesen Zeitplan löschen?'), t('Löschen'))) return;
+    await api('DELETE', `/api/profiles/${ctx.pid}/schedules/${b.dataset.sd}`); scheduleList(ctx, el, did);
+  });
+}
+
+async function quarantinePanel(ctx, el) {
+  let r;
+  try { r = await api('GET', `/api/profiles/${ctx.pid}/quarantine`); } catch { return; }
+  const act = r.devices.filter(x => x.status === 'active' || x.status === 'error' || x.status === 'release_failed');
+  el.innerHTML = `<div class="panel"><div class="row between"><h3 style="margin:0">${t('Quarantäne für neue Geräte')}</h3>
+      ${r.owner ? `<label class="chk" style="margin:0"><input type="checkbox" data-qen ${r.settings.enabled ? 'checked' : ''} ${r.available ? '' : 'disabled'}> ${t('eingeschaltet')}</label>` : ''}</div>
+    <p class="muted small">${r.available ? t('Neue Geräte, die nach dem Einschalten auftauchen, bekommen über die FRITZ!Box keinen Internetzugang, bis du sie im Posteingang übernimmst. Das Heimnetz bleibt erreichbar. Ausgenommen sind Infrastruktur, díktyo selbst und das Gastnetz.')
+      : t('Dafür wird eine FRITZ!Box-Integration mit Benutzer gebraucht.')}</p>
+    ${r.owner && r.available ? `<label class="chk small"><input type="checkbox" data-qrand ${r.settings.random ? 'checked' : ''}> ${t('auch Geräte mit zufälliger (privater) MAC-Adresse')}</label>` : ''}
+    ${act.length ? `<div class="table-wrap"><table class="compact"><tbody>${act.map(x => `<tr><td><b>${h(x.device)}</b> <span class="mono small">${h(x.ip)}</span></td>
+        <td class="small">${x.status === 'active' ? `<span class="warnc">${t('gesperrt seit {d}', { d: h(fmtDate(x.since)) })}</span>` : `<span class="errtxt">${h(x.message || x.status)}</span>`}</td>
+        <td class="act">${x.device_id ? `<button class="sm" data-qopen="${x.device_id}">${t('Gerät öffnen')}</button>` : ''}${r.owner ? `<button class="sm" data-qrel="${x.id}">${t('Freigeben')}</button>` : ''}</td></tr>`).join('')}
+      </tbody></table></div>` : r.settings.enabled ? `<p class="muted small">${t('Zurzeit ist kein Gerät in Quarantäne.')}</p>` : ''}</div>`;
+  const save = async () => {
+    try { await api('PUT', `/api/profiles/${ctx.pid}/quarantine`, { enabled: $('[data-qen]', el).checked, random: $('[data-qrand]', el) ? $('[data-qrand]', el).checked : true }); toast(t('gespeichert')); quarantinePanel(ctx, el); }
+    catch (e) { toast(e.message, true); quarantinePanel(ctx, el); }
+  };
+  const en = $('[data-qen]', el); if (en) en.onchange = save;
+  const rd = $('[data-qrand]', el); if (rd) rd.onchange = save;
+  $$('[data-qopen]', el).forEach(b => b.onclick = () => deviceDialog(ctx, +b.dataset.qopen));
+  $$('[data-qrel]', el).forEach(b => b.onclick = async () => {
+    const P = `/api/profiles/${ctx.pid}`;
+    try {
+      let x = await api('POST', `${P}/quarantine/${b.dataset.qrel}/release`);
+      if (x.status === 'second_factor') {
+        const q = r.devices.find(y => y.id === +b.dataset.qrel);
+        if (!await secondFactor(P, { id: q.integration_id || 0 }, x, { totp: false })) return;
+        x = await api('POST', `${P}/quarantine/${b.dataset.qrel}/release`);
+      }
+      toast(t('Freigegeben')); quarantinePanel(ctx, el);
+    } catch (e) { toast(e.message, true); }
+  });
 }
 
 async function runAction(ctx, did, a, port = 0) {
   const P = `/api/profiles/${ctx.pid}`;
   const v = await dialog(t(a.label), `<p>${h(t(a.detail)) || t('Aktion ausführen?')}</p>
-    ${a.undo ? `<label>${t('Automatisch zurückschalten')}</label><select name="undo">${UNDO.map(([k, n]) => `<option value="${k}">${t(n)}</option>`).join('')}</select>` : ''}
-    <p class="muted small">${t('Vorher sichert díktyo die Konfiguration, falls die letzte Sicherung älter als eine Stunde ist. Die Aktion wird protokolliert.')}</p>`,
-    { ok: t('Ausführen'), danger: a.danger, onOk: f => fd(f) });
+    <div class="row mode-sw"><label class="chk"><input type="radio" name="mode" value="now" checked> ${t('Jetzt ausführen')}</label>
+      <label class="chk"><input type="radio" name="mode" value="plan"> ${t('Zeitplan anlegen')}</label></div>
+    <div data-now>${a.undo ? `<label>${t('Automatisch zurückschalten')}</label><select name="undo">${UNDO.map(([k, n]) => `<option value="${k}">${t(n)}</option>`).join('')}</select>` : ''}
+      <p class="muted small">${t('Vorher sichert díktyo die Konfiguration, falls die letzte Sicherung älter als eine Stunde ist. Die Aktion wird protokolliert.')}</p></div>
+    <div data-plan hidden><label>${t('Wochentage')}</label><div class="row days">${DAY_NAMES.map((n, i) => `<label class="chk"><input type="checkbox" name="d${i}" ${i < 5 ? 'checked' : ''}> ${t(n)}</label>`).join('')}</div>
+      <div class="grid2"><div><label>${a.undo ? t('Von') : t('Um')}</label><input name="start" type="time" value="${a.kind === 'internet' ? '22:00' : '03:00'}"></div>
+        ${a.undo ? `<div><label>${t('Bis (dann zurück)')}</label><input name="end" type="time" value="${a.kind === 'internet' ? '06:30' : '07:00'}"></div>` : ''}</div>
+      <p class="muted small">${a.undo ? t('Zu Beginn schaltet díktyo, am Ende zurück – nur an diesen Zeitpunkten; Änderungen von Hand dazwischen bleiben bestehen.') : t('Läuft an den gewählten Tagen einmal zur angegebenen Uhrzeit.')}
+        ${a.kind === 'internet' || a.kind === 'wlan' ? ' ' + t('Verlangt die FRITZ!Box für diese Aktion eine Bestätigung, kann der Zeitplan nicht automatisch schalten – díktyo meldet das dann.') : ''}</p></div>`,
+    { ok: t('Ausführen'), danger: a.danger, onOk: f => fd(f), onOpen: f => {
+      $$('[name=mode]', f).forEach(r => r.onchange = () => {
+        const plan = $('[name=mode]:checked', f).value === 'plan';
+        $('[data-plan]', f).hidden = !plan; $('[data-now]', f).hidden = plan;
+        $('button[type=submit]', f).textContent = plan ? t('Zeitplan speichern') : t('Ausführen');
+      });
+    } });
   if (!v) return false;
+  if (v.mode === 'plan') {
+    const days = DAY_NAMES.map((_, i) => v[`d${i}`] ? i : null).filter(x => x !== null);
+    try {
+      await api('POST', `${P}/devices/${did}/schedules`, { key: a.key, days, start: v.start, end: v.end || null, port });
+      toast(t('Zeitplan gespeichert'));
+      return true;
+    } catch (e) { toast(e.message, true); return false; }
+  }
   const body = { key: a.key, undo: v.undo || null, port };
   try {
     let r = await api('POST', `${P}/devices/${did}/actions`, body);

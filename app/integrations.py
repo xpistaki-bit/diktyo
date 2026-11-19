@@ -522,7 +522,7 @@ def _publish_ha(c, row, conf):
     # Ereignisse
     msgs.append((f"{disc}/event/diktyo_{pid}_events/config", dict(
         name="Ereignis", unique_id=f"diktyo_{pid}_events", state_topic=f"{base}/event", device=hub, icon="mdi:bell-ring",
-        event_types=["device_offline", "device_online", "new_device", "action_undo_failed"]), True))
+        event_types=["device_offline", "device_online", "new_device", "action_undo_failed", "quarantined", "schedule_failed"]), True))
     evs = c.execute("SELECT * FROM events WHERE profile_id=? AND delivered='' ORDER BY id LIMIT 200", (pid,)).fetchall()
     for e in evs:
         d = json.loads(e["data"] or "{}")

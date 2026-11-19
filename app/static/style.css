@@ -369,3 +369,9 @@ ul.diag li b::before{margin-right:6px} ul.diag li.ok b::before{content:"✓";col
 .act-list{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
 button.warn-btn{border-color:rgba(255,184,77,.6);color:var(--warn,#ffb84d)}
 button.warn-btn:hover:not(:disabled){background:rgba(255,184,77,.12)}
+
+/* ---- Zeitpläne & Quarantäne ---- */
+.mode-sw{gap:18px;margin:4px 0 8px}
+.days{flex-wrap:wrap;gap:4px 12px}
+tr.off-row td{opacity:.55}
+.inrow.quar{border-left:3px solid var(--warn,#ffb84d)}

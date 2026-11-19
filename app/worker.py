@@ -107,6 +107,13 @@ def poller():
                 actions.run_due_undos(log)
             except Exception as ex:  # Rückschaltungen dürfen den Hintergrunddienst nicht anhalten
                 log(f"Zurückschalten: {type(ex).__name__}: {ex}")
+            try:
+                from . import quarantine, schedules
+                schedules.run_due(log)
+                for p in profiles:
+                    quarantine.process(p["id"], log)
+            except Exception as ex:
+                log(f"Zeitpläne/Quarantäne: {type(ex).__name__}: {ex}")
             for iid in cfg_due:
                 res = configbackup.run(iid)
                 log(f"Konfigurations-Backup Integration {iid}: {res['status']} {res.get('message', '')}".strip())

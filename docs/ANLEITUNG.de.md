@@ -259,6 +259,20 @@ Topologie-Seitenleiste und in der Frontplatte beim angeklickten Port:
 - Am **Switch** selbst: im Gerätedialog unter *Aktionen* den Port wählen (oder in der Frontplatte auf den Port klicken).
 - Am **Proxmox-Host**: Liste seiner VMs und Container zum Starten bzw. Herunterfahren.
 
+**Zeitpläne:** Im Aktionsdialog „Zeitplan anlegen“ wählen – Wochentage und Uhrzeit. Bei Internetsperre, WLAN und
+Switch-Port gilt ein Zeitfenster (z. B. Mo–Fr 22:00–06:30 Internet gesperrt): zu Beginn schaltet díktyo, am Ende
+zurück. Geschaltet wird nur an diesen Zeitpunkten – gibst du zwischendurch von Hand frei, bleibt das bis zum nächsten
+Übergang so. Andere Aktionen (Neustart, PoE, Wake-on-LAN, VM) laufen einmal zur gewählten Uhrzeit. Vor jedem Lauf
+prüft díktyo den Aussperr-Schutz erneut; die Internetsperre nutzt immer die aktuelle IP des Geräts. Übersicht,
+Pausieren und Löschen unter *Integrationen → Zeitpläne* und im Gerätedialog.
+
+**Quarantäne für neue Geräte:** *Integrationen → Quarantäne für neue Geräte* einschalten (braucht die
+FRITZ!Box-Integration mit Benutzer). Jedes Gerät, das danach neu im Posteingang landet, bekommt über die FRITZ!Box keinen
+Internetzugang; das Heimnetz bleibt erreichbar. **Übernehmen** im Posteingang gibt es automatisch frei, *Freigeben*
+geht auch ohne Übernehmen. Ausgenommen: Infrastruktur, díktyo selbst, Geräte außerhalb des FRITZ!Box-Netzes (Gastnetz);
+optional auch Geräte mit zufälliger MAC-Adresse. Wechselt ein Gerät in Quarantäne die IP, zieht díktyo die Sperre nach.
+Home Assistant kann bei jeder neuen Quarantäne benachrichtigen (Blueprint, Ereignis „Neues Gerät in Quarantäne“).
+
 Proxmox-Rechte für VMs schalten (einmal auf einem Knoten):
 
 ```bash

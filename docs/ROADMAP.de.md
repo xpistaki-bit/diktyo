@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.12.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.13.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt
@@ -21,6 +21,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Schalten | WLAN, Internetsperre, Wake-on-LAN, Switch-Port, PoE, VMs; Vorschau, Sicherung vorher, automatisches Zurückschalten, Aussperr-Schutz, Protokoll | 0.11 |
 | Sicherung | Google Drive geführt verbinden (rclone, nur eigene Dateien) | 0.11.1 |
 | MikroTik | RouterOS 7 über REST: Ports, Clients, WLAN, Nachbarn, WAN, `/export`-Backup, Aktionen | 0.12 |
+| Automatisierung | Zeitpläne für Aktionen (Zeitfenster, nur an Übergängen), Quarantäne für neue Geräte | 0.13 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan
 
@@ -78,7 +79,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
-| Neue unbekannte Geräte automatisch in „Quarantäne“ (Internet sperren, bis bestätigt) | ★★★ | S |
+| ~~Neue unbekannte Geräte automatisch in „Quarantäne“~~ – erledigt in 0.13 | ★★★ | S |
 | Vergleich offener Ports über die Zeit („Port 23 ist neu offen“) | ★★ | S |
 | Anmeldung an díktyo mit 2FA (TOTP) oder Passkey, Sitzungsverwaltung | ★★★ | M |
 | Audit-Log-Ansicht in der Oberfläche | ★ | S |
@@ -98,7 +99,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
-| Zeitpläne für Aktionen (z. B. Kinder-Tablet nachts ohne Internet, Gastnetz nur am Wochenende) | ★★★ | S |
+| ~~Zeitpläne für Aktionen~~ – erledigt in 0.13 | ★★★ | S |
 | Regeln („Kamera offline → PoE neu starten“, „AP antwortet nicht → Port neu starten“) | ★★ | M |
 | Aktionen als Schalter/Taster in Home Assistant (MQTT) | ★★ | S |
 
@@ -135,7 +136,6 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 ## 6. Vorschlag für die nächsten Schritte
 
 1. Rückmeldungen der Tester (UniFi, MikroTik) einarbeiten.
-2. **Zeitpläne für Aktionen** und **Quarantäne für neue Geräte** – wenig Aufwand, großer Nutzen im Alltag.
-3. **Änderungsverlauf** je Gerät und Profil (Phase 3) – macht aus der Doku eine Chronik.
-4. **Firmware-Hinweise** und **Latenz-/Verfügbarkeitsdiagramme** – mehr Monitoring ohne neue Hardware.
-5. **OPNsense/pfSense** und **Docker** als nächste Integrationen.
+2. **Änderungsverlauf** je Gerät und Profil (Phase 3) – macht aus der Doku eine Chronik.
+3. **Firmware-Hinweise** und **Latenz-/Verfügbarkeitsdiagramme** – mehr Monitoring ohne neue Hardware.
+4. **OPNsense/pfSense** und **Docker** als nächste Integrationen.

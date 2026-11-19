@@ -34,12 +34,15 @@ async function tabInbox(ctx) {
   const { devices } = await api('GET', `${P}/devices`);
   const inbox = devices.filter(d => d.status === 'discovered').sort((a, b) => (b.ident?.confidence || 0) - (a.ident?.confidence || 0) || ipNum(a.ips[0]?.address) - ipNum(b.ips[0]?.address));
   const ignored = devices.filter(d => d.status === 'ignored');
-  ctx.el.innerHTML = `
+  let quar = [];
+  try { quar = (await api('GET', `${P}/quarantine`)).devices.filter(x => x.status === 'active'); } catch { }
+  const inQ = new Set(quar.map(x => x.device_id));
+  ctx.el.innerHTML = `${quar.length ? `<div class="hint-box small">${quar.length === 1 ? t('1 Gerät ist in Quarantäne (ohne Internet). „Übernehmen“ gibt es frei.') : t('{n} Geräte sind in Quarantäne (ohne Internet). „Übernehmen“ gibt sie frei.', { n: quar.length })}</div>` : ''}
     <p class="muted" style="margin-top:0">${t('Hier landen Geräte, die der Netzscan neu gefunden hat. Übernimm sie in die Geräteliste, bearbeite sie vorher oder ignoriere sie; ignorierte Geräte werden bei späteren Scans wiedererkannt und nicht erneut gemeldet.')}</p>
     ${inbox.length ? `<div class="toolbar">${ctx.canEdit ? `<label class="chk" style="margin:0"><input type="checkbox" id="all"> ${t('alle')}</label>
       <button class="pri sm" data-bulk="confirm">${t('Auswahl übernehmen')}</button><button class="sm" data-bulk="ignore">${t('Auswahl ignorieren')}</button>` : ''}
       <span class="grow"></span><span class="muted">${t('{n} neue Geräte', { n: inbox.length })}</span></div>` : ''}
-    <div class="inbox">${inbox.length ? inbox.map(d => `<div class="inrow panel" data-id="${d.id}">
+    <div class="inbox">${inbox.length ? inbox.map(d => `<div class="inrow panel${inQ.has(d.id) ? ' quar' : ''}" data-id="${d.id}">
         ${ctx.canEdit ? `<input type="checkbox" data-sel>` : ''}
         <div class="guess"><b>${h(identLabel(d.ident) || t('Unbekanntes Gerät'))}</b> ${d.ident ? confBar(d.ident.confidence || 0) : ''}
           <div class="reasons">${reasonsHtml(d.ident)}</div>

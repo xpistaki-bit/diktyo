@@ -6,7 +6,7 @@ to be a slim, self-hosted alternative to NetBox for private users. It runs as a 
 file, either in a Proxmox LXC or in a Docker container, and is managed in the browser. The interface is available
 in German and English.
 
-> **Status: v0.12 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.13 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -244,7 +244,9 @@ Wi-Fi on/off and restart (FRITZ!Box), block/allow internet access and Wake-on-LA
 network, switch port off/on and PoE restart (SNMP with write access), start/shut down/restart VMs and containers
 (Proxmox token with `VM.PowerMgmt`). Every action shows a preview and asks for confirmation; Wi-Fi, internet block and
 switch ports can switch back automatically (15 min, 1 h, 2 h, tomorrow 6:00). The configuration is backed up first if
-the last backup is older than an hour. díktyo refuses to disable the switch port it or the router uses to reach the
+the last backup is older than an hour. **Schedules** run actions on weekdays and times (with a time window for
+reversible actions, e.g. internet blocked Mon–Fri 22:00–06:30, switching only at the transitions). **Quarantine** blocks
+internet access (FRITZ!Box) for every new device until it is accepted in the inbox. díktyo refuses to disable the switch port it or the router uses to reach the
 switch, does not block infrastructure from the internet and does not shut down its own VM. All actions are logged.
 
 ## Device configuration backups
