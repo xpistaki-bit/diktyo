@@ -19,6 +19,7 @@ TPL = dict(vendor=["TP-Link"])
 NETGEAR = dict(vendor=["Netgear"])
 DEVOLO = dict(vendor=["devolo"])
 UBNT = dict(vendor=["Ubiquiti"])
+MIKROTIK = dict(vendor=["Routerboard", "MikroTik"])
 
 # (Typ, Hersteller, Modell, Ports, WLAN, verwaltet, Treiber, Hinweis, Erkennung)
 E = [
@@ -87,6 +88,17 @@ E = [
     ("powerline", "devolo", "Magic 2 WiFi 6", "2:rj45:1G:LAN", "Wi-Fi 6 (2,4/5 GHz)", True, "", "G.hn, Mesh", DEVOLO),
     ("powerline", "devolo", "Magic 2 WiFi next", "2:rj45:1G:LAN", "Wi-Fi 5 (2,4/5 GHz)", True, "", "G.hn, Mesh", DEVOLO),
     ("powerline", "devolo", "Magic 1 WiFi", "2:rj45:100M:LAN", "Wi-Fi 4 (2,4 GHz)", True, "", "HomePlug AV2", DEVOLO),
+    # MikroTik (RouterOS)
+    ("router", "MikroTik", "hAP ax³", "1:rj45:2.5G:WAN/PoE-in, 4:rj45:1G:LAN", "Wi-Fi 6 (2,4/5 GHz)", True, "mikrotik", "RouterOS 7, USB", MIKROTIK),
+    ("router", "MikroTik", "hAP ax²", "5:rj45:1G", "Wi-Fi 6 (2,4/5 GHz)", True, "mikrotik", "RouterOS 7", MIKROTIK),
+    ("router", "MikroTik", "hAP ac²", "5:rj45:1G", "Wi-Fi 5 (2,4/5 GHz)", True, "mikrotik", "RouterOS", MIKROTIK),
+    ("router", "MikroTik", "hEX S (RB760iGS)", "5:rj45:1G, 1:sfp:1G", "", True, "mikrotik", "RouterOS, PoE-out an ether5", MIKROTIK),
+    ("router", "MikroTik", "hEX (RB750Gr3)", "5:rj45:1G", "", True, "mikrotik", "RouterOS", MIKROTIK),
+    ("router", "MikroTik", "RB5009UG+S+IN", "1:rj45:2.5G, 7:rj45:1G, 1:sfp+:10G", "", True, "mikrotik", "RouterOS 7", MIKROTIK),
+    ("switch", "MikroTik", "CRS326-24G-2S+RM", "24:rj45:1G, 2:sfp+:10G", "", True, "mikrotik", "RouterOS / SwOS", MIKROTIK),
+    ("switch", "MikroTik", "CRS310-8G+2S+IN", "8:rj45:2.5G, 2:sfp+:10G", "", True, "mikrotik", "RouterOS 7", MIKROTIK),
+    ("switch", "MikroTik", "CRS305-1G-4S+IN", "1:rj45:1G, 4:sfp+:10G", "", True, "mikrotik", "RouterOS / SwOS", MIKROTIK),
+    ("ap", "MikroTik", "cAP ax", "2:rj45:1G", "Wi-Fi 6 (2,4/5 GHz)", True, "mikrotik", "Deckenmontage, PoE-in", MIKROTIK),
     # Ubiquiti UniFi
     ("router", "Ubiquiti", "UniFi Dream Machine Pro", "1:rj45:1G:WAN, 8:rj45:1G:LAN, 1:sfp+:10G:WAN, 1:sfp+:10G:LAN", "", True, "unifi", "UniFi OS Konsole", UBNT),
     ("router", "Ubiquiti", "UniFi Cloud Gateway Ultra", "1:rj45:2.5G:WAN, 4:rj45:1G:LAN", "", True, "unifi", "UniFi OS Konsole", UBNT),

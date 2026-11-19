@@ -82,6 +82,7 @@ Phase 2:
 | P2.8 | passive DHCP fingerprinting | open |
 | P2.9 | FRITZ!Box authenticator code (web interface), free node placement, catalog entry from system info | done (0.9.1) |
 | P2.10 | AI research for the catalog (Claude API with web search, optional, own key) | done (0.10.0) |
+| P2.11 | MikroTik RouterOS 7 integration (REST API, SSH export, actions) | done (0.12.0), not yet tested on real hardware |
  Phase 3: change history between scans, cable and patch-panel documentation,
 Prometheus endpoint, REST API with tokens.
 

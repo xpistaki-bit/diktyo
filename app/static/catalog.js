@@ -1,6 +1,6 @@
 'use strict';
 /* Gerätekatalog: Startdaten + eigene Einträge, CSV-Import/-Export. Ändern dürfen Administratoren. */
-const DRIVERS = { '': '–', fritzbox_tr064: 'FRITZ!Box (TR-064)', snmp: 'SNMP', asuswrt: 'ASUS (AiMesh)', omada: 'TP-Link Omada', unifi: 'UniFi', proxmox: 'Proxmox' };
+const DRIVERS = { '': '–', fritzbox_tr064: 'FRITZ!Box (TR-064)', snmp: 'SNMP', asuswrt: 'ASUS (AiMesh)', omada: 'TP-Link Omada', unifi: 'UniFi', proxmox: 'Proxmox', mikrotik: 'MikroTik (RouterOS)' };
 const TYPE_KEYS = ['router', 'modem', 'firewall', 'switch', 'ap', 'mesh', 'repeater', 'powerline', 'server', 'hypervisor', 'vm', 'container', 'nas', 'computer',
   'laptop', 'phone', 'tablet', 'tv', 'speaker', 'camera', 'iot', 'printer', 'console', 'ups', 'other'];
 const TYPE_DE = { router: 'Router', modem: 'Modem', firewall: 'Firewall', switch: 'Switch', ap: 'Access Point', mesh: 'Mesh-Knoten', repeater: 'Repeater',

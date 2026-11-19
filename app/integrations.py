@@ -93,6 +93,10 @@ def _slim(driver, res):
                     running=sum(1 for g in res.get("guests", []) if g["running"]))
     if driver == "homeassistant":
         return dict(info=res.get("info"))
+    if driver == "mikrotik":
+        return dict(info=res.get("info"), wan=res.get("wan"), ports=res.get("ports"), wifi=res.get("wifi"), wifi_menu=res.get("wifi_menu"),
+                    clients=len(res.get("clients", [])), online=sum(1 for x in res.get("clients", []) if x["online"]),
+                    wlan=sum(1 for x in res.get("clients", []) if x["medium"] == "wlan"), fdb_size=res.get("fdb_size"))
     if driver in CONTROLLERS:
         return dict(info=res.get("info"), wan=res.get("wan"),
                     devices=[{k: d[k] for k in ("name", "model", "type", "ip", "online", "clients")} for d in res.get("devices", [])],
@@ -263,7 +267,7 @@ def apply_snmp(c, row, res):
 
 def live_ports(c, did):
     """Port-Status aus der letzten SNMP-Abfrage eines Geräts bzw. vom Controller (UniFi) -> {port_no: {...}}"""
-    r = c.execute("SELECT state FROM integrations WHERE device_id=? AND driver='snmp' ORDER BY id LIMIT 1", (did,)).fetchone()
+    r = c.execute("SELECT state FROM integrations WHERE device_id=? AND driver IN ('snmp','mikrotik') ORDER BY id LIMIT 1", (did,)).fetchone()
     if r:
         st = json.loads(r["state"] or "{}")
         return {p["port_no"]: p for p in (st.get("result") or {}).get("ports") or []}
@@ -594,5 +598,54 @@ def apply_controller(c, row, res):
     return dict(device_id=own, devices=len(dev_of), clients=len(res.get("clients", [])), new=stats["new"] + new, links=links)
 
 
+# ------------------------------------------------------------ MikroTik
+def apply_mikrotik(c, row, res):
+    pid, info = row["profile_id"], res.get("info") or {}
+    oui.ensure(lambda *a: None)
+    own = _own_device(c, row, info.get("name") or info.get("model") or "MikroTik", info.get("model", ""), "", "router", "MikroTik")
+    if res.get("ports") and not c.execute("SELECT 1 FROM interfaces WHERE device_id=? AND role='port'", (own,)).fetchone():
+        data = json.loads(c.execute("SELECT data FROM devices WHERE id=?", (own,)).fetchone()["data"] or "{}")
+        data["ports"] = ctl.port_groups([dict(p, max_speed=ctl.speed_text(p.get("speed") or 0)) for p in res["ports"]])
+        c.execute("UPDATE devices SET data=? WHERE id=?", (json.dumps(data, ensure_ascii=False), own))
+        inventory.sync_ports(c, own, data["ports"])
+    port_id = {r["port_no"]: r["id"] for r in c.execute("SELECT id, port_no FROM interfaces WHERE device_id=? AND role='port'", (own,))}
+    rules, index = ident.load_rules(c), ident.catalog_index(c)
+    hosts, offline = [], set()
+    for x in res.get("clients", []):
+        if not x["online"]:
+            offline.add(x["ip"])
+            continue
+        h = dict(ip=x["ip"], mac=x["mac"], vendor=oui.vendor(x["mac"]), random=oui.is_random(x["mac"]), hostname=x["name"], netbios="",
+                 mdns=None, ssdp=None, http=None, ports=[], services={}, os="")
+        h["ident"] = ident.identify(rules, index, h)
+        hosts.append(h)
+    stats = runner.merge(c, pid, None, hosts, probed=offline, source="mikrotik", record=False)
+    by_mac = _device_by_mac(c, pid)
+    links = 0
+    wan_if = (res.get("wan") or {}).get("iface")
+    for p in res.get("ports", []):  # Nachbarn per MNDP/LLDP: am WAN-Port der Uplink, sonst ein Gerät dahinter
+        n = p.get("lldp") or {}
+        d = by_mac.get(n.get("mac") or "")
+        if not d or d["id"] == own:
+            continue
+        if p["iface"] == wan_if:
+            if set_auto_uplink(c, pid, own, d["id"], "lan", local_port_id=port_id.get(p["port_no"]), source="mikrotik"):
+                links += 1
+        elif set_auto_uplink(c, pid, d["id"], own, "lan", port_id=port_id.get(p["port_no"]), source="mikrotik"):
+            links += 1
+    for x in res.get("clients", []):
+        d = by_mac.get(x["mac"])
+        if not d or not x["online"] or d["id"] == own or d["type"] in INFRA and x["medium"] == "lan" and not x["port"]:
+            continue
+        if x["medium"] == "lan" and not x["port"]:
+            continue  # Port unbekannt (z. B. hinter einem weiteren Switch) – nicht raten
+        pid_port = port_id.get(x["port"]) if x["port"] else None
+        if pid_port and len(next((p["macs"] for p in res["ports"] if p["port_no"] == x["port"]), [])) > 1:
+            continue  # mehrere Geräte am Port: dahinter steckt ein Switch/AP – SNMP bzw. Nachbarn klären das
+        if set_auto_uplink(c, pid, d["id"], own, x["medium"], port_id=pid_port, source="mikrotik"):
+            links += 1
+    return dict(device_id=own, clients=len(res.get("clients", [])), new=stats["new"], links=links, ports=len(res.get("ports", [])))
+
+
 APPLY = {"fritzbox": apply_fritz, "snmp": apply_snmp, "asuswrt": apply_asus, "proxmox": apply_proxmox, "homeassistant": apply_ha,
-         "omada": apply_controller, "unifi": apply_controller}
+         "omada": apply_controller, "unifi": apply_controller, "mikrotik": apply_mikrotik}

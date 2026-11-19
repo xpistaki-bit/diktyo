@@ -111,7 +111,7 @@ def _path_targets(c, pid, sw_did):
             pass
     own_ips = {i["ip"] for i in netinfo.interfaces()}
     gw = netinfo.default_gateway()
-    host = c.execute("SELECT host FROM integrations WHERE device_id=? AND driver='snmp' LIMIT 1", (sw_did,)).fetchone()
+    host = c.execute("SELECT host FROM integrations WHERE device_id=? AND driver IN ('snmp','mikrotik') LIMIT 1", (sw_did,)).fetchone()
     try:
         sw_net = ipaddress.ip_network(f"{host['host']}/24", strict=False) if host else None
     except ValueError:
@@ -170,14 +170,17 @@ def _port_actions(c, pid, row, port_no):
     protected = port_no in _protected_ports(c, pid, row["device_id"], st)
     reason = "Über diesen Port erreicht díktyo bzw. der Router den Switch – abschalten würde die Verwaltung aussperren." if protected else ""
     name = port.get("name") or f"Port {port_no}"
+    ref = dict(iface=port["iface"], id=port["id"]) if row["driver"] == "mikrotik" else dict(ifindex=port["ifindex"])
+    what = "Port" if row["driver"] == "mikrotik" else "Switch-Port"
     out = []
     if port.get("admin") == "down":
-        out.append(_act("port", row["id"], dict(port_no=port_no, ifindex=port["ifindex"], up=True), f"Switch-Port {port_no} einschalten", name))
+        out.append(_act("port", row["id"], dict(port_no=port_no, up=True, **ref), f"{what} {port_no} einschalten", name))
     else:
-        out.append(_act("port", row["id"], dict(port_no=port_no, ifindex=port["ifindex"], up=False), f"Switch-Port {port_no} abschalten",
+        out.append(_act("port", row["id"], dict(port_no=port_no, up=False, **ref), f"{what} {port_no} abschalten",
                         f"{name} – das angeschlossene Gerät verliert die Verbindung.", danger=True, blocked=reason))
     if port.get("poe"):
-        out.append(_act("poe_cycle", row["id"], dict(port_no=port_no), f"PoE an Port {port_no} neu starten",
+        poe_ref = dict(iface=port["iface"]) if row["driver"] == "mikrotik" else {}
+        out.append(_act("poe_cycle", row["id"], dict(port_no=port_no, **poe_ref), f"PoE an Port {port_no} neu starten",
                         "Strom am Port 5 Sekunden aus und wieder an (startet z. B. Access Point oder Kamera neu).", danger=True, blocked=reason))
     return out
 
@@ -192,7 +195,7 @@ def available(c, pid, did, port_no=None):
     own_ips, _ = _own_addresses()
     out = []
     if port_no:  # Frontplatte bzw. Port-Auswahl: nur die Aktionen dieses Switch-Ports
-        for row in _integrations(c, pid, "snmp"):
+        for row in _integrations(c, pid, "snmp") + _integrations(c, pid, "mikrotik"):
             if row["device_id"] == did:
                 return _port_actions(c, pid, row, port_no)
         return []
@@ -216,8 +219,21 @@ def available(c, pid, did, port_no=None):
             out.append(_act("internet", row["id"], dict(ip=ips[0], block=False), "Internetzugang freigeben", f"für {ips[0]}"))
             if mac:
                 out.append(_act("wol", row["id"], dict(mac=mac), "Aufwecken (Wake-on-LAN)", f"Weckruf an {mac} über die FRITZ!Box"))
-    # Switch-Ports (SNMP)
-    for row in _integrations(c, pid, "snmp"):
+    # MikroTik: WLAN, Neustart, Wake-on-LAN für direkt angeschlossene Geräte
+    for row in _integrations(c, pid, "mikrotik"):
+        st = (_state(row).get("result") or {})
+        if row["device_id"] == did:
+            for w in st.get("wifi") or []:
+                if not w.get("id"):
+                    continue
+                label = f"WLAN „{w['ssid'] or w['iface']}“{' (' + w['band'] + ')' if w.get('band') else ''} {'ausschalten' if w['enabled'] else 'einschalten'}"
+                out.append(_act("wlan", row["id"], dict(iface=w["iface"], id=w["id"], menu=st.get("wifi_menu") or "interface/wifi", on=not w["enabled"], ssid=w["ssid"]),
+                                label, "Geräte in diesem WLAN verlieren die Verbindung." if w["enabled"] else "", danger=w["enabled"]))
+            out.append(_act("reboot", row["id"], {}, "MikroTik neu starten", "Alle Verbindungen über dieses Gerät sind etwa eine Minute weg.", danger=True))
+        elif mac and _uplink(c, did)[0] == row["device_id"]:
+            out.append(_act("wol", row["id"], dict(mac=mac), "Aufwecken (Wake-on-LAN)", f"Weckruf an {mac} über den MikroTik"))
+    # Switch-Ports (SNMP) und MikroTik-Ports
+    for row in _integrations(c, pid, "snmp") + _integrations(c, pid, "mikrotik"):
         if row["device_id"] == did and port_no:
             out += _port_actions(c, pid, row, port_no)
         elif row["device_id"] and row["device_id"] != did:
@@ -388,7 +404,7 @@ def cancel_undo(c, pid, aid):
 
 def switch_ports(c, pid, did):
     """Ports eines per SNMP angebundenen Switches für die Port-Auswahl im Gerätedialog (sonst None)."""
-    for row in _integrations(c, pid, "snmp"):
+    for row in _integrations(c, pid, "snmp") + _integrations(c, pid, "mikrotik"):
         if row["device_id"] == did:
             ports = (_state(row).get("result") or {}).get("ports") or []
             return [dict(port_no=p["port_no"], name=p.get("name") or "", oper=p.get("oper"), admin=p.get("admin", "up"), poe=p.get("poe")) for p in ports]

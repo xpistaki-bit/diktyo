@@ -1880,6 +1880,335 @@
  },
  {
   "type": "router",
+  "manufacturer": "MikroTik",
+  "model": "hAP ax³",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "2.5G",
+     "label": "WAN/PoE-in",
+     "poe": false
+    },
+    {
+     "count": 4,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "LAN",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "mikrotik",
+   "note": "RouterOS 7, USB",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Routerboard",
+     "MikroTik"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "MikroTik",
+  "model": "hAP ax²",
+  "data": {
+   "ports": [
+    {
+     "count": 5,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "mikrotik",
+   "note": "RouterOS 7",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Routerboard",
+     "MikroTik"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "MikroTik",
+  "model": "hAP ac²",
+  "data": {
+   "ports": [
+    {
+     "count": 5,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 5 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "mikrotik",
+   "note": "RouterOS",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Routerboard",
+     "MikroTik"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "MikroTik",
+  "model": "hEX S (RB760iGS)",
+  "data": {
+   "ports": [
+    {
+     "count": 5,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "sfp",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "mikrotik",
+   "note": "RouterOS, PoE-out an ether5",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Routerboard",
+     "MikroTik"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "MikroTik",
+  "model": "hEX (RB750Gr3)",
+  "data": {
+   "ports": [
+    {
+     "count": 5,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "mikrotik",
+   "note": "RouterOS",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Routerboard",
+     "MikroTik"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
+  "manufacturer": "MikroTik",
+  "model": "RB5009UG+S+IN",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "2.5G",
+     "label": "",
+     "poe": false
+    },
+    {
+     "count": 7,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    },
+    {
+     "count": 1,
+     "kind": "sfp+",
+     "speed": "10G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "mikrotik",
+   "note": "RouterOS 7",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Routerboard",
+     "MikroTik"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "MikroTik",
+  "model": "CRS326-24G-2S+RM",
+  "data": {
+   "ports": [
+    {
+     "count": 24,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    },
+    {
+     "count": 2,
+     "kind": "sfp+",
+     "speed": "10G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "mikrotik",
+   "note": "RouterOS / SwOS",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Routerboard",
+     "MikroTik"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "MikroTik",
+  "model": "CRS310-8G+2S+IN",
+  "data": {
+   "ports": [
+    {
+     "count": 8,
+     "kind": "rj45",
+     "speed": "2.5G",
+     "label": "",
+     "poe": false
+    },
+    {
+     "count": 2,
+     "kind": "sfp+",
+     "speed": "10G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "mikrotik",
+   "note": "RouterOS 7",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Routerboard",
+     "MikroTik"
+    ]
+   }
+  }
+ },
+ {
+  "type": "switch",
+  "manufacturer": "MikroTik",
+  "model": "CRS305-1G-4S+IN",
+  "data": {
+   "ports": [
+    {
+     "count": 1,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    },
+    {
+     "count": 4,
+     "kind": "sfp+",
+     "speed": "10G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "",
+   "managed": true,
+   "driver": "mikrotik",
+   "note": "RouterOS / SwOS",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Routerboard",
+     "MikroTik"
+    ]
+   }
+  }
+ },
+ {
+  "type": "ap",
+  "manufacturer": "MikroTik",
+  "model": "cAP ax",
+  "data": {
+   "ports": [
+    {
+     "count": 2,
+     "kind": "rj45",
+     "speed": "1G",
+     "label": "",
+     "poe": false
+    }
+   ],
+   "wifi": "Wi-Fi 6 (2,4/5 GHz)",
+   "managed": true,
+   "driver": "mikrotik",
+   "note": "Deckenmontage, PoE-in",
+   "verified": false,
+   "source": "Herstellerangaben, nicht einzeln geprüft",
+   "match": {
+    "vendor": [
+     "Routerboard",
+     "MikroTik"
+    ]
+   }
+  }
+ },
+ {
+  "type": "router",
   "manufacturer": "Ubiquiti",
   "model": "UniFi Dream Machine Pro",
   "data": {

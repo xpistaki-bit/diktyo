@@ -2,7 +2,7 @@
 
 díktyo dokumentiert dein Heimnetz: Geräte mit IP, MAC, Standort und Notizen, IP-Adressverwaltung mit Subnetzen und VLANs,
 eine grafische Topologie, Netzscan mit Geräteerkennung, Online-Überwachung und Integrationen für FRITZ!Box, Switches
-(SNMP), ASUS-Router mit AiMesh, TP-Link Omada, Ubiquiti UniFi, Proxmox VE und Home Assistant. Diese Anleitung führt durch Installation und Einrichtung.
+(SNMP), ASUS-Router mit AiMesh, MikroTik, TP-Link Omada, Ubiquiti UniFi, Proxmox VE und Home Assistant. Diese Anleitung führt durch Installation und Einrichtung.
 
 ## 1. Installation
 
@@ -169,6 +169,29 @@ Clients und den WAN-Traffic des Gateways (Internet-Leitung in der Topologie, Dia
 **Hinweis:** Beide Integrationen sind nach der Dokumentation der Hersteller gebaut und gegen nachgebildete Controller
 getestet, aber noch nicht an echter Hardware. Klappt etwas nicht, die Meldung der Integration als Issue melden.
 
+### MikroTik (RouterOS 7)
+
+Für hAP, hEX, RB5009, CRS-Switches, cAP, Chateau usw. mit RouterOS 7 (REST-API). Im MikroTik-Terminal (WinBox →
+*New Terminal*):
+
+```
+/certificate add name=diktyo common-name=diktyo days-valid=3650
+/certificate sign diktyo
+/ip service set www-ssl certificate=diktyo disabled=no
+/user group add name=diktyo-read policy=read,rest-api,api,ssh,!local,!telnet,!ftp,!winbox,!web
+/user add name=diktyo group=diktyo-read password=GEHEIM
+```
+
+Für **Aktionen** (Port, PoE, WLAN, Neustart, Wake-on-LAN) die Gruppe mit `policy=read,write,reboot,test,rest-api,api,ssh`
+anlegen. Ab RouterOS 7.9 geht statt HTTPS auch HTTP (Dienst *www*, nur im eigenen Netz).
+
+díktyo liest Modell und Version, Ports (Link, Tempo, Traffic, PoE), Clients aus DHCP und ARP, welches Gerät an welchem
+Port bzw. WLAN hängt (Bridge-Hosts, WLAN-Registrierungen mit Signal), Nachbarn per MNDP/LLDP und den WAN-Traffic
+(Interface-Liste „WAN“). Das Konfigurations-Backup holt `/export` per SSH (ohne Passwörter); „Änderungen“ zeigt, was
+sich zwischen zwei Ständen geändert hat.
+
+**Hinweis:** gegen eine nachgebildete RouterOS-API getestet, noch nicht an echter Hardware – Rückmeldungen willkommen.
+
 ## 5. Überwachung und Ereignisse
 
 - *Integrationen → Online-Überwachung:* alle bestätigten Geräte werden alle 30 s, 1 min oder 5 min gepingt.
@@ -221,6 +244,7 @@ Topologie-Seitenleiste und in der Frontplatte beim angeklickten Port:
 | Gerät im FRITZ!Box-Netz | Internetzugang sperren/freigeben, Aufwecken (Wake-on-LAN) | wie oben |
 | Gerät an einem Switch-Port | Port ab-/einschalten, PoE neu starten | SNMP mit **Schreibrechten** (Zyxel: Benutzer in einer Gruppe mit Schreibrechten, z. B. „admin“, bzw. Community mit read-write) |
 | VM / LXC | starten, herunterfahren, neu starten | Proxmox-Token mit `VM.PowerMgmt` (siehe unten) |
+| MikroTik | Port ab-/einschalten, PoE neu starten, WLAN ein/aus, Wake-on-LAN, Neustart | Benutzergruppe mit write, reboot, test |
 
 - Vor jeder Aktion kommt eine **Vorschau mit Bestätigung**. Bei WLAN, Internetsperre und Switch-Port lässt sich
   **automatisch zurückschalten** (nach 15 min, 1 h, 2 h oder morgen um 6:00) – praktisch etwa für eine Internetpause.

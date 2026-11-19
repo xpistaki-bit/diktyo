@@ -6,8 +6,8 @@ to be a slim, self-hosted alternative to NetBox for private users. It runs as a 
 file, either in a Proxmox LXC or in a Docker container, and is managed in the browser. The interface is available
 in German and English.
 
-> **Status: v0.11 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
-> [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plans for later versions are in [docs/architecture.md](docs/architecture.md).
+> **Status: v0.12 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
 
@@ -213,7 +213,11 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
 - **Ubiquiti UniFi** (local Network Integration API with an API key, UniFi Network 9.0 or newer; consoles and
   self-hosted controllers): gateway, switches and access points with port status (shown on the front panel), the
   connected clients with their access point or switch, and the gateway's WAN traffic.
-- Omada and UniFi were built from the vendors' API documentation and tested against simulated controllers, not yet
+- **MikroTik RouterOS 7** (REST API, user with read + rest-api; write/reboot/test for actions): ports with link,
+  speed, traffic and PoE, clients from DHCP/ARP with the port or Wi-Fi they use (bridge hosts, registration table),
+  MNDP/LLDP neighbours and WAN traffic; configuration backup via SSH `/export`; actions port off/on, PoE restart,
+  Wi-Fi on/off, Wake-on-LAN, restart.
+- Omada, UniFi and MikroTik were built from the vendors' API documentation and tested against simulated controllers, not yet
   against real hardware – feedback welcome.
 - Connections set by an integration never replace connections entered by hand.
 - **Online monitoring:** all confirmed devices with an IP address are pinged every 30 s, 1 min or 5 min (per

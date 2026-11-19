@@ -61,6 +61,13 @@ Object.assign(DRIVER_STEPS, {
     'Optional eine Site eintragen, sonst liest díktyo alle Sites. Der WAN-Traffic des Gateways erscheint in der Topologie an der Internet-Leitung.',
   ],
 });
+DRIVER_HELP.mikrotik = 'díktyo liest Ports, Clients (DHCP, ARP, Bridge, WLAN), Nachbarn und WAN; schalten nur über „Aktionen“ mit Bestätigung.';
+DRIVER_STEPS.mikrotik = [
+  'RouterOS 7 nötig (System → Packages zeigt die Version). Die REST-API läuft über den Dienst <b>www-ssl</b> (HTTPS) – ab 7.9 alternativ <b>www</b> (HTTP, nur im eigenen Netz).',
+  'Für HTTPS braucht www-ssl ein Zertifikat. Im Terminal (WinBox → New Terminal):<pre>/certificate add name=diktyo common-name=diktyo days-valid=3650\n/certificate sign diktyo\n/ip service set www-ssl certificate=diktyo disabled=no</pre>',
+  'Eigenen Benutzer anlegen – nur lesen:<pre>/user group add name=diktyo-read policy=read,rest-api,api,ssh,!local,!telnet,!ftp,!winbox,!web\n/user add name=diktyo group=diktyo-read password=GEHEIM</pre>Für <b>Aktionen</b> (Port, PoE, WLAN, Neustart, Wake-on-LAN) stattdessen <span class="mono">policy=read,write,reboot,test,rest-api,api,ssh</span>.',
+  'Konfigurations-Backup liest „/export“ per SSH (Dienst ssh, Port 22) mit demselben Benutzer – Passwörter sind im Export nicht enthalten.',
+];
 const EVENT = { device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät', action_undo_failed: 'Zurückschalten fehlgeschlagen' };
 const RANGES = [[7200, '2 h'], [86400, '24 h'], [172800, '2 Tage'], [604800, '7 Tage']];
 const fmtBps = v => {
@@ -118,7 +125,8 @@ async function tabIntegrations(ctx) {
         <p class="muted small" style="margin-top:0">${t('Geräte, die díktyo direkt abfragt. Die FRITZ!Box liefert alle angeschlossenen Geräte mit MAC-Adresse (auch aus Netzen hinter einem Router) und den WAN-Traffic; ein Switch per SNMP liefert Port-Status, Traffic und welches Gerät an welchem Port hängt.')}</p>
         ${ctx.canEdit ? `<div class="row"><button class="pri" data-add="fritzbox">${t('+ FRITZ!Box')}</button><button class="pri" data-add="snmp">${t('+ Switch (SNMP)')}</button>
           <button class="pri" data-add="asuswrt">${t('+ ASUS (AiMesh)')}</button><button class="pri" data-add="proxmox">${t('+ Proxmox')}</button><button class="pri" data-add="homeassistant">${t('+ Home Assistant')}</button>
-          <button class="pri" data-add="omada">${t('+ Omada')}</button><button class="pri" data-add="unifi">${t('+ UniFi')}</button></div>` : ''}</div>
+          <button class="pri" data-add="omada">${t('+ Omada')}</button><button class="pri" data-add="unifi">${t('+ UniFi')}</button>
+          <button class="pri" data-add="mikrotik">${t('+ MikroTik')}</button></div>` : ''}</div>
     </div>
     <div id="ints" class="stack" style="margin-top:16px">${r.integrations.map(i => `<div class="panel integ" data-id="${i.id}">
         <div class="row between"><div class="row"><span class="dot ${st(i)}"></span><b>${h(i.name)}</b><span class="muted mono small">${h(i.host)}</span>
@@ -130,7 +138,7 @@ async function tabIntegrations(ctx) {
         ${i.can_backup ? `<p class="small cfgline"><b>${t('Konfiguration')}:</b> ${i.cfg_ok ? t('zuletzt gesichert {d}', { d: h(ago(i.cfg_ok)) }) : t('noch nicht gesichert')}
           ${i.cfg_result?.status === 'error' ? ` · <span class="${i.cfg_result.second_factor ? 'warnc' : 'errtxt'}">${h(t(i.cfg_result.message))}</span>` : i.cfg_result?.status === 'unchanged' ? ` · <span class="muted">${t('unverändert')}</span>` : ''}
           ${ctx.canEdit ? `<button class="sm" data-cfg>${t('Konfiguration sichern')}</button>` : ''}</p>` : ''}
-        ${i.driver === 'fritzbox' ? fritzCard(i) : i.driver === 'snmp' ? snmpCard(i) : i.driver === 'asuswrt' ? asusCard(i) : i.driver === 'proxmox' ? pveCard(i) : ['omada', 'unifi'].includes(i.driver) ? ctrlCard(i) : haCard(i)}
+        ${i.driver === 'fritzbox' ? fritzCard(i) : i.driver === 'snmp' ? snmpCard(i) : i.driver === 'asuswrt' ? asusCard(i) : i.driver === 'proxmox' ? pveCard(i) : ['omada', 'unifi'].includes(i.driver) ? ctrlCard(i) : i.driver === 'mikrotik' ? mtCard(i) : haCard(i)}
       </div>`).join('') || `<div class="panel empty-box">${t('Noch keine Integration. Füge deine FRITZ!Box hinzu – das geht auch ohne Passwort.')}</div>`}</div>
     <h2>${t('Letzte Ereignisse')}</h2><div id="events"></div>`;
   api('GET', `${P}/events?limit=15`).then(({ events }) => {
@@ -327,6 +335,16 @@ async function recentActions(ctx, el) {
   $$('[data-cu]', el).forEach(b => b.onclick = async () => { await api('DELETE', `/api/profiles/${ctx.pid}/actions/${b.dataset.cu}/undo`); recentActions(ctx, el); });
 }
 
+function mtCard(i) {
+  const r = i.result || {}, info = r.info || {}, w = r.wan || {};
+  return `<div class="kv">${info.model ? `<span>${t('Modell')}: <b>${h(info.model)}</b></span>` : ''}${info.version ? `<span>RouterOS: <b>${h(info.version)}</b></span>` : ''}
+      ${info.uptime ? `<span>${t('läuft seit')}: <b>${h(info.uptime)}</b></span>` : ''}${info.cpu != null ? `<span>CPU: <b>${h(info.cpu)} %</b></span>` : ''}
+      ${r.clients != null ? `<span>${t('Clients')}: <b>${r.online} ${t('online')} / ${r.clients}</b> (${t('{n} per WLAN', { n: r.wlan })})</span>` : ''}</div>
+    ${r.wifi?.length ? `<div class="kv">${r.wifi.map(x => `<span><span class="dot ${x.enabled ? 'on' : 'off'}"></span> WLAN <b>${h(x.ssid || x.iface)}</b> ${x.band ? `<small class="muted">${h(x.band)}</small>` : ''}</span>`).join('')}</div>` : ''}
+    ${w.rx_bps != null ? `<div class="wan-now"><span>↓ <b class="mono">${fmtBps(w.rx_bps)}</b></span><span>↑ <b class="mono">${fmtBps(w.tx_bps)}</b></span><small class="muted">WAN (${h(w.iface)})</small></div>` : ''}
+    ${snmpCard({ ...i, result: { ...r, info: {} } })}`;
+}
+
 function ctrlCard(i) {
   const r = i.result || {}, s = i.summary || {}, w = r.wan || {};
   const label = { router: t('Gateway'), switch: t('Switch'), ap: t('Access Point') };
@@ -392,6 +410,7 @@ async function integrationDialog(ctx, i, drv) {
           $('#testres', f).textContent = '✓ ' + (drv.key === 'fritzbox' ? `${x.model} · FRITZ!OS ${x.firmware} · ${t('{n} Geräte', { n: x.hosts })} · ${x.auth ? t('Anmeldung ok, Mesh-Topologie verfügbar') : t('ohne Anmeldung (Mesh-Topologie nicht verfügbar)')}`
             : drv.key === 'snmp' ? `${x.name} · ${x.descr}` : drv.key === 'asuswrt' ? `${x.model} · Firmware ${x.firmware} · ${t('{n} Clients', { n: x.clients })} · ${t('{n} Mesh-Knoten', { n: x.nodes })}`
             : drv.key === 'proxmox' ? `Proxmox VE ${x.version} · ${t('{n} VMs und Container', { n: x.guests })}`
+            : drv.key === 'mikrotik' ? `${x.model} · RouterOS ${x.version} · ${t('{n} Ports', { n: x.ports })} · ${t('{n} Clients', { n: x.clients })}${x.wifi ? ' · ' + t('{n} WLAN', { n: x.wifi }) : ''}`
             : ['omada', 'unifi'].includes(drv.key) ? [x.version ? `UniFi Network ${x.version}` : '', `${t('Sites')}: ${x.sites}`, t('{n} Geräte', { n: x.devices }), t('{n} Clients', { n: x.clients })].filter(Boolean).join(' · ')
             : [x.devices != null ? t('{n} HA-Geräte mit MAC, {m} Bereiche', { n: x.devices, m: x.areas }) : '', x.mqtt ? t('MQTT-Anmeldung ok') : ''].filter(Boolean).join(' · '));
           $('#testres', f).className = 'small okc';
