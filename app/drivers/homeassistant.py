@@ -7,12 +7,12 @@ import httpx
 NAME = "Home Assistant"
 DEFAULT_INTERVAL = 60
 FIELDS = [
-    dict(key="host", label="Adresse von Home Assistant", type="text", default="http://homeassistant.local:8123", required=True),
+    dict(key="host", label="Adresse von Home Assistant", type="text", default="", placeholder="http://192.168.50.9:8123", required=True),
     dict(key="password", label="Long-Lived Access Token (für Namen und Bereiche)", type="password", default="", secret=True),
     dict(key="import_names", label="Namen aus HA übernehmen", type="select", default="new", options=[
         ["new", "für neue und unbenannte Geräte"], ["all", "für alle Geräte"], ["no", "nein"]]),
     dict(key="import_areas", label="Bereiche als Standorte übernehmen", type="select", default="yes", options=[["yes", "ja, wenn leer"], ["no", "nein"]]),
-    dict(key="mqtt_host", label="MQTT-Broker (z. B. Mosquitto in HA)", type="text", default=""),
+    dict(key="mqtt_host", label="MQTT-Broker (IP-Adresse von Home Assistant)", type="text", default="", placeholder="192.168.50.9"),
     dict(key="mqtt_port", label="MQTT-Port", type="number", default=1883),
     dict(key="mqtt_user", label="MQTT-Benutzer", type="text", default=""),
     dict(key="mqtt_pass", label="MQTT-Passwort", type="password", default="", secret=True),

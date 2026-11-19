@@ -408,15 +408,21 @@ ERR_EN = {
     "Gerät gehört nicht zu diesem Profil": "Device does not belong to this profile", "Ungültige Angabe": "Invalid value",
     "Keine Antwort (Adresse, Community oder SNMP am Gerät prüfen)": "No answer (check address, community or SNMP on the device)",
     "Die FRITZ!Box verlangt eine Anmeldung. Benutzer und Passwort angeben.": "The FRITZ!Box requires a sign-in. Enter user and password.",
+    "MQTT-Anmeldung abgelehnt (Benutzer oder Passwort prüfen)": "MQTT sign-in rejected (check user and password)",
+    "Token abgelehnt (Long-Lived Access Token prüfen)": "Token rejected (check the long-lived access token)",
+    "Token oder MQTT-Broker angeben": "Enter a token or an MQTT broker",
 }
 # Meldungen mit Werten: Präfix übersetzen, Rest übernehmen
 ERR_EN_PREFIX = {"Ungültige MAC-Adresse: ": "Invalid MAC address: ", "Ungültige IP-Adresse: ": "Invalid IP address: ",
                  "Ungültiges Netz: ": "Invalid network: ", "Ungültige Adresse: ": "Invalid address: ",
                  "Herstellerliste konnte nicht geladen werden: ": "Vendor list could not be loaded: ", "Ungültiger Ausdruck: ": "Invalid expression: ",
-                 "FRITZ!Box nicht erreichbar: ": "FRITZ!Box not reachable: ",
+                 "FRITZ!Box nicht erreichbar: ": "FRITZ!Box not reachable: ", "Home Assistant nicht erreichbar: ": "Home Assistant not reachable: ",
+                 "Proxmox nicht erreichbar: ": "Proxmox not reachable: ",
                  "Versand fehlgeschlagen: ": "Sending failed: "}
 ERR_EN_RE = [(r"^Port (.+) ist schon mit (.+) belegt$", r"Port \1 is already connected to \2"),
              (r"^Das Subnetz (.+) gibt es schon$", r"The subnet \1 already exists"),
+             (r"^MQTT-Broker „(.+)“ unbekannt: .*$", r"MQTT broker “\1” unknown: this name only exists inside Home Assistant. Enter the IP address of Home Assistant (port 1883)."),
+             (r"^MQTT-Broker (.+) nicht erreichbar: (.*)$", r"MQTT broker \1 not reachable: \2"),
              (r"^VLAN (\d+) gibt es schon$", r"VLAN \1 already exists"),
              (r"^Netz (.+) ist zu groß zum Scannen \(höchstens /20\)$", r"Network \1 is too large to scan (at most /20)")]
 

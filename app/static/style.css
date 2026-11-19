@@ -311,3 +311,7 @@ i.lg.conn{background:rgba(0,229,255,.35);border-color:var(--cyan)} i.lg.up{borde
 .clist li{padding:4px 2px;cursor:pointer;display:flex;gap:6px;align-items:center;border-bottom:1px solid rgba(0,229,255,.06)}
 .clist li:hover{color:var(--cyan)}
 @media (max-width:900px){.topo-wrap{flex-direction:column}.topo-side{width:100%;max-height:none}.topo{height:60vh}}
+
+ol.steps{margin:0 0 14px;padding:12px 14px 12px 34px;border:1px solid var(--cyan);border-radius:6px;background:rgba(0,229,255,.06);font-size:13.5px;line-height:1.55}
+ol.steps li+li{margin-top:4px}
+ol.steps b{color:var(--cyan);font-weight:600}

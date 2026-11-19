@@ -155,3 +155,15 @@ def test_homeassistant_import_mqtt_and_events(monkeypatch):
     sent.clear()
     integrations.poll(iid)
     assert (f"homeassistant/binary_sensor/diktyo_{pid}_{sw['id']}/config", "", True) in sent
+
+
+def test_mqtt_broker_name_inside_ha():
+    """„core-mosquitto“ gilt nur innerhalb von HA; díktyo nimmt die Adresse aus der HA-URL."""
+    assert mqtt.broker({"mqtt_host": "core-mosquitto", "host": "http://192.168.50.9:8123"}) == "192.168.50.9"
+    assert mqtt.broker({"mqtt_host": "localhost", "host": "homeassistant.local:8123"}) == "homeassistant.local"
+    assert mqtt.broker({"mqtt_host": "192.168.50.9", "host": "http://ha:8123"}) == "192.168.50.9"
+    try:
+        mqtt.check({"mqtt_host": "nicht-vorhanden.invalid", "host": "http://x:8123"})
+        raise AssertionError
+    except mqtt.MQTTError as ex:
+        assert "unbekannt" in str(ex) and "IP-Adresse von Home Assistant" in str(ex)

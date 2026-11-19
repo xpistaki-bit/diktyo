@@ -10,6 +10,9 @@
 3. In díktyo: profile → **Integrations** → **+ Home Assistant**. Enter the address of Home Assistant
    (e.g. `http://homeassistant.local:8123`), the token, the MQTT broker (address of Home Assistant, port 1883) with the
    díktyo user, and choose which devices are reported. "Test connection" checks token and MQTT sign-in.
+   Enter the **IP address of Home Assistant** as MQTT broker. `core-mosquitto`, which Home Assistant shows in its own
+   MQTT settings, only exists inside Home Assistant; díktyo replaces it with the address of Home Assistant
+   automatically.
 
 ## What díktyo reports via MQTT (discovery)
 

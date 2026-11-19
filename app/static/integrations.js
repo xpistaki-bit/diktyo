@@ -7,8 +7,17 @@ const DRIVER_HELP = {
 Object.assign(DRIVER_HELP, {
   asuswrt: 'Für ASUS-Router mit AiMesh (z. B. ExpertWiFi EBM68): liest die Clients mit Mesh-Knoten und WLAN-Band sowie die Knoten selbst. Anmeldung mit dem Admin-Konto des Routers (Weboberfläche, meist HTTPS-Port 8443). ASUS erlaubt nur eine Admin-Sitzung; díktyo hält seine Sitzung offen – meldet dich die Weboberfläche ab, das Abfrageintervall erhöhen.',
   proxmox: 'Liest Knoten, VMs und LXCs mit MAC, Bridge, VLAN-Tag und IP (über den QEMU Guest Agent bzw. die LXC-Schnittstellen) und hängt sie virtuell an ihren Host. Einmal auf einem Knoten: pveum role add DiktyoRead -privs "VM.Audit,VM.GuestAgent.Audit,Sys.Audit,Datastore.Audit,SDN.Audit"; pveum user add diktyo@pve; pveum acl modify / --users diktyo@pve --roles DiktyoRead; pveum user token add diktyo@pve diktyo --privsep 1; pveum acl modify / --tokens \'diktyo@pve!diktyo\' --roles DiktyoRead. Das Token-Secret wird nur einmal angezeigt.',
-  homeassistant: 'Mit einem Long-Lived Access Token (HA → Profil → Sicherheit) übernimmt díktyo Namen und Bereiche der HA-Geräte (Abgleich über die MAC-Adresse). Mit einem MQTT-Broker (Mosquitto-Add-on, eigener Benutzer) meldet díktyo Online-Sensoren, die Zahl neuer Geräte, den WAN-Traffic und Ereignisse an HA. Für Benachrichtigungen die Blueprint aus docs/home-assistant importieren.',
+  homeassistant: 'Mit einem Long-Lived Access Token (HA → Profil → Sicherheit) übernimmt díktyo Namen und Bereiche der HA-Geräte (Abgleich über die MAC-Adresse). Mit einem MQTT-Broker (Mosquitto-Add-on, eigener Benutzer) meldet díktyo Online-Sensoren, die Zahl neuer Geräte, den WAN-Traffic und Ereignisse an HA. Als Broker die IP-Adresse von Home Assistant eintragen, nicht „core-mosquitto“ – dieser Name gilt nur innerhalb von HA. Für Benachrichtigungen die Blueprint aus docs/home-assistant importieren.',
 });
+// Schritt-für-Schritt-Hinweise oben im Dialog
+const DRIVER_STEPS = {
+  homeassistant: [
+    'Adresse von Home Assistant mit IP-Adresse und Port eintragen, z. B. <b>http://192.168.50.9:8123</b>.',
+    'Für Namen und Bereiche: in HA unter <b>Profil → Sicherheit → Langlebige Zugriffstoken</b> ein Token erstellen und einfügen.',
+    'Als MQTT-Broker die <b>IP-Adresse von Home Assistant</b> eintragen (z. B. 192.168.50.9, Port 1883) – <b>nicht „core-mosquitto“</b>: diesen Namen kennt nur Home Assistant selbst.',
+    'MQTT-Benutzer und -Passwort aus dem Mosquitto-Add-on (am besten ein eigener Benutzer für díktyo), dann „Verbindung testen“.',
+  ],
+};
 const EVENT = { device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät' };
 const RANGES = [[7200, '2 h'], [86400, '24 h'], [172800, '2 Tage'], [604800, '7 Tage']];
 const fmtBps = v => {
@@ -177,10 +186,12 @@ async function integrationDialog(ctx, i, drv) {
   i = i || { driver: drv.key, interval_s: drv.interval, enabled: true, port: drv.fields.find(f => f.key === 'port')?.default };
   const val = f => f.secret ? (i.secrets?.[f.key] || (i.id ? '' : f.default ?? '')) : (i[f.key] ?? i.options?.[f.key] ?? (i.id && f.type !== 'select' ? '' : f.default ?? ''));
   const show = f => f.show ? Object.entries(f.show).map(([k, v]) => `data-show-k="${k}" data-show-v="${h(v)}"`).join(' ') : '';
+  const steps = DRIVER_STEPS[drv.key];
   const fields = drv.fields.map(f => `<div ${show(f)}><label>${t(f.label)}</label>${f.type === 'select'
     ? `<select name="${f.key}">${f.options.map(([k, n]) => `<option value="${h(k)}" ${k === val(f) ? 'selected' : ''}>${h(t(n))}</option>`).join('')}</select>`
-    : `<input name="${f.key}" type="${f.type === 'password' ? 'password' : f.type === 'number' ? 'number' : 'text'}" autocomplete="off" value="${h(val(f))}" ${f.required ? 'required' : ''}>`}</div>`).join('');
+    : `<input name="${f.key}" type="${f.type === 'password' ? 'password' : f.type === 'number' ? 'number' : 'text'}" autocomplete="off" value="${h(val(f))}" ${f.placeholder ? `placeholder="${h(f.placeholder)}"` : ''} ${f.required ? 'required' : ''}>`}</div>`).join('');
   const res = await dialog(i.id ? i.name : t(drv.name), `
+    ${steps ? `<ol class="steps">${steps.map(x => `<li>${t(x)}</li>`).join('')}</ol>` : ''}
     <p class="muted small" style="margin-top:0">${t(DRIVER_HELP[drv.key])}</p>
     <div class="grid2"><div><label>${t('Name')}</label><input name="name" value="${h(i.name || t(drv.name))}"></div>${fields}
       <div><label>${t('Abfrage alle')}</label><select name="interval_s">${[30, 60, 300, 900].map(v => `<option value="${v}" ${v === i.interval_s ? 'selected' : ''}>${v < 60 ? v + ' s' : v / 60 + ' min'}</option>`).join('')}</select></div>
@@ -192,6 +203,11 @@ async function integrationDialog(ctx, i, drv) {
       const vis = () => $$('[data-show-k]', f).forEach(el => { const sel = $(`[name=${el.dataset.showK}]`, f); el.style.display = !sel || sel.value === el.dataset.showV ? '' : 'none'; });
       $$('select', f).forEach(sel => sel.addEventListener('change', vis));
       vis();
+      // MQTT-Broker aus der HA-Adresse vorschlagen
+      const hostIn = $('[name=host]', f), mq = $('[name=mqtt_host]', f);
+      if (hostIn && mq) hostIn.addEventListener('change', () => {
+        try { const u = new URL(hostIn.value.includes('://') ? hostIn.value : 'http://' + hostIn.value); if (!mq.value || mq.value === 'core-mosquitto') mq.value = u.hostname; } catch { }
+      });
       $('[data-test]', f).onclick = async ev => {
         ev.target.disabled = true; $('#testres', f).textContent = t('prüfe …'); $('#testres', f).className = 'small muted';
         try {
