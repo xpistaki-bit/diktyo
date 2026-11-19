@@ -160,7 +160,7 @@ async function tabIntegrations(ctx) {
         let r = await api('POST', `${P}/integrations/${i.id}/config-backup`);
         if (r.status === 'second_factor') {
           if (!await secondFactor(P, i, r)) { cb.disabled = false; return; }
-          r = await api('POST', `${P}/integrations/${i.id}/config-backup`);
+          r = totpResult || await api('POST', `${P}/integrations/${i.id}/config-backup`);
         }
         toast(r.status === 'new' ? t('Konfiguration gesichert ({n} KB)', { n: Math.max(1, Math.round(r.size / 1024)) }) : t('Konfiguration unverändert seit der letzten Sicherung'));
         ctx.reload();
@@ -226,16 +226,31 @@ function asusCard(i) {
 }
 
 /* Zweiter Faktor: Hinweis anzeigen, Status abfragen, bis bestätigt oder abgebrochen. -> true bei Erfolg */
+let totpResult = null;
 async function secondFactor(P, i, r) {
   let timer = null;
+  totpResult = null;
   const html = `<p>${t('Die FRITZ!Box schützt den Export ihrer Einstellungen mit einem zweiten Faktor. Bitte jetzt bestätigen:')}</p>
     <ol class="steps">${r.button ? `<li>${t('eine <b>beliebige Taste an der FRITZ!Box</b> drücken (z. B. Connect/WPS oder DECT)')}</li>` : ''}
-      ${r.dtmf ? `<li>${t('oder an einem angeschlossenen Telefon <b class="mono">{c}</b> wählen', { c: h(r.dtmf) })}</li>` : ''}</ol>
+      ${r.dtmf ? `<li>${t('oder an einem angeschlossenen Telefon <b class="mono">{c}</b> wählen', { c: h(r.dtmf) })}</li>` : ''}
+      <li>${t('oder den <b>Code aus der Authenticator-App</b> eingeben (wenn in der FRITZ!Box eingerichtet):')}
+        <div class="row" style="margin-top:6px"><input name="totp" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456" style="max-width:140px">
+        <button type="button" class="sm pri" data-totp>${t('Code senden')}</button></div></li></ol>
     <p class="muted small" id="sfst">${t('Warte auf Bestätigung …')}</p>`;
   const ok = await dialog(t('Bestätigung an der FRITZ!Box'), html, {
     ok: null,
     onOpen: (f, close) => {
       const started = Date.now();
+      const send = async () => {
+        const code = $('[name=totp]', f).value.replace(/\s/g, '');
+        if (!/^\d{6,8}$/.test(code)) { $('.dlg-err', f).textContent = t('Der Code aus der App hat 6 Ziffern'); return; }
+        clearInterval(timer); $('[data-totp]', f).disabled = true; $('#sfst', f).textContent = t('Sende Code und exportiere …');
+        await api('DELETE', `${P}/integrations/${i.id}/second-factor`).catch(() => { });
+        try { totpResult = await api('POST', `${P}/integrations/${i.id}/config-backup`, { totp: code }); close(true); }
+        catch (e) { $('.dlg-err', f).textContent = e.message; $('[data-totp]', f).disabled = false; $('#sfst', f).textContent = ''; }
+      };
+      $('[data-totp]', f).onclick = send;
+      $('[name=totp]', f).addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); send(); } });
       const err = msg => { clearInterval(timer); const e = $('.dlg-err', f); e.textContent = msg; $('#sfst', f).hidden = true; };
       timer = setInterval(async () => {
         if (!document.body.contains(f) || !$('#dlg').open) return clearInterval(timer);

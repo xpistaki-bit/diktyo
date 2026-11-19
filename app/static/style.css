@@ -362,3 +362,5 @@ ul.diag li.ok{border-left-color:var(--ok)} ul.diag li.bad{border-left-color:var(
 ul.diag li b::before{margin-right:6px} ul.diag li.ok b::before{content:"✓";color:var(--ok)} ul.diag li.bad b::before{content:"✗";color:var(--err)} ul.diag li.info b::before{content:"i";color:var(--cyan)}
 .diag-sum{margin:6px 0 0}
 .svc-run{display:flex;flex-wrap:wrap}.svc-run select{width:auto;min-width:220px}
+
+.hint-box{border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:6px;padding:8px 12px;margin-bottom:12px;background:rgba(0,229,255,.05);line-height:1.6}

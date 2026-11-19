@@ -55,6 +55,24 @@ def catalog_update(mid: int, body: dict = Body(...), admin=Depends(require_admin
         return catalog.row(c.execute("SELECT * FROM device_models WHERE id=?", (mid,)).fetchone())
 
 
+@router.post("/from-sysinfo")
+def catalog_from_sysinfo(body: dict = Body(...), admin=Depends(require_admin)):
+    """Vorschlag für einen Katalogeintrag aus eingefügten Systeminformationen (dmidecode, lspci, …)."""
+    from . import sysinfo
+    text = str(body.get("text") or "")[:20000]
+    if not text.strip():
+        raise HTTPException(400, "Bitte Systeminformationen einfügen")
+    res = sysinfo.suggest(text, do_lookup=bool(body.get("lookup", True)), lang="en" if body.get("lang") == "en" else "de")
+    if not res["suggestion"]:
+        raise HTTPException(400, "Hersteller und Modell nicht erkannt – z. B. die Ausgabe von „dmidecode -t system“ einfügen")
+    s = res["suggestion"]
+    with db() as c:
+        r = c.execute("SELECT * FROM device_models WHERE lower(manufacturer)=lower(?) AND lower(model)=lower(?)", (s["manufacturer"], s["model"])).fetchone()
+    info = {k: v for k, v in res["info"].items() if k not in ("serial", "uuid")}  # gerätebezogen, gehört nicht in den Katalog
+    return dict(suggestion=s, lookup=res["lookup"], info=info, existing=catalog.row(r) if r else None,
+                ignored=[k for k in ("serial", "uuid") if res["info"].get(k)])
+
+
 @router.delete("/{mid}")
 def catalog_delete(mid: int, admin=Depends(require_admin)):
     with db() as c:

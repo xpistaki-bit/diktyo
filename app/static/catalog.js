@@ -22,7 +22,7 @@ async function viewCatalog() {
       <select id="fm"><option value="">${t('Alle Hersteller')}</option>${mans.map(m => `<option ${f.man === m ? 'selected' : ''}>${h(m)}</option>`).join('')}</select>
       <span class="grow"></span><span class="muted" id="cnt"></span>
       <a class="btn sm" href="/api/catalog/export.csv">${t('CSV exportieren')}</a>
-      ${admin ? `<a class="btn sm" href="/api/catalog/export.csv?template=1">${t('CSV-Vorlage')}</a><button class="sm" id="imp">${t('CSV importieren')}</button><button class="pri" id="add">${t('+ Eigener Eintrag')}</button>` : ''}
+      ${admin ? `<a class="btn sm" href="/api/catalog/export.csv?template=1">${t('CSV-Vorlage')}</a><button class="sm" id="imp">${t('CSV importieren')}</button><button class="sm" id="sysinfo" title="${t('Hersteller und Modell aus dmidecode, lspci & Co. übernehmen')}">${t('Aus Systeminfo')}</button><button class="pri" id="add">${t('+ Eigener Eintrag')}</button>` : ''}
     </div><div id="list"></div><input type="file" id="file" accept=".csv,text/csv" hidden></div>`;
   const status = m => m.custom ? `<span class="badge owner">${t('eigen')}</span>` : m.verified ? `<span class="badge ok">${t('geprüft')}</span>` : `<span class="badge">${t('ungeprüft')}</span>`;
   const cols = [
@@ -45,6 +45,7 @@ async function viewCatalog() {
   $('#fm').onchange = e => { f.man = e.target.value; draw(); };
   if (admin) {
     $('#add').onclick = () => catalogDialog(null);
+    $('#sysinfo').onclick = () => sysinfoDialog();
     $('#imp').onclick = () => $('#file').click();
     $('#file').onchange = async ev => {
       const file = ev.target.files[0]; if (!file) return;
@@ -60,9 +61,35 @@ async function viewCatalog() {
 }
 viewCatalog.f = { q: '', type: '', man: '' };
 
-async function catalogDialog(m) {
+/* Katalogeintrag aus Systeminformationen: auswerten, optional nachschlagen, dann im normalen Dialog prüfen */
+async function sysinfoDialog() {
+  let res = null;
+  const ok = await dialog(t('Katalogeintrag aus Systeminfo'), `
+    <p class="muted small">${t('Ausgabe einfügen, z. B. von <span class="mono">dmidecode -t system</span> (Linux/Proxmox), <span class="mono">lspci</span> für die Netzwerkkarten, <span class="mono">hostnamectl</span> oder unter Windows <span class="mono">Get-CimInstance Win32_ComputerSystem | fl</span>. Mehrere Ausgaben dürfen untereinander stehen.')}</p>
+    <textarea name="text" rows="11" class="mono" spellcheck="false" placeholder="System Information&#10;        Manufacturer: Dell Inc.&#10;        Product Name: OptiPlex 7040"></textarea>
+    <label class="chk"><input type="checkbox" name="lookup" checked> ${t('Im Internet nachschlagen (Wikipedia) – gesendet werden nur Hersteller und Modell, nie Seriennummer oder UUID')}</label>`, {
+    ok: t('Auswerten'), wide: true,
+    onOk: async f => { const v = fd(f); res = await api('POST', '/api/catalog/from-sysinfo', { text: v.text, lookup: !!v.lookup, lang: LANG }); return true; },
+  });
+  if (!ok || !res) return;
+  if (res.existing) {
+    toast(t('„{n}“ steht schon im Katalog – Eintrag geöffnet.', { n: `${res.existing.manufacturer} ${res.existing.model}` }));
+    return catalogDialog(res.existing);
+  }
+  const s = res.suggestion, i = res.info;
+  const facts = [i.family && `${t('Familie')}: ${i.family}`, i.sku && `SKU: ${i.sku}`, i.chassis && `${t('Gehäuse')}: ${i.chassis}`,
+    i.nics?.length ? `${t('Netzwerk')}: ${i.nics.join(', ')}` : t('Keine Netzwerkkarte angegeben – 1× RJ45 1G angenommen (lspci-Ausgabe ergänzt das)')].filter(Boolean);
+  const intro = `<div class="hint-box small"><b>${t('Erkannt')}:</b> ${h(facts.join(' · '))}
+    ${res.lookup ? `<br><b>${t('Gefunden')}:</b> <a href="${h(res.lookup.url)}" target="_blank" rel="noopener">${h(res.lookup.title)} (Wikipedia)</a>` : ''}
+    ${res.ignored.length ? `<br><span class="muted">${t('Seriennummer und UUID gehören zum einzelnen Gerät und werden nicht in den Katalog übernommen.')}</span>` : ''}
+    ${i.virtual ? `<br><span class="warnc">${t('Das ist eine virtuelle Maschine – meist besser direkt als Gerät vom Typ „VM“ anlegen.')}</span>` : ''}
+    <br><span class="muted">${t('Bitte prüfen und ergänzen (Ports, WLAN), dann speichern.')}</span></div>`;
+  return catalogDialog(s, intro);
+}
+
+async function catalogDialog(m, intro = '') {
   m = m || { type: 'switch', ports: [{ count: 8, kind: 'rj45', speed: '1G' }] };
-  const r = await dialog(m.id ? `${m.manufacturer} ${m.model}` : t('Eigener Katalogeintrag'), `
+  const r = await dialog(m.id ? `${m.manufacturer} ${m.model}` : t('Eigener Katalogeintrag'), `${intro}
     ${m.id ? `<div class="dlg-actions"><button type="button" class="sm danger" data-del>${t('Löschen')}</button></div>` : ''}
     <div class="grid2">
       <div><label>${t('Hersteller')}</label><input name="manufacturer" required maxlength="80" value="${h(m.manufacturer || '')}"></div>
@@ -88,7 +115,7 @@ async function catalogDialog(m) {
     },
     onOk: f => {
       const v = fd(f);
-      const body = { ...v, managed: !!v.managed, verified: !!v.verified, ports: readPorts($('#pe', f)) };
+      const body = { ...v, managed: !!v.managed, verified: !!v.verified, ports: readPorts($('#pe', f)), source: m.source || '' };
       return m.id ? api('PUT', `/api/catalog/${m.id}`, body) : api('POST', '/api/catalog', body);
     },
   });

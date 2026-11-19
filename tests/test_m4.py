@@ -109,3 +109,18 @@ def test_topology_positions_saved_and_reset():
     assert cl.delete(f"{P}/topology/positions", headers=H).json()["ok"]
     t = cl.get(f"{P}/topology").json()
     assert t["pinned"] == 0 and next(x for x in t["nodes"] if x["id"] == sw)["x"] == 670
+
+
+def test_topology_positions_above_origin():
+    cl, pid, P, d = setup_net()
+    sw = f"d{d['sw']['id']}"
+    cl.put(f"{P}/topology/positions", json={"positions": {sw: [-300, -200]}}, headers=H)
+    t = cl.get(f"{P}/topology").json()
+    n = next(x for x in t["nodes"] if x["id"] == sw)
+    assert (n["x"], n["y"]) == (-300, -200) and t["bbox"][0] == -300 and t["bbox"][1] == -200 - t["node_h"] / 2
+    pdf = cl.get(f"{P}/export/report.pdf?sections=topology").content
+    assert pdf.startswith(b"%PDF")
+    from app import export
+    with db() as c:
+        svg, w, h = export.topology_svg(c, pid)
+    assert "-" not in svg.split('x="', 1)[1][:3] and w > 0 and h > 0

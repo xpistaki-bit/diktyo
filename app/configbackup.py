@@ -32,7 +32,7 @@ def due(row, t=None):
     return (t or time.time()) - last >= PERIOD[sched]
 
 
-def run(iid, interactive=False):
+def run(iid, interactive=False, totp=None):
     """Sichert die Konfiguration des Geräts einer Integration. -> dict(status=new|unchanged|error|second_factor, …)
 
     Verlangt das Gerät einen zweiten Faktor (FRITZ!Box), wird bei einer Sicherung per Knopf die Bestätigung gestartet
@@ -45,6 +45,9 @@ def run(iid, interactive=False):
         return dict(status="error", message="Diese Integration unterstützt kein Konfigurations-Backup")
     state = json.loads(row["state"] or "{}")
     drv = DRIVERS[row["driver"]]
+    if totp:
+        state.pop("sf_token", None)
+        state["totp"] = totp
     try:
         filename, data, is_text = drv.backup(conf_of(row), state)
     except ERRORS as ex:

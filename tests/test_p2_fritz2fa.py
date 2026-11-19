@@ -107,3 +107,44 @@ def test_fritz_second_factor_blocked(monkeypatch):
         raise AssertionError
     except fritzbox.DriverError as ex:
         assert "60 Minuten" in str(ex)
+
+
+def test_fritz_totp_via_web(monkeypatch):
+    """Code aus der Authenticator-App: Anmeldung (PBKDF2), twofactor.lua start + Code, dann firmwarecfg-Export."""
+    import hashlib
+    seen = []
+
+    def handler(req):
+        p = req.url.path
+        body = req.content.decode(errors="replace")
+        seen.append(p)
+        if p == "/login_sid.lua" and req.method == "GET":
+            return httpx.Response(200, text="<SessionInfo><SID>0000000000000000</SID><Challenge>2$10$5a1711$20$a1b2c3</Challenge><BlockTime>0</BlockTime></SessionInfo>")
+        if p == "/login_sid.lua" and "logout" in body:
+            return httpx.Response(200, text="<SessionInfo><SID>0000000000000000</SID></SessionInfo>")
+        if p == "/login_sid.lua":
+            h1 = hashlib.pbkdf2_hmac("sha256", b"pw", bytes.fromhex("5a1711"), 10)
+            ok = f"a1b2c3${hashlib.pbkdf2_hmac('sha256', h1, bytes.fromhex('a1b2c3'), 20).hex()}"
+            assert "username=diktyo" in body and ok.replace("$", "%24") in body
+            return httpx.Response(200, text="<SessionInfo><SID>abcdef0123456789</SID></SessionInfo>")
+        if p == "/twofactor.lua":
+            assert "sid=abcdef0123456789" in body
+            return httpx.Response(200, json={"ok": True})
+        if p == "/cgi-bin/firmwarecfg":
+            assert 'name="ConfigExport"' in body and "abcdef0123456789" in body
+            good = any(x == "/twofactor.lua" for x in seen) and "tfa_googleauth" in "".join(seen_bodies)
+            return httpx.Response(200, content=b"**** FRITZ!Box CONFIGURATION EXPORT\nok=1\n" if good else b"<html>login</html>")
+        raise AssertionError(p)
+
+    seen_bodies = []
+
+    def h2(req):
+        seen_bodies.append(req.content.decode(errors="replace"))
+        return handler(req)
+    monkeypatch.setattr(fritzbox, "_web_client", lambda conf: httpx.Client(base_url="http://fritz.box", transport=httpx.MockTransport(h2)))
+    monkeypatch.setattr(fritzbox, "_connect", lambda conf: FC())
+    monkeypatch.setattr(fritzbox.time if hasattr(fritzbox, "time") else __import__("time"), "sleep", lambda s: None)
+    name, data, is_text = fritzbox.backup(dict(host="fritz.box", username="diktyo", password="pw"), {"totp": "123456"})
+    assert data.startswith(b"**** FRITZ!Box") and name == "FRITZBox_6591_Cable.export" and is_text
+    assert seen[0] == "/login_sid.lua" and seen[-1] == "/login_sid.lua"  # am Ende abgemeldet
+    assert any("tfa_start" in b for b in seen_bodies) and any("tfa_googleauth=123456" in b for b in seen_bodies)

@@ -64,6 +64,10 @@ díktyo dann beim DNS des Subnetzes ab (Gateway bzw. DNS-Angabe im IPAM), die MA
   statische IP im DHCP-Bereich) lassen sich als gelesen markieren.
 - **Standorte:** Baum aus Haus › Etage › Raum. Home Assistant kann seine Bereiche als Standorte liefern.
 - **Katalog:** ca. 80 gängige Geräte, eigene Einträge und CSV-Import; dort auch die *Erkennungsregeln* des Netzscans.
+  **Aus Systeminfo:** Ausgabe von `dmidecode -t system` (gern zusammen mit `lspci` für die Netzwerkkarten), `hostnamectl`
+  oder Windows `Get-CimInstance Win32_ComputerSystem | fl` einfügen – díktyo erkennt Hersteller, Modell, Typ und Ports,
+  schlägt auf Wunsch eine Beschreibung bei Wikipedia nach (nur Hersteller und Modell werden gesendet) und öffnet den
+  vorausgefüllten Eintrag zum Prüfen. Seriennummer und UUID werden nicht übernommen.
 
 ### Dienste prüfen (nmap)
 
@@ -175,7 +179,7 @@ getestet, aber noch nicht an echter Hardware. Klappt etwas nicht, die Meldung de
 - *Schnell-Ping* prüft alle Geräte sofort.
 - **Internet:** Links steht die Weltkugel, verbunden mit dem Router. Mit FRITZ!Box-Integration zeigt sie, ob die
   Internetverbindung steht (grün animiert bzw. rot), und an der Leitung den aktuellen Traffic ↓/↑ – alle 30 s aktuell.
-- **Verschieben:** Geräte und Gruppen lassen sich mit der Maus an eine andere Stelle ziehen. díktyo merkt sich die
+- **Verschieben:** Geräte und Gruppen lassen sich mit der Maus an eine beliebige Stelle ziehen (in alle Richtungen). díktyo merkt sich die
   Position im Profil (gilt für alle, die das Profil sehen, und für das PDF). *Anordnung zurücksetzen* stellt die
   automatische Anordnung wieder her.
 - *Vollbild* vergrößert die Topologie auf den ganzen Bildschirm unter der Kopfzeile; *Normalgröße* oder Esc schaltet zurück.
@@ -190,8 +194,10 @@ getestet, aber noch nicht an echter Hardware. Klappt etwas nicht, die Meldung de
 - Die FRITZ!Box-Datei ist mit dem „Passwort für die Konfigurationsdatei“ (sonst dem Anmeldepasswort) geschützt – du
   brauchst es zum Wiederherstellen in der FRITZ!Box.
 - **Bestätigung (zweiter Faktor):** Neuere FRITZ!OS-Versionen verlangen für den Export eine Bestätigung. díktyo zeigt
-  dann einen Dialog: eine Taste an der FRITZ!Box drücken oder am Telefon den angezeigten Code (z. B. `*11234`) wählen;
-  danach läuft die Sicherung von selbst weiter. Beim automatischen Zeitplan geht das nicht – dann erscheint ein Hinweis
+  dann einen Dialog: eine Taste an der FRITZ!Box drücken, am Telefon den angezeigten Code (z. B. `*11234`) wählen
+  oder – wenn in der FRITZ!Box eingerichtet – den **Code aus der Authenticator-App** eingeben; danach läuft die
+  Sicherung von selbst weiter. (Der App-Code geht nur über die Weboberfläche der FRITZ!Box; díktyo meldet sich dafür
+  kurz mit demselben Benutzer an und wieder ab.) Beim automatischen Zeitplan geht das nicht – dann erscheint ein Hinweis
   und die Sicherung wird per *Konfiguration sichern* von Hand ausgelöst. (Die Bestätigung lässt sich in der FRITZ!Box
   unter *System → FRITZ!Box-Benutzer → Anmeldung im Heimnetz* abschalten; das schwächt aber den Schutz.)
 

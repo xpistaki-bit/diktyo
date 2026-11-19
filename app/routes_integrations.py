@@ -228,11 +228,15 @@ def events_list(pid: int, limit: int = 30, user=Depends(require_user)):
 
 # ------------------------------------------------------------ Konfigurations-Backups
 @router.post("/api/profiles/{pid}/integrations/{iid}/config-backup")
-def config_backup_now(pid: int, iid: int, user=Depends(require_user)):
+def config_backup_now(pid: int, iid: int, body: dict = Body(default={}), user=Depends(require_user)):
+    import re
+    totp = str(body.get("totp") or "").replace(" ", "")
+    if totp and not re.fullmatch(r"\d{6,8}", totp):
+        raise HTTPException(400, "Der Code aus der App hat 6 Ziffern")
     with db() as c:
         profile_access(c, user, pid, "edit")
         _get(c, pid, iid)
-    res = configbackup.run(iid, interactive=True)
+    res = configbackup.run(iid, interactive=True, totp=totp or None)
     if res["status"] == "error":
         raise HTTPException(400, res["message"])
     return res

@@ -243,12 +243,76 @@ def second_factor_stop(conf, state):
     state.pop("sf_token", None)
 
 
+# ------------------------------------------------------------ Weboberfläche (für den Code aus der Authenticator-App)
+def _web_response(challenge, password):
+    """Antwort auf die Anmelde-Challenge der Weboberfläche (PBKDF2 ab FRITZ!OS 7.24, sonst MD5)."""
+    import hashlib
+    if challenge.startswith("2$"):
+        _, it1, salt1, it2, salt2 = challenge.split("$")
+        h1 = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt1), int(it1))
+        return f"{salt2}${hashlib.pbkdf2_hmac('sha256', h1, bytes.fromhex(salt2), int(it2)).hex()}"
+    return f"{challenge}-{hashlib.md5(f'{challenge}-{password}'.encode('utf-16le')).hexdigest()}"
+
+
+def _web_login(cl, conf):
+    import re
+    r = cl.get("/login_sid.lua", params={"version": "2"})
+    ch = re.search(r"<Challenge>([^<]+)</Challenge>", r.text)
+    if not ch:
+        raise DriverError("Weboberfläche der FRITZ!Box nicht erreichbar")
+    block = re.search(r"<BlockTime>(\d+)</BlockTime>", r.text)
+    if block and int(block.group(1)) > 0:
+        raise DriverError(f"Anmeldung an der FRITZ!Box für {block.group(1)} s gesperrt – kurz warten")
+    r = cl.post("/login_sid.lua", params={"version": "2"},
+                data={"username": conf.get("username") or "", "response": _web_response(ch.group(1), conf.get("password") or "")})
+    sid = re.search(r"<SID>([0-9a-f]{16})</SID>", r.text)
+    if not sid or set(sid.group(1)) == {"0"}:
+        raise DriverError("Anmeldung an der Weboberfläche der FRITZ!Box abgelehnt (Benutzer/Passwort prüfen)")
+    return sid.group(1)
+
+
+def _web_client(conf):
+    return httpx.Client(base_url=f"http://{conf['host']}", timeout=20, verify=False, follow_redirects=True)
+
+
+def backup_web_totp(conf, code):
+    """Export über die Weboberfläche: anmelden, Bestätigung mit dem Code der Authenticator-App, dann wie
+    „System → Sicherung“ exportieren. TR-064 kennt diesen Weg nicht (nur Taste/Telefon)."""
+    import time as _t
+    with _web_client(conf) as cl:
+        sid = _web_login(cl, conf)
+        try:
+            cl.post("/twofactor.lua", data={"xhr": "1", "sid": sid, "tfa_start": "", "no_sidrenew": ""})
+            _t.sleep(0.5)
+            r = cl.post("/twofactor.lua", data={"xhr": "1", "sid": sid, "tfa_googleauth": code, "no_sidrenew": ""})
+            if r.status_code >= 400:
+                raise DriverError("FRITZ!Box hat den Code nicht angenommen")
+            _t.sleep(0.5)
+            r = cl.post("/cgi-bin/firmwarecfg", files={"sid": (None, sid), "ImportExportPassword": (None, conf.get("export_pass") or conf["password"]),
+                                                       "ConfigExport": (None, "")})
+            if not r.content.startswith(b"****"):
+                raise DriverError("Export abgelehnt – Code falsch oder abgelaufen? Neuen Code aus der App nehmen.")
+            return r.content
+        finally:
+            try:
+                cl.post("/login_sid.lua", params={"version": "2"}, data={"logout": "1", "sid": sid})
+            except httpx.HTTPError:
+                pass
+
+
 def backup(conf, state):
     """Konfigurationsexport der FRITZ!Box (wie System → Sicherung). -> (Dateiname, Inhalt, Text?)
     Verlangt die FRITZ!Box einen zweiten Faktor, wird SecondFactorRequired geworfen; nach der Bestätigung liegt der
     Token in state["sf_token"] und wird im SOAP-Header mitgeschickt."""
     if not conf.get("password"):
         raise DriverError("Für das Konfigurations-Backup Benutzer und Passwort der FRITZ!Box angeben")
+    if state.get("totp"):
+        code = state.pop("totp")
+        try:
+            model = (_connect(conf).modelname or "FRITZ.Box")
+        except DriverError:
+            model = "FRITZ.Box"
+        return f"{model.replace(' ', '_').replace('!', '')}.export", backup_web_totp(conf, code), True
     fc = _connect(conf)
     try:
         r = _soap(fc, "DeviceConfig1", "X_AVM-DE_GetConfigFile", {"NewX_AVM-DE_Password": conf.get("export_pass") or conf["password"]},

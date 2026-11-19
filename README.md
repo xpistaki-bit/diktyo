@@ -227,7 +227,8 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
 - **SNMP diagnosis** in the switch dialog: network path (including the NAT address the switch sees when díktyo is in
   another network), reachability, whether the SNMP service answers at all, and the sign-in.
 - **FRITZ!Box second factor:** if FRITZ!OS asks for a confirmation for the configuration export, díktyo shows how to
-  confirm (button on the box or phone code) and continues; scheduled backups show a note instead.
+  confirm (button on the box, phone code, or the code from an authenticator app via the web interface) and continues;
+  scheduled backups show a note instead.
 
 Integrations and monitoring run in the background service next to the scans. Credentials are stored encrypted and
 go into backups only with the backup passphrase.
@@ -252,6 +253,13 @@ Administrators can add their own entries, edit existing ones (they then count as
 by updates) and import a CSV (separator `;` or `,`, German or English column names). Ports are written as
 `count:kind:speed:label:poe`, groups separated by commas, for example `24:rj45:1G, 4:sfp+:10G` or
 `1:rj45:2.5G:WAN, 3:rj45:1G:LAN`. "CSV template" downloads an example.
+
+### Catalog entry from system info
+
+"From system info" takes pasted output of `dmidecode -t system`, `lspci`, `hostnamectl` or PowerShell
+(`Get-CimInstance Win32_ComputerSystem`), detects manufacturer, model, type and network ports (speed from the NIC
+model), optionally looks up a short description on Wikipedia (only manufacturer and model are sent) and opens the
+prefilled catalog dialog for review. Serial number and UUID are never stored in the catalog or sent anywhere.
 
 ## Output
 

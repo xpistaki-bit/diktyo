@@ -80,6 +80,7 @@ Phase 2:
 | P2.6 | topology: move nodes, positions stored per profile | done (0.9.0) |
 | P2.7 | FRITZ!Box second factor (TR-064 X_AVM-DE_Auth) for the config export; SNMP diagnosis | done (0.9.0) |
 | P2.8 | passive DHCP fingerprinting | open |
+| P2.9 | FRITZ!Box authenticator code (web interface), free node placement, catalog entry from system info | done (0.9.1) |
  Phase 3: change history between scans, cable and patch-panel documentation,
 Prometheus endpoint, REST API with tokens.
 

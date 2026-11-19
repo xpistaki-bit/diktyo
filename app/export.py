@@ -84,6 +84,16 @@ def topology_svg(c, pid, lang="de"):
     if not t["nodes"]:
         return "", 0, 0
     NW, NH, PAD = t["node_w"], t["node_h"], 20
+    # nach oben/links verschobene Knoten: alles so verschieben, dass die Zeichnung bei 0 beginnt
+    dx, dy = -min(0, t["bbox"][0]), -min(0, t["bbox"][1])
+    if dx or dy:
+        for n in t["nodes"]:
+            n["x"] += dx
+            n["y"] += dy
+        t["width"] += dx
+        t["height"] += dy
+        if t.get("loose_from") is not None:
+            t["loose_from"] += dy
     by = {n["id"]: n for n in t["nodes"]}
     out = []
     for e in t["edges"]:

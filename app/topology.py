@@ -106,9 +106,12 @@ def build(c, pid, expanded=(), status="confirmed"):
     if pos:
         width = max(width, max(n["x"] for n in nodes) + COLW)
         height = max(height, max(n["y"] for n in nodes) + ROWH)
+    # tatsächlich belegte Fläche (verschobene Knoten können links/oberhalb des Ursprungs liegen)
+    bbox = [min([n["x"] for n in nodes] or [0]), min([n["y"] - NODE_H / 2 for n in nodes] or [0]),
+            max([n["x"] + NODE_W for n in nodes] or [0]), max([n["y"] + NODE_H / 2 for n in nodes] or [0])]
     return dict(nodes=nodes, edges=edges, width=width, height=height, node_w=NODE_W, node_h=NODE_H,
                 loose_from=(loose_start + 0.6) * ROWH if loose and not any(n.get("pinned") for n in nodes) else None, total=len(devs),
-                pinned=sum(1 for n in nodes if n.get("pinned")))
+                pinned=sum(1 for n in nodes if n.get("pinned")), bbox=bbox)
 
 
 def save_positions(c, pid, positions):
@@ -120,7 +123,7 @@ def save_positions(c, pid, positions):
         if xy is None:
             c.execute("DELETE FROM topo_positions WHERE profile_id=? AND node=?", (pid, node))
             continue
-        x, y = (max(0.0, min(100000.0, float(v))) for v in xy[:2])
+        x, y = (max(-100000.0, min(100000.0, float(v))) for v in xy[:2])
         c.execute("INSERT INTO topo_positions(profile_id, node, x, y) VALUES(?,?,?,?) "
                   "ON CONFLICT(profile_id, node) DO UPDATE SET x=excluded.x, y=excluded.y", (pid, node, x, y))
 

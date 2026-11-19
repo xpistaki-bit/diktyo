@@ -176,7 +176,7 @@ async function tabTopology(ctx) {
       const k = svg.viewBox.baseVal.width / svg.clientWidth / st.s, dx = (ev.clientX - nd.x) * k, dy = (ev.clientY - nd.y) * k;
       if (!nd.on && Math.hypot(ev.clientX - nd.x, ev.clientY - nd.y) < 5) return;
       if (!nd.on) { nd.on = true; svg.setPointerCapture(ev.pointerId); svg.classList.add('moving'); }
-      nd.n.x = Math.max(0, Math.round((nd.nx + dx) / 4) * 4); nd.n.y = Math.max(NH / 2, Math.round((nd.ny + dy) / 4) * 4);
+      nd.n.x = Math.round((nd.nx + dx) / 4) * 4; nd.n.y = Math.round((nd.ny + dy) / 4) * 4;
       draw();
     });
     const drop = async () => {
@@ -193,9 +193,12 @@ async function tabTopology(ctx) {
     svg.addEventListener('pointerup', drop); svg.addEventListener('pointercancel', drop);
   }
   draw();
+  // Einpassen nach der tatsächlich belegten Fläche (auch wenn Geräte nach oben/links verschoben wurden)
   const fit = () => {
-    const r = svg.getBoundingClientRect(), s = Math.min(1.2, Math.max(0.2, Math.min(VW / (data.width + PAD * 2), VH / (data.height + PAD * 2))));
-    return { s, tx: (VW - (data.width + PAD * 2) * s) / 2, ty: (VH - (data.height + PAD * 2) * s) / 2, r };
+    const ns = data.nodes, x0 = Math.min(...ns.map(n => n.x)), y0 = Math.min(...ns.map(n => n.y - NH / 2));
+    const w = Math.max(...ns.map(n => n.x + NW)) - x0 + PAD * 2, hh = Math.max(...ns.map(n => n.y + NH / 2)) - y0 + PAD * 2;
+    const s = Math.min(1.2, Math.max(0.15, Math.min(VW / w, VH / hh)));
+    return { s, tx: (VW - w * s) / 2 - x0 * s, ty: (VH - hh * s) / 2 - y0 * s };
   };
   const st = tabTopology.view[ctx.pid] || (tabTopology.view[ctx.pid] = fit());
   const pz = panZoom(svg, vp, st, fit);
