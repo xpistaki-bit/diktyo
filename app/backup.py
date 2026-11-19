@@ -99,11 +99,32 @@ def _safe(s):
     return "".join(ch if ch.isalnum() or ch in "-_ ." else "_" for ch in str(s)).strip() or "unbenannt"
 
 
+def _config_files(c, data):
+    """Neueste Konfiguration je Gerät, nur mit Backup-Passphrase (verschlüsselt). -> [(Pfad im ZIP, Inhalt)]"""
+    from . import configbackup
+    if not data.get("secrets"):
+        return []
+    f = _pp_fernet(backup_passphrase(c), bytes.fromhex(data["secrets"]["salt"]))
+    out, meta = [], []
+    for r in c.execute("""SELECT * FROM config_backups WHERE id IN (SELECT MAX(id) FROM config_backups GROUP BY integration_id, device_id)"""):
+        try:
+            blob = f.encrypt(configbackup.read(r["id"]))
+        except (OSError, ValueError):
+            continue
+        meta.append({k: r[k] for k in r.keys()})
+        out.append((f"geraete-konfiguration/{r['id']}.enc", blob))
+    data["config_backups"] = meta
+    return out
+
+
 def build_zip(c, with_documents=True):
     buf = io.BytesIO()
     data = export_data(c)
+    files = _config_files(c, data)
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("export.json", json.dumps(data, ensure_ascii=False, indent=1))
+        for name, blob in files:
+            z.writestr(name, blob)
         if with_documents:
             for p in data["profiles"]:
                 base = f'dokumente/{_safe(p["name"])}-{p["id"]}/'
@@ -165,6 +186,7 @@ def read_zip(raw):
         raise BackupError("Keine gültige Sicherungsdatei")
     if exp.get("format") != FORMAT:
         raise BackupError("Keine gültige Sicherungsdatei")
+    exp["_config_blobs"] = {n.split("/")[-1].split(".")[0]: z.read(n) for n in z.namelist() if n.startswith("geraete-konfiguration/")}
     return exp
 
 
@@ -229,6 +251,7 @@ def _import_profiles(c, exp, umap, rename, fernet=None):
         if x["profile_id"] in pmap and (x["device_id"] is None or x["device_id"] in dmap):
             _insert(c, "ip_addresses", dict(x, profile_id=pmap[x["profile_id"]], device_id=dmap.get(x["device_id"]),
                                             interface_id=imap.get(x["interface_id"])))
+    imap_int = {}
     for x in exp.get("integrations", []):
         if x["profile_id"] in pmap:
             sec = ""
@@ -237,8 +260,22 @@ def _import_profiles(c, exp, umap, rename, fernet=None):
                     sec = security.encrypt(fernet.decrypt(x["secret"][3:].encode()).decode())
                 except InvalidToken:
                     sec = ""
-            _insert(c, "integrations", dict(x, profile_id=pmap[x["profile_id"]], device_id=dmap.get(x["device_id"]), secret=sec,
-                                            state="{}", last_poll=None))
+            imap_int[x["id"]] = _insert(c, "integrations", dict(x, profile_id=pmap[x["profile_id"]], device_id=dmap.get(x["device_id"]), secret=sec,
+                                                               state="{}", last_poll=None))
+    if fernet:
+        from . import configbackup
+        for m in exp.get("config_backups", []):
+            blob = exp.get("_config_blobs", {}).get(str(m["id"]))
+            if not blob or m["profile_id"] not in pmap:
+                continue
+            try:
+                data = fernet.decrypt(blob)
+            except InvalidToken:
+                continue
+            cid = _insert(c, "config_backups", dict(m, profile_id=pmap[m["profile_id"]], device_id=dmap.get(m["device_id"]),
+                                                    integration_id=imap_int.get(m["integration_id"])))
+            configbackup.DIR.mkdir(parents=True, exist_ok=True)
+            configbackup.path(cid).write_bytes(security.encrypt_bytes(data))
     for x in exp.get("port_vlans", []):
         if x["interface_id"] in imap and x["vlan_id"] in vmap:
             c.execute("INSERT OR IGNORE INTO port_vlans(interface_id, vlan_id, tagged) VALUES(?,?,?)",

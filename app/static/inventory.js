@@ -152,6 +152,7 @@ async function deviceDialog(ctx, did) {
     <textarea name="notes" rows="3" maxlength="5000" ${dis}>${h(v.notes || '')}</textarea>
     <label>${t('Tags (durch Komma getrennt)')}</label><input name="tags" value="${h((v.tags || []).join(', '))}" ${dis}>
     ${d && d.ports.length ? portTable(d) : ''}
+    ${d && d.configs?.length ? configTable(d) : ''}
     ${d && d.connected.length ? `<h4>${t('Verbundene Geräte')} (${d.connected.length})</h4><div class="table-wrap"><table class="compact"><thead><tr><th>${t('Name')}</th><th>${t('Verbindung')}</th><th>${t('IP')}</th><th>${t('MAC')}</th></tr></thead><tbody>
       ${d.connected.map(k => `<tr><td>${h(k.name)}</td><td>${t(MEDIUM_SHORT[k.medium])}${k.port_name ? ' · ' + t('Port') + ' ' + h(k.port_name) : ''}</td><td class="mono">${h(k.ip)}</td><td class="mono">${h(k.mac)}</td></tr>`).join('')}
       </tbody></table></div>` : ''}`;
@@ -163,6 +164,8 @@ async function deviceDialog(ctx, did) {
       const sel = n => $(`[name=${n}]`, f);
       const pc = () => { const n = portCount(readPorts($('#pe', f))); $('#pcount', f).textContent = n ? `(${n})` : ''; };
       bindPortEditor($('#pe', f), pc); pc();
+      $$('[data-dl]', f).forEach(a => { a.href = `${P}/configs/${a.dataset.dl}/download`; a.setAttribute('download', ''); });
+      $$('[data-diff]', f).forEach(b => b.onclick = () => showDiff(ctx.pid, b.dataset.diff, b.dataset.prev));
       const bindIps = () => $$('[data-rmip]', f).forEach(b => b.onclick = () => b.closest('.iprow').remove());
       bindIps();
       const addip = $('#addip', f);
@@ -214,6 +217,24 @@ async function deviceDialog(ctx, did) {
     },
   });
   if (res) { toast(t('gespeichert')); ctx.reload(); }
+}
+
+function configTable(d) {
+  return `<h4>${t('Konfigurations-Backups')} (${d.configs.length})</h4><div class="table-wrap"><table class="compact"><tbody>
+    ${d.configs.map(x => `<tr data-cfg="${x.id}"><td class="mono small">${h(fmtDate(x.created))}</td><td class="mono small">${h(x.filename)}</td>
+      <td class="mono small">${Math.max(1, Math.round(x.size / 1024))} KB</td>
+      <td class="act"><a class="btn sm" href="/api/profiles/${d.profile_id || ''}" data-dl="${x.id}">${t('Herunterladen')}</a>
+        ${x.prev_id ? `<button type="button" class="sm" data-diff="${x.id}" data-prev="${x.prev_id}">${t('Änderungen')}</button>` : ''}</td></tr>`).join('')}
+  </tbody></table></div>
+  <p class="muted small">${t('Gesichert werden die Konfigurationen der Geräte, die über eine Integration angebunden sind (FRITZ!Box, ASUS, Switch per SSH). Die Dateien liegen verschlüsselt in díktyo; „Änderungen“ vergleicht Text-Konfigurationen mit dem vorherigen Stand.')}</p>`;
+}
+
+async function showDiff(pid, id, prev) {
+  try {
+    const r = await api('GET', `/api/profiles/${pid}/configs/${id}/diff?other=${prev}`);
+    await dialog(t('Änderungen'), `<p class="muted small">${h(r.old)} → ${h(r.new)} · ${t('{n} Zeilen geändert', { n: r.changed })}</p>
+      <pre class="diff">${r.lines.map(l => `<span class="${l.startsWith('+') && !l.startsWith('+++') ? 'add' : l.startsWith('-') && !l.startsWith('---') ? 'del' : l.startsWith('@@') ? 'hunk' : ''}">${h(l)}</span>`).join('\n') || t('Keine Unterschiede.')}</pre>`, { ok: null, wide: true });
+  } catch (e) { toast(e.message, true); }
 }
 
 function portTable(d) {

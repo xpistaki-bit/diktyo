@@ -6,10 +6,8 @@ to be a slim, self-hosted alternative to NetBox for private users. It runs as a 
 file, either in a Proxmox LXC or in a Docker container, and is managed in the browser. The interface is available
 in German and English.
 
-> **Status: early development (v0.6, milestone M5).** Accounts, profiles, devices with ports and connections, IPAM,
-> the device catalog, PDF/CSV output, backups, the network scan with device identification, online monitoring, the
-> graphical topology and integrations for FRITZ!Box, SNMP switches, ASUS AiMesh, Proxmox VE and Home Assistant work.
-> Device configuration backups follow – see [docs/architecture.md](docs/architecture.md).
+> **Status: v0.7 – the planned MVP (milestones M0–M6) is complete.** German step-by-step guide:
+> [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plans for later versions are in [docs/architecture.md](docs/architecture.md).
 
 ## Installation
 
@@ -212,6 +210,15 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
 
 Integrations and monitoring run in the background service next to the scans. Credentials are stored encrypted and
 go into backups only with the backup passphrase.
+
+## Device configuration backups
+
+Integrations that can read a device's configuration back it up weekly or daily (setting in the integration) or on
+demand ("Back up configuration"): the FRITZ!Box export (needs the FRITZ!Box user), the settings file of ASUS routers,
+and the running configuration of switches via SSH (`show running-config`, SSH user and password in the switch
+integration). Unchanged configurations are not stored twice; the last 30 versions per device are kept, encrypted on
+disk. The device dialog lists them for download and shows the changes between two text configurations. With a backup
+passphrase, the newest configuration of each device is included in díktyo backups (encrypted with the passphrase).
 
 ## Catalog
 

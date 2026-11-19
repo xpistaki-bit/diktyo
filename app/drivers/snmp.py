@@ -20,7 +20,14 @@ FIELDS = [
     dict(key="auth_pass", label="Auth-Passwort", type="password", default="", secret=True, show=V3),
     dict(key="priv_proto", label="Verschlüsselung (Privacy)", type="select", default="AES", options=[["AES", "AES-128"], ["none", "keine"]], show=V3),
     dict(key="priv_pass", label="Privacy-Passwort", type="password", default="", secret=True, show=V3),
+    dict(key="cfg_schedule", label="Konfiguration sichern", type="select", default="weekly", options=[
+        ["weekly", "wöchentlich"], ["daily", "täglich"], ["no", "nein"]]),
+    dict(key="ssh_user", label="SSH-Benutzer (für Konfigurations-Backup)", type="text", default=""),
+    dict(key="ssh_pass", label="SSH-Passwort", type="password", default="", secret=True),
+    dict(key="ssh_port", label="SSH-Port", type="number", default=22),
+    dict(key="ssh_command", label="Befehl für die Konfiguration", type="text", default="show running-config"),
 ]
+CAN_BACKUP = True
 SYS = {"descr": "1.3.6.1.2.1.1.1.0", "object_id": "1.3.6.1.2.1.1.2.0", "uptime": "1.3.6.1.2.1.1.3.0", "name": "1.3.6.1.2.1.1.5.0",
        "location": "1.3.6.1.2.1.1.6.0"}
 IF_DESCR, IF_TYPE, IF_OPER = "1.3.6.1.2.1.2.2.1.2", "1.3.6.1.2.1.2.2.1.3", "1.3.6.1.2.1.2.2.1.8"
@@ -57,6 +64,20 @@ def _idx(oid, base):
 
 def _col(c, base):
     return {_idx(o, base): v for o, v in c.walk(base).items()}
+
+
+def backup(conf, state):
+    """Laufende Konfiguration per SSH lesen (z. B. Zyxel, Cisco-artige CLI). Host-Schlüssel wird beim ersten Mal gemerkt."""
+    if not conf.get("ssh_user") or not conf.get("ssh_pass"):
+        raise DriverError("Für das Konfigurations-Backup SSH-Benutzer und -Passwort des Switches angeben")
+    from .. import sshcfg
+    try:
+        text, fp = sshcfg.run(conf["host"], int(conf.get("ssh_port") or 22), conf["ssh_user"], conf["ssh_pass"],
+                              conf.get("ssh_command") or "show running-config", known=state.get("ssh_hostkey"))
+    except sshcfg.SSHError as ex:
+        raise DriverError(str(ex))
+    state["ssh_hostkey"] = fp
+    return "running-config.txt", text.encode("utf-8"), True
 
 
 def test(conf):

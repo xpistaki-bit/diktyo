@@ -8,3 +8,4 @@ pypdf>=4,<7
 zeroconf>=0.130,<1
 fritzconnection>=1.13,<2
 paho-mqtt>=2.0,<3
+paramiko>=3.4,<5

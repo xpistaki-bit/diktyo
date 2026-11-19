@@ -13,7 +13,11 @@ FIELDS = [
     dict(key="host", label="Adresse", type="text", default="192.168.178.1", required=True),
     dict(key="username", label="Benutzer (optional)", type="text", default=""),
     dict(key="password", label="Passwort (optional)", type="password", default="", secret=True),
+    dict(key="cfg_schedule", label="Konfiguration sichern", type="select", default="weekly", options=[
+        ["weekly", "wöchentlich"], ["daily", "täglich"], ["no", "nein"]]),
+    dict(key="export_pass", label="Passwort für die Konfigurationsdatei (sonst das Anmeldepasswort)", type="password", default="", secret=True),
 ]
+CAN_BACKUP = True
 
 
 class DriverError(Exception):
@@ -171,6 +175,23 @@ def _wlan(fc):
         out.append(dict(ssid=r.get("NewSSID", ""), channel=r.get("NewChannel"), enabled=str(r.get("NewEnable")) in ("1", "True"),
                         standard=r.get("NewStandard", "")))
     return out
+
+
+def backup(conf, state):
+    """Konfigurationsexport der FRITZ!Box (wie System → Sicherung). -> (Dateiname, Inhalt, Text?)"""
+    if not conf.get("password"):
+        raise DriverError("Für das Konfigurations-Backup Benutzer und Passwort der FRITZ!Box angeben")
+    fc = _connect(conf)
+    try:
+        r = _call(fc, "DeviceConfig1", "X_AVM-DE_GetConfigFile", **{"NewX_AVM-DE_Password": conf.get("export_pass") or conf["password"]})
+    except PermissionError:
+        raise DriverError("Benutzer hat nicht das Recht „FRITZ!Box Einstellungen“")
+    url = r.get("NewX_AVM-DE_ConfigFileUrl")
+    if not url:
+        raise DriverError("FRITZ!Box hat keine Konfigurationsdatei geliefert")
+    data = _fetch(fc, url).encode("utf-8")
+    model = (getattr(fc, "modelname", "") or "FRITZ.Box").replace(" ", "_").replace("!", "")
+    return f"{model}.export", data, True
 
 
 def test(conf):

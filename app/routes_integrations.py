@@ -3,7 +3,9 @@ import json
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from . import integrations, metrics, monitor, security
+from fastapi.responses import Response
+
+from . import configbackup, integrations, metrics, monitor, security
 from .auth import profile_access, require_admin, require_user, text, touch
 from .db import audit, db, now, set_setting
 from .drivers import DRIVERS, ERRORS, schema
@@ -17,7 +19,8 @@ CORE = ("host", "port", "username")
 def _out(r):
     st = json.loads(r["state"] or "{}")
     sec = integrations.secrets_of(r)
-    return dict(id=r["id"], driver=r["driver"], name=r["name"], host=r["host"], port=r["port"], username=r["username"],
+    return dict(can_backup=configbackup.can_backup(r), cfg_result=st.get("cfg_result"), cfg_ok=st.get("cfg_ok"),
+                id=r["id"], driver=r["driver"], name=r["name"], host=r["host"], port=r["port"], username=r["username"],
                 options=json.loads(r["options"] or "{}"), secrets={k: security.MASK for k, v in sec.items() if v},
                 password=security.MASK if sec.get("password") else "", device_id=r["device_id"], interval_s=r["interval_s"],
                 enabled=bool(r["enabled"]), last_poll=r["last_poll"], last_ok=r["last_ok"], last_error=r["last_error"],
@@ -100,6 +103,9 @@ def update(pid: int, iid: int, body: dict = Body(...), user=Depends(require_user
         c.execute("""UPDATE integrations SET name=?, host=?, port=?, username=?, secret=?, options=?, interval_s=?, enabled=?, device_id=?, last_poll=NULL
                      WHERE id=?""", (v["name"], v["host"], v["port"], v["username"], v["secret"], v["options"], v["interval_s"], v["enabled"],
                                     v["device_id"], iid))
+        st = json.loads(old["state"] or "{}")
+        if st.pop("ssh_hostkey", None) is not None or st.pop("token", None) is not None:  # nach dem Speichern neu anmelden / Schlüssel neu lernen
+            c.execute("UPDATE integrations SET state=? WHERE id=?", (json.dumps(st, ensure_ascii=False), iid))
         touch(c, pid)
         return _out(_get(c, pid, iid))
 
@@ -182,3 +188,60 @@ def events_list(pid: int, limit: int = 30, user=Depends(require_user)):
         rows = c.execute("SELECT * FROM events WHERE profile_id=? ORDER BY id DESC LIMIT ?", (pid, max(1, min(limit, 200)))).fetchall()
         return dict(events=[dict(id=r["id"], ts=r["ts"], kind=r["kind"], device_id=r["device_id"], data=json.loads(r["data"] or "{}"),
                                  delivered=r["delivered"]) for r in rows])
+
+
+# ------------------------------------------------------------ Konfigurations-Backups
+@router.post("/api/profiles/{pid}/integrations/{iid}/config-backup")
+def config_backup_now(pid: int, iid: int, user=Depends(require_user)):
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        _get(c, pid, iid)
+    res = configbackup.run(iid)
+    if res["status"] == "error":
+        raise HTTPException(400, res["message"])
+    return res
+
+
+@router.get("/api/profiles/{pid}/configs")
+def configs_list(pid: int, device_id: int = 0, user=Depends(require_user)):
+    with db() as c:
+        profile_access(c, user, pid)
+        return dict(configs=configbackup.listing(c, pid, device_id or None))
+
+
+def _cfg(c, pid, cid):
+    r = c.execute("SELECT * FROM config_backups WHERE id=? AND profile_id=?", (cid, pid)).fetchone()
+    if not r:
+        raise HTTPException(404, "Konfigurations-Backup nicht gefunden")
+    return r
+
+
+@router.get("/api/profiles/{pid}/configs/{cid}/download")
+def config_download(pid: int, cid: int, user=Depends(require_user)):
+    with db() as c:
+        profile_access(c, user, pid)
+        r = _cfg(c, pid, cid)
+        audit(c, "config.download", user["id"], pid, dict(id=cid))
+    data = configbackup.read(cid)
+    return Response(data, media_type="text/plain; charset=utf-8" if r["is_text"] else "application/octet-stream",
+                    headers={"Content-Disposition": f'attachment; filename="{r["filename"]}"'})
+
+
+@router.get("/api/profiles/{pid}/configs/{cid}/diff")
+def config_diff(pid: int, cid: int, other: int, user=Depends(require_user)):
+    with db() as c:
+        profile_access(c, user, pid)
+        d = configbackup.diff(c, pid, cid, other)
+    if d is None:
+        raise HTTPException(400, "Nur Text-Konfigurationen lassen sich vergleichen")
+    return d
+
+
+@router.delete("/api/profiles/{pid}/configs/{cid}")
+def config_delete(pid: int, cid: int, user=Depends(require_user)):
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        _cfg(c, pid, cid)
+        c.execute("DELETE FROM config_backups WHERE id=?", (cid,))
+    configbackup.path(cid).unlink(missing_ok=True)
+    return dict(ok=True)

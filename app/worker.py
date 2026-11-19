@@ -11,7 +11,7 @@ import traceback
 
 import threading
 
-from . import catalog, integrations, metrics, monitor
+from . import catalog, configbackup, integrations, metrics, monitor
 from .db import db, get_setting, migrate, now, parse_ts, set_setting
 from .scan import discover, ident, netinfo, runner
 
@@ -96,6 +96,11 @@ def poller():
                 profiles = c.execute("SELECT * FROM profiles").fetchall()
             for iid in due:
                 integrations.poll(iid, log)
+            with db() as c:
+                cfg_due = [r["id"] for r in c.execute("SELECT * FROM integrations").fetchall() if configbackup.due(r, t)]
+            for iid in cfg_due:
+                res = configbackup.run(iid)
+                log(f"Konfigurations-Backup Integration {iid}: {res['status']} {res.get('message', '')}".strip())
             for p in profiles:
                 ms = monitor.settings(p)
                 if ms["enabled"] and t - last_mon.get(p["id"], 0) >= ms["interval_s"]:

@@ -18,7 +18,10 @@ FIELDS = [
     dict(key="scheme", label="Protokoll", type="select", default="https", options=[["https", "HTTPS"], ["http", "HTTP"]]),
     dict(key="username", label="Benutzer", type="text", default="admin", required=True),
     dict(key="password", label="Passwort", type="password", default="", secret=True),
+    dict(key="cfg_schedule", label="Konfiguration sichern", type="select", default="weekly", options=[
+        ["weekly", "wöchentlich"], ["daily", "täglich"], ["no", "nein"]]),
 ]
+CAN_BACKUP = True
 UA = "asusrouter--DUTUtil-"
 HOOK = "get_clientlist();get_cfg_clientlist();nvram_get(productid);nvram_get(firmver);nvram_get(buildno);nvram_get(lan_ipaddr);nvram_get(label_mac)"
 BANDS = {"0": ("lan", ""), "1": ("wlan", "2,4 GHz"), "2": ("wlan", "5 GHz"), "3": ("wlan", "5 GHz (2)"), "4": ("wlan", "6 GHz")}
@@ -73,6 +76,18 @@ def parse_json(txt):
         return json.loads(txt)
     except ValueError:
         return json.loads(re.sub(r",\s*([}\]])", r"\1", txt))
+
+
+def backup(conf, state):
+    """Einstellungsdatei des Routers (Administration → Wiederherstellen/Speichern → Einstellung speichern)."""
+    data, token = _fetch(conf, state)
+    product = re.sub(r"[^A-Za-z0-9_\-]", "", str(data.get("productid") or "router"))
+    with _client(conf) as cl:
+        r = cl.get(f"/Settings_{product}.CFG", cookies={"asus_token": token}, headers={"Referer": f"{_base(conf)}/Advanced_SettingBackup_Content.asp"})
+    if r.status_code != 200 or len(r.content) < 100 or r.content[:15].lower().startswith((b"<html", b"<!doctype")):
+        raise DriverError("Router hat keine Einstellungsdatei geliefert")
+    state["token"] = token
+    return f"Settings_{product}.CFG", r.content, False
 
 
 def test(conf):

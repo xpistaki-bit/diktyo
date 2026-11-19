@@ -411,6 +411,15 @@ ERR_EN = {
     "MQTT-Anmeldung abgelehnt (Benutzer oder Passwort prüfen)": "MQTT sign-in rejected (check user and password)",
     "Token abgelehnt (Long-Lived Access Token prüfen)": "Token rejected (check the long-lived access token)",
     "Token oder MQTT-Broker angeben": "Enter a token or an MQTT broker",
+    "Konfigurations-Backup nicht gefunden": "Configuration backup not found",
+    "Nur Text-Konfigurationen lassen sich vergleichen": "Only text configurations can be compared",
+    "Diese Integration unterstützt kein Konfigurations-Backup": "This integration does not support configuration backups",
+    "Für das Konfigurations-Backup Benutzer und Passwort der FRITZ!Box angeben": "Enter the FRITZ!Box user and password for the configuration backup",
+    "Benutzer hat nicht das Recht „FRITZ!Box Einstellungen“": "The user lacks the permission “FRITZ!Box settings”",
+    "Router hat keine Einstellungsdatei geliefert": "The router did not provide a settings file",
+    "Für das Konfigurations-Backup SSH-Benutzer und -Passwort des Switches angeben": "Enter the switch’s SSH user and password for the configuration backup",
+    "SSH-Anmeldung abgelehnt (Benutzer oder Passwort prüfen)": "SSH sign-in rejected (check user and password)",
+    "Gerät hat keine Konfiguration geliefert (Befehl prüfen)": "The device did not provide a configuration (check the command)",
 }
 # Meldungen mit Werten: Präfix übersetzen, Rest übernehmen
 ERR_EN_PREFIX = {"Ungültige MAC-Adresse: ": "Invalid MAC address: ", "Ungültige IP-Adresse: ": "Invalid IP address: ",

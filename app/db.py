@@ -238,6 +238,22 @@ MIGRATIONS = [
         delivered TEXT NOT NULL DEFAULT '');
     CREATE INDEX events_profile ON events(profile_id, id);
     """,
+    # 6: Konfigurations-Backups von Geräten (Datei verschlüsselt unter DATA/configs)
+    """
+    CREATE TABLE config_backups(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        device_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+        integration_id INTEGER REFERENCES integrations(id) ON DELETE SET NULL,
+        created TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        filename TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        sha256 TEXT NOT NULL,
+        is_text INTEGER NOT NULL DEFAULT 0,
+        note TEXT NOT NULL DEFAULT '');
+    CREATE INDEX config_backups_device ON config_backups(device_id, id);
+    """,
 ]
 
 

@@ -282,8 +282,10 @@ def device_detail(c, pid, did):
     events = [dict(ts=r["ts"], online=bool(r["online"])) for r in c.execute(
         "SELECT ts, online FROM status_events WHERE device_id=? ORDER BY id DESC LIMIT 10", (did,))]
     integ = [dict(id=r["id"], driver=r["driver"], name=r["name"]) for r in c.execute("SELECT id, driver, name FROM integrations WHERE device_id=?", (did,))]
+    from .configbackup import listing
+    configs = listing(c, pid, did)
     return dict(base, ports=ports, port_groups=data.get("ports", []), connected=sorted(kids, key=lambda x: x["name"].lower()),
-                seen=data.get("seen"), ident_full=data.get("ident"), events=events, integrations=integ)
+                seen=data.get("seen"), ident_full=data.get("ident"), events=events, integrations=integ, configs=configs)
 
 
 def ports_of(c, pid, did):

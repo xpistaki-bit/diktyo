@@ -123,7 +123,7 @@ def test_v3_settings_via_api():
     P = f"/api/profiles/{pid}"
     i = cl.post(f"{P}/integrations", json={"driver": "snmp", "host": "192.168.178.2", "version": "v3", "username": "monitor", "auth_proto": "SHA",
                                            "auth_pass": "a-geheim", "priv_proto": "AES", "priv_pass": "p-geheim"}, headers=H).json()
-    assert i["options"] == {"version": "v3", "auth_proto": "SHA", "priv_proto": "AES"} and set(i["secrets"]) == {"auth_pass", "priv_pass"}
+    assert i["options"] == {"version": "v3", "auth_proto": "SHA", "priv_proto": "AES", "cfg_schedule": "weekly"} and set(i["secrets"]) == {"auth_pass", "priv_pass"}
     assert "a-geheim" not in str(i)
     # Platzhalter behält die gespeicherten Passwörter, ein neues ersetzt nur das eine
     cl.put(f"{P}/integrations/{i['id']}", json={"host": "192.168.178.2", "version": "v3", "username": "monitor", "auth_pass": "••••••",

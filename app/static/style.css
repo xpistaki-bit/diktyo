@@ -315,3 +315,12 @@ i.lg.conn{background:rgba(0,229,255,.35);border-color:var(--cyan)} i.lg.up{borde
 ol.steps{margin:0 0 14px;padding:12px 14px 12px 34px;border:1px solid var(--cyan);border-radius:6px;background:rgba(0,229,255,.06);font-size:13.5px;line-height:1.55}
 ol.steps li+li{margin-top:4px}
 ol.steps b{color:var(--cyan);font-weight:600}
+
+ol.steps pre{margin:6px 0 2px;padding:8px 10px;background:rgba(2,8,20,.8);border:1px solid var(--line);border-radius:4px;font:12px/1.5 var(--mono);color:var(--ink);white-space:pre-wrap;word-break:break-all;user-select:all}
+
+/* ---- M6: Konfigurations-Backups ---- */
+.cfgline{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:6px 0 0}
+pre.diff{font:12px/1.5 var(--mono);background:rgba(2,8,20,.8);border:1px solid var(--line);border-radius:6px;padding:10px 12px;max-height:60vh;overflow:auto;white-space:pre}
+pre.diff .add{color:var(--ok);background:rgba(46,229,157,.08);display:inline-block;width:100%}
+pre.diff .del{color:var(--err);background:rgba(255,77,106,.08);display:inline-block;width:100%}
+pre.diff .hunk{color:var(--blue)}

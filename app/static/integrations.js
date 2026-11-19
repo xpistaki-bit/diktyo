@@ -1,16 +1,40 @@
 'use strict';
 /* Integrationen (FRITZ!Box, SNMP-Switch), Ping-Überwachung, Diagramme. Nutzt die Hilfen aus app.js, inventory.js, scan.js. */
 const DRIVER_HELP = {
-  fritzbox: 'Ohne Anmeldung liest díktyo die Geräteliste und den WAN-Traffic. Mit einem FRITZ!Box-Benutzer (System → FRITZ!Box-Benutzer, Recht „FRITZ!Box Einstellungen“) kommen die Mesh-Topologie (welches Gerät an welchem LAN-Port bzw. WLAN hängt) und die WLAN-Daten dazu. In der FRITZ!Box muss unter Heimnetz → Netzwerk → Netzwerkeinstellungen „Zugriff für Anwendungen zulassen“ eingeschaltet sein.',
-  snmp: 'Am Switch SNMP einschalten: v2c mit einer Community oder v3 mit Benutzer (SHA/AES, Gruppe „read-only“). Zyxel: Management → Access Control → SNMP; unter Service Access muss SNMP erlaubt sein, und falls Trusted Hosts gesetzt sind, die Absenderadresse von díktyo (hinter einem Router dessen WAN-Adresse). díktyo liest nur: Port-Status, Traffic, gelernte MAC-Adressen und LLDP-Nachbarn.',
+  fritzbox: 'díktyo liest nur – an der FRITZ!Box wird nichts geändert.',
+  snmp: 'díktyo liest nur: Port-Status, Traffic, gelernte MAC-Adressen und LLDP-Nachbarn.',
 };
 Object.assign(DRIVER_HELP, {
-  asuswrt: 'Für ASUS-Router mit AiMesh (z. B. ExpertWiFi EBM68): liest die Clients mit Mesh-Knoten und WLAN-Band sowie die Knoten selbst. Anmeldung mit dem Admin-Konto des Routers (Weboberfläche, meist HTTPS-Port 8443). ASUS erlaubt nur eine Admin-Sitzung; díktyo hält seine Sitzung offen – meldet dich die Weboberfläche ab, das Abfrageintervall erhöhen.',
-  proxmox: 'Liest Knoten, VMs und LXCs mit MAC, Bridge, VLAN-Tag und IP (über den QEMU Guest Agent bzw. die LXC-Schnittstellen) und hängt sie virtuell an ihren Host. Einmal auf einem Knoten: pveum role add DiktyoRead -privs "VM.Audit,VM.GuestAgent.Audit,Sys.Audit,Datastore.Audit,SDN.Audit"; pveum user add diktyo@pve; pveum acl modify / --users diktyo@pve --roles DiktyoRead; pveum user token add diktyo@pve diktyo --privsep 1; pveum acl modify / --tokens \'diktyo@pve!diktyo\' --roles DiktyoRead. Das Token-Secret wird nur einmal angezeigt.',
-  homeassistant: 'Mit einem Long-Lived Access Token (HA → Profil → Sicherheit) übernimmt díktyo Namen und Bereiche der HA-Geräte (Abgleich über die MAC-Adresse). Mit einem MQTT-Broker (Mosquitto-Add-on, eigener Benutzer) meldet díktyo Online-Sensoren, die Zahl neuer Geräte, den WAN-Traffic und Ereignisse an HA. Als Broker die IP-Adresse von Home Assistant eintragen, nicht „core-mosquitto“ – dieser Name gilt nur innerhalb von HA. Für Benachrichtigungen die Blueprint aus docs/home-assistant importieren.',
+  asuswrt: 'díktyo liest nur: Clients mit Mesh-Knoten und WLAN-Band sowie die AiMesh-Knoten.',
+  proxmox: 'Liest Knoten, VMs und LXCs mit MAC, Bridge, VLAN-Tag und IP (über den QEMU Guest Agent bzw. die LXC-Schnittstellen) und hängt sie virtuell an ihren Host.',
+  homeassistant: 'Namen und Bereiche kommen per MAC-Adresse aus HA; Status und Ereignisse gehen per MQTT an HA. Für Benachrichtigungen die Blueprint aus docs/home-assistant importieren.',
 });
 // Schritt-für-Schritt-Hinweise oben im Dialog
 const DRIVER_STEPS = {
+  fritzbox: [
+    'Adresse der FRITZ!Box eintragen, meist <b>192.168.178.1</b>.',
+    'In der FRITZ!Box unter <b>Heimnetz → Netzwerk → Netzwerkeinstellungen</b> „Zugriff für Anwendungen zulassen“ einschalten.',
+    'Ohne Benutzer liest díktyo nur Geräteliste und WAN-Traffic. Für Mesh-Topologie, WLAN und Konfigurations-Backup unter <b>System → FRITZ!Box-Benutzer</b> einen Benutzer mit dem Recht <b>„FRITZ!Box Einstellungen“</b> anlegen und hier eintragen.',
+    '„Verbindung testen“ zeigt Modell, FRITZ!OS und ob die Anmeldung reicht.',
+  ],
+  snmp: [
+    'Am Switch SNMP einschalten, beim Zyxel unter <b>Management → Access Control → SNMP</b>: <b>v3</b> mit Benutzer (Sicherheitsstufe „priv“, SHA/AES, Gruppe „read-only“) oder <b>v2c</b> mit eigener Community.',
+    'Unter <b>Service Access</b> muss SNMP erlaubt sein. Sind <b>Trusted Hosts</b> gesetzt, die Absenderadresse von díktyo erlauben – steht díktyo hinter einem Router, ist das dessen <b>WAN-Adresse</b>.',
+    'Einstellungen am Switch mit <b>Save</b> dauerhaft speichern, dann hier Adresse, Version und Zugangsdaten eintragen.',
+    'Für Konfigurations-Backups zusätzlich SSH-Benutzer und -Passwort des Switches eintragen (díktyo liest „show running-config“).',
+  ],
+  asuswrt: [
+    'Adresse des Hauptrouters eintragen (bei AiMesh der Knoten mit dem Internetanschluss), z. B. <b>192.168.50.1</b>.',
+    'Port und Protokoll wie in der Weboberfläche: meist <b>HTTPS, Port 8443</b> (sonst HTTP, Port 80).',
+    'Benutzer und Passwort des <b>Admin-Kontos</b> des Routers eintragen.',
+    'ASUS erlaubt nur <b>eine Admin-Sitzung</b>: Meldet dich die Weboberfläche ab, das Abfrageintervall erhöhen (Standard 5 min).',
+  ],
+  proxmox: [
+    'Auf einem Proxmox-Knoten (Shell als root) einen Nur-Lese-Zugang anlegen:<pre>pveum role add DiktyoRead -privs "VM.Audit,VM.GuestAgent.Audit,Sys.Audit,Datastore.Audit,SDN.Audit"\npveum user add diktyo@pve\npveum acl modify / --users diktyo@pve --roles DiktyoRead\npveum user token add diktyo@pve diktyo --privsep 1\npveum acl modify / --tokens \'diktyo@pve!diktyo\' --roles DiktyoRead</pre>',
+    'Das <b>Token-Secret</b> wird nur einmal angezeigt – kopieren und hier einfügen. Token-ID: <b>diktyo@pve!diktyo</b>.',
+    'Als Adresse die IP eines Knotens eintragen, z. B. <b>192.168.50.12</b> (Port 8006). Im Cluster reicht ein Knoten.',
+    'IP-Adressen von VMs kommen über den <b>QEMU Guest Agent</b> (in der VM installieren und in den VM-Optionen aktivieren).',
+  ],
   homeassistant: [
     'Adresse von Home Assistant mit IP-Adresse und Port eintragen, z. B. <b>http://192.168.50.9:8123</b>.',
     'Für Namen und Bereiche: in HA unter <b>Profil → Sicherheit → Langlebige Zugriffstoken</b> ein Token erstellen und einfügen.',
@@ -83,6 +107,9 @@ async function tabIntegrations(ctx) {
         <p class="muted small" style="margin:4px 0 0">${i.last_ok ? t('zuletzt erfolgreich {d}', { d: h(ago(i.last_ok)) }) : t('noch nicht abgefragt')} · ${t('alle {n}', { n: i.interval_s < 60 ? i.interval_s + ' s' : i.interval_s / 60 + ' min' })}
           ${i.summary?.device_id ? ` · <a href="#" data-dev="${i.summary.device_id}">${t('Gerät öffnen')}</a>` : ''}</p>
         ${i.last_error ? `<p class="${i.last_ok ? 'warnc' : 'errtxt'} small">${h(i.last_error)}</p>` : ''}
+        ${i.can_backup ? `<p class="small cfgline"><b>${t('Konfiguration')}:</b> ${i.cfg_ok ? t('zuletzt gesichert {d}', { d: h(ago(i.cfg_ok)) }) : t('noch nicht gesichert')}
+          ${i.cfg_result?.status === 'error' ? ` · <span class="errtxt">${h(i.cfg_result.message)}</span>` : i.cfg_result?.status === 'unchanged' ? ` · <span class="muted">${t('unverändert')}</span>` : ''}
+          ${ctx.canEdit ? `<button class="sm" data-cfg>${t('Konfiguration sichern')}</button>` : ''}</p>` : ''}
         ${i.driver === 'fritzbox' ? fritzCard(i) : i.driver === 'snmp' ? snmpCard(i) : i.driver === 'asuswrt' ? asusCard(i) : i.driver === 'proxmox' ? pveCard(i) : haCard(i)}
       </div>`).join('') || `<div class="panel empty-box">${t('Noch keine Integration. Füge deine FRITZ!Box hinzu – das geht auch ohne Passwort.')}</div>`}</div>
     <h2>${t('Letzte Ereignisse')}</h2><div id="events"></div>`;
@@ -107,6 +134,15 @@ async function tabIntegrations(ctx) {
     const pb = $('[data-poll]', card);
     if (pb) pb.onclick = async () => { pb.disabled = true; try { await api('POST', `${P}/integrations/${i.id}/poll`); ctx.reload(); } catch (e) { toast(e.message, true); pb.disabled = false; } };
     const eb = $('[data-edit]', card); if (eb) eb.onclick = () => integrationDialog(ctx, i, drv[i.driver]);
+    const cb = $('[data-cfg]', card);
+    if (cb) cb.onclick = async () => {
+      cb.disabled = true;
+      try {
+        const r = await api('POST', `${P}/integrations/${i.id}/config-backup`);
+        toast(r.status === 'new' ? t('Konfiguration gesichert ({n} KB)', { n: Math.max(1, Math.round(r.size / 1024)) }) : t('Konfiguration unverändert seit der letzten Sicherung'));
+        ctx.reload();
+      } catch (e) { toast(e.message, true); cb.disabled = false; }
+    };
     const db_ = $('[data-del]', card);
     if (db_) db_.onclick = async () => {
       if (!await confirmDlg(t('Integration löschen'), t('„{n}“ löschen? Die Geräte bleiben erhalten, die Messwerte werden gelöscht.', { n: h(i.name) }), t('Löschen'))) return;

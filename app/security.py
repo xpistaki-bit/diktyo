@@ -72,3 +72,18 @@ def decrypt(token):
         return _fernet.decrypt(str(token).encode()).decode()
     except InvalidToken:
         raise ValueError("Gespeichertes Geheimnis lässt sich nicht entschlüsseln (secret.key geändert?)")
+
+
+def encrypt_bytes(data):
+    global _fernet
+    _fernet = _fernet or Fernet(_key())
+    return _fernet.encrypt(bytes(data))
+
+
+def decrypt_bytes(token):
+    global _fernet
+    _fernet = _fernet or Fernet(_key())
+    try:
+        return _fernet.decrypt(bytes(token))
+    except InvalidToken:
+        raise ValueError("Datei lässt sich nicht entschlüsseln (secret.key geändert?)")
