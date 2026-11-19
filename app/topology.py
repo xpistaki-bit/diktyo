@@ -97,19 +97,51 @@ def build(c, pid, expanded=(), status="confirmed"):
                                  rx_bps=internet["rx_bps"], tx_bps=internet["tx_bps"]))
     width = (max([n["depth"] for n in nodes] or [0]) + 1) * COLW + (INET_GAP if internet else 0)
     height = max(row[0], 1) * ROWH
+    # von Hand verschobene Knoten
+    pos = {r["node"]: (r["x"], r["y"]) for r in c.execute("SELECT node, x, y FROM topo_positions WHERE profile_id=?", (pid,))}
+    for n in nodes:
+        if n["id"] in pos:
+            n["x"], n["y"] = pos[n["id"]]
+            n["pinned"] = True
+    if pos:
+        width = max(width, max(n["x"] for n in nodes) + COLW)
+        height = max(height, max(n["y"] for n in nodes) + ROWH)
     return dict(nodes=nodes, edges=edges, width=width, height=height, node_w=NODE_W, node_h=NODE_H,
-                loose_from=(loose_start + 0.6) * ROWH if loose else None, total=len(devs))
+                loose_from=(loose_start + 0.6) * ROWH if loose and not any(n.get("pinned") for n in nodes) else None, total=len(devs),
+                pinned=sum(1 for n in nodes if n.get("pinned")))
+
+
+def save_positions(c, pid, positions):
+    """positions = {knoten_id: [x, y]}; null entfernt die Position eines Knotens."""
+    import re
+    for node, xy in list(positions.items())[:2000]:
+        if not re.fullmatch(r"d\d+|g\d+:(wlan|virtual)|internet", str(node)):
+            continue
+        if xy is None:
+            c.execute("DELETE FROM topo_positions WHERE profile_id=? AND node=?", (pid, node))
+            continue
+        x, y = (max(0.0, min(100000.0, float(v))) for v in xy[:2])
+        c.execute("INSERT INTO topo_positions(profile_id, node, x, y) VALUES(?,?,?,?) "
+                  "ON CONFLICT(profile_id, node) DO UPDATE SET x=excluded.x, y=excluded.y", (pid, node, x, y))
 
 
 def _internet(c, pid, devs, root_routers):
-    """Internet-Knoten: verbunden mit dem Gerät der FRITZ!Box-Integration (mit WAN-Status und Traffic),
+    """Internet-Knoten: verbunden mit dem Gerät der FRITZ!Box-Integration bzw. dem Gateway von UniFi (mit WAN-Status und Traffic),
     sonst mit den Routern/Modems ohne Uplink (Status unbekannt)."""
     import json
-    for r in c.execute("SELECT * FROM integrations WHERE profile_id=? AND driver='fritzbox' AND enabled=1 ORDER BY id", (pid,)):
+    for r in c.execute("""SELECT * FROM integrations WHERE profile_id=? AND driver IN ('fritzbox','unifi','omada') AND enabled=1
+                          ORDER BY driver<>'fritzbox', id""", (pid,)):
         st = json.loads(r["state"] or "{}")
         wan = (st.get("result") or {}).get("wan") or {}
-        if r["device_id"] in devs:
-            return dict(routers={r["device_id"]}, connected=1 if wan.get("connected") else (0 if wan.get("connected") is False else None),
+        target = r["device_id"]
+        if wan.get("mac"):  # Controller: WAN hängt am Gateway, nicht am Controller selbst
+            m = c.execute("SELECT i.device_id FROM interfaces i JOIN devices d ON d.id=i.device_id WHERE d.profile_id=? AND i.mac=?",
+                          (pid, wan["mac"])).fetchone()
+            target = m["device_id"] if m else None
+        if r["driver"] != "fritzbox" and not wan:
+            continue
+        if target in devs:
+            return dict(routers={target}, connected=1 if wan.get("connected") else (0 if wan.get("connected") is False else None),
                         rx_bps=wan.get("rx_bps"), tx_bps=wan.get("tx_bps"), max_down=wan.get("max_down"), max_up=wan.get("max_up"),
                         uptime=wan.get("uptime"), source=r["name"], updated=r["last_ok"])
     if root_routers:

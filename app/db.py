@@ -254,6 +254,15 @@ MIGRATIONS = [
         note TEXT NOT NULL DEFAULT '');
     CREATE INDEX config_backups_device ON config_backups(device_id, id);
     """,
+    # 7: von Hand verschobene Knoten der Topologie (je Profil, Schlüssel = Knoten-ID wie "d12", "g3:wlan", "internet")
+    """
+    CREATE TABLE topo_positions(
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        node TEXT NOT NULL,
+        x REAL NOT NULL,
+        y REAL NOT NULL,
+        PRIMARY KEY(profile_id, node));
+    """,
 ]
 
 

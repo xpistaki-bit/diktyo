@@ -62,12 +62,16 @@ def run_job(j):
     try:
         if j["kind"] == "scan":
             res = runner.run(j["id"], log)
+        elif j["kind"] == "services":
+            from .scan import services
+            res = services.run(j["id"], log)
         else:
             raise RuntimeError(f"unbekannter Auftrag {j['kind']}")
         with db() as c:
             c.execute("UPDATE jobs SET status='done', progress=100, message='', result=?, finished=? WHERE id=?",
                       (json.dumps(res, ensure_ascii=False), now(), j["id"]))
-        log(f"Auftrag {j['id']} fertig: {res.get('hosts')} Geräte, {res.get('new')} neu, {res.get('duration')} s")
+        if j["kind"] == "scan":
+            log(f"Auftrag {j['id']} fertig: {res.get('hosts')} Geräte, {res.get('new')} neu, {res.get('duration')} s")
     except Exception as ex:
         traceback.print_exc()
         with db() as c:

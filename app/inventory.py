@@ -257,6 +257,13 @@ def list_devices(c, pid, status=None):
     return sorted(out, key=lambda x: natural(x["name"]))
 
 
+def _services_job(c, pid, did):
+    for j in c.execute("SELECT id, params FROM jobs WHERE profile_id=? AND kind='services' AND status IN ('queued','running')", (pid,)):
+        if json.loads(j["params"] or "{}").get("device_id") == did:
+            return j["id"]
+    return None
+
+
 def device_detail(c, pid, did):
     d = c.execute("SELECT * FROM devices WHERE id=? AND profile_id=?", (did, pid)).fetchone()
     if not d:
@@ -285,7 +292,9 @@ def device_detail(c, pid, did):
     from .configbackup import listing
     configs = listing(c, pid, did)
     return dict(base, ports=ports, port_groups=data.get("ports", []), connected=sorted(kids, key=lambda x: x["name"].lower()),
-                seen=data.get("seen"), ident_full=data.get("ident"), events=events, integrations=integ, configs=configs)
+                seen=data.get("seen"), ident_full=data.get("ident"), events=events, integrations=integ, configs=configs,
+                services_scan=data.get("services_scan"),
+                services_job=_services_job(c, pid, did))
 
 
 def ports_of(c, pid, did):

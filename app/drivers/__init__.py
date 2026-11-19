@@ -1,9 +1,10 @@
 """Treiber für Integrationen. Jeder Treiber hat NAME, FIELDS, DEFAULT_INTERVAL, test(conf) und poll(conf, state)."""
 from .. import mqtt
-from . import asuswrt, fritzbox, homeassistant, proxmox, snmp
+from . import asuswrt, controller, fritzbox, homeassistant, omada, proxmox, snmp, unifi
 
-DRIVERS = {"fritzbox": fritzbox, "snmp": snmp, "asuswrt": asuswrt, "proxmox": proxmox, "homeassistant": homeassistant}
-ERRORS = (fritzbox.DriverError, snmp.DriverError, asuswrt.DriverError, proxmox.DriverError, homeassistant.DriverError, mqtt.MQTTError)
+DRIVERS = {"fritzbox": fritzbox, "snmp": snmp, "asuswrt": asuswrt, "proxmox": proxmox, "homeassistant": homeassistant,
+           "omada": omada, "unifi": unifi}
+ERRORS = (fritzbox.DriverError, snmp.DriverError, asuswrt.DriverError, proxmox.DriverError, homeassistant.DriverError, controller.DriverError, mqtt.MQTTError)
 
 
 def schema():

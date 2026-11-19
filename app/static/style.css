@@ -343,3 +343,14 @@ path.wan.unk{stroke:var(--dim);stroke-dasharray:3 5}
 .wanlabel{fill:var(--ink);font:600 13px var(--mono);paint-order:stroke;stroke:var(--bg);stroke-width:4px}
 @media (prefers-reduced-motion: reduce){path.wan.up{animation:none}}
 .wanlabel.up{fill:var(--dim)}
+
+/* ---- Topologie: Knoten verschieben ---- */
+.topo .tn, .topo .tg{cursor:grab}
+.topo.moving, .topo.moving .tn, .topo.moving .tg{cursor:grabbing}
+.topo.moving .tn, .topo.moving .tg{transition:none}
+.topo-wrap{position:relative}
+.topo-wrap[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:12px;bottom:10px;font-size:11px;color:var(--dim);pointer-events:none}
+
+/* ---- Dienste-Scan ---- */
+.svc-run{gap:8px;align-items:center;margin-top:6px}
+.svc-run progress{flex:1;max-width:240px;accent-color:var(--cyan)}

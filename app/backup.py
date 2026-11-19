@@ -86,7 +86,7 @@ def export_data(c):
         locations=q("SELECT * FROM locations"), devices=devices,
         interfaces=q("SELECT * FROM interfaces"), links=q("SELECT * FROM links"),
         vlans=q("SELECT * FROM vlans"), subnets=q("SELECT * FROM subnets"), ip_addresses=q("SELECT * FROM ip_addresses"),
-        port_vlans=q("SELECT * FROM port_vlans"),
+        port_vlans=q("SELECT * FROM port_vlans"), topo_positions=q("SELECT * FROM topo_positions"),
         device_models=[m for m in models if m["custom"]],
         ident_rules=q("SELECT * FROM ident_rules WHERE custom=1"),
         integrations=[dict(r, secret=_move_secret(r["secret"], f), state="{}") for r in q("SELECT * FROM integrations")],
@@ -241,6 +241,13 @@ def _import_profiles(c, exp, umap, rename, fernet=None):
     for x in exp.get("links", []):
         if x["a_if"] in imap and x["b_if"] in imap and x["profile_id"] in pmap:
             _insert(c, "links", dict(x, profile_id=pmap[x["profile_id"]], a_if=imap[x["a_if"]], b_if=imap[x["b_if"]]))
+    import re as _re
+    for x in exp.get("topo_positions", []):  # Knoten-IDs enthalten Geräte-IDs -> umschlüsseln
+        m = _re.fullmatch(r"([dg])(\d+)(:\w+)?", x["node"])
+        if x["profile_id"] not in pmap or (m and int(m.group(2)) not in dmap):
+            continue
+        node = f"{m.group(1)}{dmap[int(m.group(2))]}{m.group(3) or ''}" if m else x["node"]
+        c.execute("INSERT OR REPLACE INTO topo_positions(profile_id, node, x, y) VALUES(?,?,?,?)", (pmap[x["profile_id"]], node, x["x"], x["y"]))
     for x in exp.get("vlans", []):
         if x["profile_id"] in pmap:
             vmap[x["id"]] = _insert(c, "vlans", dict(x, profile_id=pmap[x["profile_id"]]))

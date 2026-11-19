@@ -196,10 +196,45 @@ def config_backup_now(pid: int, iid: int, user=Depends(require_user)):
     with db() as c:
         profile_access(c, user, pid, "edit")
         _get(c, pid, iid)
-    res = configbackup.run(iid)
+    res = configbackup.run(iid, interactive=True)
     if res["status"] == "error":
         raise HTTPException(400, res["message"])
     return res
+
+
+def _sf(pid, iid, user, action):
+    from .drivers import DRIVERS, ERRORS
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        row = _get(c, pid, iid)
+    drv = DRIVERS[row["driver"]]
+    if not hasattr(drv, "second_factor_state"):
+        raise HTTPException(400, "Diese Integration kennt keinen zweiten Faktor")
+    state = json.loads(row["state"] or "{}")
+    try:
+        if action == "state":
+            out = dict(state=drv.second_factor_state(integrations.conf_of(row), state))
+        else:
+            drv.second_factor_stop(integrations.conf_of(row), state)
+            out = dict(state="stopped")
+    except ERRORS as ex:
+        raise HTTPException(400, str(ex))
+    with db() as c:
+        st = json.loads(c.execute("SELECT state FROM integrations WHERE id=?", (iid,)).fetchone()["state"] or "{}")
+        if "sf_token" not in state:
+            st.pop("sf_token", None)
+        c.execute("UPDATE integrations SET state=? WHERE id=?", (json.dumps(st, ensure_ascii=False), iid))
+    return out
+
+
+@router.get("/api/profiles/{pid}/integrations/{iid}/second-factor")
+def second_factor_state(pid: int, iid: int, user=Depends(require_user)):
+    return _sf(pid, iid, user, "state")
+
+
+@router.delete("/api/profiles/{pid}/integrations/{iid}/second-factor")
+def second_factor_stop(pid: int, iid: int, user=Depends(require_user)):
+    return _sf(pid, iid, user, "stop")
 
 
 @router.get("/api/profiles/{pid}/configs")

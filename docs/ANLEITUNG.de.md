@@ -2,7 +2,7 @@
 
 díktyo dokumentiert dein Heimnetz: Geräte mit IP, MAC, Standort und Notizen, IP-Adressverwaltung mit Subnetzen und VLANs,
 eine grafische Topologie, Netzscan mit Geräteerkennung, Online-Überwachung und Integrationen für FRITZ!Box, Switches
-(SNMP), ASUS-Router mit AiMesh, Proxmox VE und Home Assistant. Diese Anleitung führt durch Installation und Einrichtung.
+(SNMP), ASUS-Router mit AiMesh, TP-Link Omada, Ubiquiti UniFi, Proxmox VE und Home Assistant. Diese Anleitung führt durch Installation und Einrichtung.
 
 ## 1. Installation
 
@@ -120,6 +120,32 @@ Cluster reicht einer. IP-Adressen von VMs kommen über den QEMU Guest Agent.
 In HA erscheint danach unter *Einstellungen → Geräte & Dienste → MQTT* das Gerät „díktyo <Profil>“ mit Online-Sensoren,
 Zählern, WAN-Traffic und der Ereignis-Entität. Für Handy-Benachrichtigungen die Blueprint importieren:
 `https://raw.githubusercontent.com/xpistaki-bit/diktyo/main/docs/home-assistant/diktyo-benachrichtigung.yaml`.
+
+### TP-Link Omada
+
+1. Im Omada-Controller: *Einstellungen → Plattform-Integration → Open API → Neue App hinzufügen*, Modus **„Client“**,
+   eine Rolle mit Lesezugriff (z. B. Viewer) und die gewünschten Sites.
+2. In díktyo **Client-ID**, **Client-Secret** (wird nur einmal angezeigt) und **Omada-ID** (oben auf der Open-API-Seite)
+   eintragen.
+3. Adresse des Controllers – Software-Controller, OC200/OC300 oder Gateway mit eingebautem Controller –, Port meist
+   8043 (OC200/OC300: 443). Site leer lassen, um alle Sites zu lesen.
+
+díktyo übernimmt Gateways, Switches und Access Points mit Uplink-Port sowie die Clients mit Access Point bzw.
+Switch-Port und baut daraus die Topologie.
+
+### Ubiquiti UniFi
+
+1. In UniFi Network (9.0 oder neuer): *Einstellungen → Control Plane → Integrationen* → **API-Schlüssel erstellen**.
+   Nicht den Site-Manager-Schlüssel von unifi.ui.com verwenden – der gilt nur für die Cloud.
+2. Adresse der Konsole (UDM, UCG, Cloud Key) bzw. des selbst gehosteten Controllers, Port 443 (selbst gehostet meist
+   8443). díktyo erkennt den richtigen Pfad selbst.
+3. Schlüssel einfügen. Er hat vollen Zugriff; díktyo liest damit nur.
+
+díktyo übernimmt Gateway, Switches und Access Points mit Port-Status (Frontplatte in der Topologie), die verbundenen
+Clients und den WAN-Traffic des Gateways (Internet-Leitung in der Topologie, Diagramm in der Integration).
+
+**Hinweis:** Beide Integrationen sind nach der Dokumentation der Hersteller gebaut und gegen nachgebildete Controller
+getestet, aber noch nicht an echter Hardware. Klappt etwas nicht, die Meldung der Integration als Issue melden.
 
 ## 5. Überwachung und Ereignisse
 

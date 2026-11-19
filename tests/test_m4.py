@@ -88,3 +88,24 @@ def test_quick_ping_and_pdf():
     pdf = cl.get(f"{P}/export/report.pdf?sections=topology").content
     text = "".join(p.extract_text() for p in PdfReader(io.BytesIO(pdf)).pages)
     assert "Topologie" in text and "Zyxel" in text and "6 WLAN-Geräte" in text and "Ohne Verbindung".upper() in text
+
+
+def test_topology_positions_saved_and_reset():
+    cl, pid, P, d = setup_net()
+    sw = f"d{d['sw']['id']}"
+    assert cl.put(f"{P}/topology/positions", json={"positions": {sw: [1234.5, 777], "x; DROP": [1, 1], "internet": [10, 300]}}, headers=H).json()["ok"]
+    t = cl.get(f"{P}/topology").json()
+    n = next(x for x in t["nodes"] if x["id"] == sw)
+    assert (n["x"], n["y"], n["pinned"]) == (1234.5, 777, True) and t["pinned"] == 2 and t["width"] >= 1234.5 + 280
+    assert next(x for x in t["nodes"] if x["id"] == "internet")["y"] == 300
+    # im Backup enthalten und beim Wiederherstellen umgeschlüsselt
+    from app import backup as bk
+    with db() as c:
+        exp = bk.export_data(c)
+    assert any(p["node"] == sw for p in exp["topo_positions"])
+    # einzelne Position entfernen, dann alles zurücksetzen
+    cl.put(f"{P}/topology/positions", json={"positions": {"internet": None}}, headers=H)
+    assert cl.get(f"{P}/topology").json()["pinned"] == 1
+    assert cl.delete(f"{P}/topology/positions", headers=H).json()["ok"]
+    t = cl.get(f"{P}/topology").json()
+    assert t["pinned"] == 0 and next(x for x in t["nodes"] if x["id"] == sw)["x"] == 670

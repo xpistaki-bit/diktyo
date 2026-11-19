@@ -68,8 +68,16 @@ shipped in the repository. `nmap` is installed from the distribution packages.
 | M5 | ASUS AiMesh, Proxmox, Home Assistant (MQTT discovery, blueprint, areas) | done |
 | M6 | config backups for FRITZ!Box, Zyxel and ASUS; polish, documentation | done |
 
-Phase 2: write actions, more integrations (Omada, UniFi, Netgear, devolo, Docker API), nmap service detection on
-demand, passive DHCP fingerprinting. Phase 3: change history between scans, cable and patch-panel documentation,
+Phase 2:
+
+| # | Content | Status |
+|---|---|---|
+| P2.1 | topology full screen, internet node with WAN status and live traffic | done (0.7.1) |
+| P2.2 | integrations TP-Link Omada (Open API) and Ubiquiti UniFi (Network Integration API) | done (0.8.0), not yet tested on real hardware |
+| P2.3 | write actions (named actions with preview, confirmation and automatic config backup first) | open |
+| P2.4 | more integrations: Netgear, devolo, Docker API | open |
+| P2.5 | nmap service detection on demand, passive DHCP fingerprinting | open |
+ Phase 3: change history between scans, cable and patch-panel documentation,
 Prometheus endpoint, REST API with tokens.
 
 ## Planned setup of the data sources

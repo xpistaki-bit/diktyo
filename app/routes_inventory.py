@@ -318,6 +318,27 @@ def topology_get(pid: int, expanded: str = "", user=Depends(require_user)):
         return topology.build(c, pid, [x for x in expanded.split(",") if x])
 
 
+@router.put("/topology/positions")
+def topology_positions(pid: int, body: dict = Body(...), user=Depends(require_user)):
+    from . import topology
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        try:
+            topology.save_positions(c, pid, body.get("positions") or {})
+        except (TypeError, ValueError):
+            raise HTTPException(400, "Ungültige Positionen")
+    return dict(ok=True)
+
+
+@router.delete("/topology/positions")
+def topology_positions_reset(pid: int, user=Depends(require_user)):
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        c.execute("DELETE FROM topo_positions WHERE profile_id=?", (pid,))
+        audit(c, "topology.reset_layout", user["id"], pid)
+    return dict(ok=True)
+
+
 @router.post("/ping")
 def quick_ping(pid: int, body: dict = Body(default={}), user=Depends(require_user)):
     """Pingt sofort die angegebenen (sonst alle bestätigten) Geräte und aktualisiert ihren Online-Status."""

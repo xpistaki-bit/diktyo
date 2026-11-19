@@ -153,6 +153,7 @@ async function deviceDialog(ctx, did) {
     <label>${t('Tags (durch Komma getrennt)')}</label><input name="tags" value="${h((v.tags || []).join(', '))}" ${dis}>
     ${d && d.ports.length ? portTable(d) : ''}
     ${d && d.configs?.length ? configTable(d) : ''}
+    ${d && d.ips?.length ? `<div id="svcbox">${servicesBox(d, ctx.canEdit)}</div>` : ''}
     ${d && d.connected.length ? `<h4>${t('Verbundene Geräte')} (${d.connected.length})</h4><div class="table-wrap"><table class="compact"><thead><tr><th>${t('Name')}</th><th>${t('Verbindung')}</th><th>${t('IP')}</th><th>${t('MAC')}</th></tr></thead><tbody>
       ${d.connected.map(k => `<tr><td>${h(k.name)}</td><td>${t(MEDIUM_SHORT[k.medium])}${k.port_name ? ' · ' + t('Port') + ' ' + h(k.port_name) : ''}</td><td class="mono">${h(k.ip)}</td><td class="mono">${h(k.mac)}</td></tr>`).join('')}
       </tbody></table></div>` : ''}`;
@@ -166,6 +167,7 @@ async function deviceDialog(ctx, did) {
       bindPortEditor($('#pe', f), pc); pc();
       $$('[data-dl]', f).forEach(a => { a.href = `${P}/configs/${a.dataset.dl}/download`; a.setAttribute('download', ''); });
       $$('[data-diff]', f).forEach(b => b.onclick = () => showDiff(ctx.pid, b.dataset.diff, b.dataset.prev));
+      if (d && $('#svcbox', f)) bindServices(ctx, d, $('#svcbox', f));
       const bindIps = () => $$('[data-rmip]', f).forEach(b => b.onclick = () => b.closest('.iprow').remove());
       bindIps();
       const addip = $('#addip', f);
@@ -217,6 +219,58 @@ async function deviceDialog(ctx, did) {
     },
   });
   if (res) { toast(t('gespeichert')); ctx.reload(); }
+}
+
+/* Dienste-Scan (nmap) auf Knopfdruck */
+function servicesBox(d, canEdit, job) {
+  const s = d.services_scan, rows = Object.entries(s?.hosts || {}).flatMap(([ip, x]) => x.ports.map(p => ({ ip, ...p })));
+  const multi = Object.keys(s?.hosts || {}).length > 1;
+  const osName = Object.values(s?.hosts || {}).map(x => x.os).find(Boolean);
+  const certInfo = c => c ? `<div class="muted small">${t('Zertifikat')}: ${h(c.subject || '?')}${c.issuer ? ' · ' + h(c.issuer) : ''}${c.not_after ? ` · ${t('gültig bis')} ${h(c.not_after.slice(0, 10))}` : ''}</div>` : '';
+  return `<h4>${t('Dienste (nmap)')}${s ? ` <span class="muted small">· ${t('Stand {d}', { d: h(fmtDate(s.ts)) })} · ${h(t(DEPTH_NAME[s.depth] || s.depth))}</span>` : ''}</h4>
+    ${s ? (rows.length ? `<div class="table-wrap"><table class="compact"><thead><tr>${multi ? `<th>${t('IP')}</th>` : ''}<th>${t('Port')}</th><th>${t('Dienst')}</th><th>${t('Produkt / Version')}</th></tr></thead><tbody>
+      ${rows.map(p => `<tr>${multi ? `<td class="mono small">${h(p.ip)}</td>` : ''}<td class="mono">${p.port}/${h(p.proto)}</td>
+        <td>${p.web ? `<a href="${p.web}://${h(p.ip)}:${p.port}/" target="_blank" rel="noopener">${h(p.name || p.web)}</a>` : h(p.name)}${p.tls ? ' <span class="badge">TLS</span>' : ''}</td>
+        <td class="small">${h([p.product, p.version, p.extra && `(${p.extra})`].filter(Boolean).join(' '))}${p.title ? `<div class="muted small">„${h(p.title)}“</div>` : ''}${certInfo(p.cert)}</td></tr>`).join('')}
+      </tbody></table></div>` : `<p class="muted small">${t('Keine offenen TCP-Ports gefunden.')}</p>`)
+      + (osName ? `<p class="muted small">${t('Betriebssystem (Vermutung)')}: ${h(osName)}</p>` : '') : `<p class="muted small">${t('Noch nicht geprüft. Der Scan zeigt offene Ports mit Dienst und Version, Titel von Webseiten und TLS-Zertifikate.')}</p>`}
+    ${canEdit ? `<div class="row svc-run">${job ? `<span class="muted small" data-svcst>${t('Scan läuft …')}</span><progress max="100" value="${job.progress || 0}"></progress>`
+      : `<select data-depth>${Object.entries(DEPTH_NAME).map(([k, v]) => `<option value="${k}" ${k === (s?.depth || 'standard') ? 'selected' : ''}>${t(v)}</option>`).join('')}</select>
+         <button type="button" class="sm" data-svcscan>${t('Dienste prüfen')}</button>`}</div>` : ''}`;
+}
+const DEPTH_NAME = { quick: 'Schnell (100 Ports)', standard: 'Standard (1000 Ports)', full: 'Alle 65535 Ports (langsam)' };
+
+function bindServices(ctx, d, box) {
+  const P = `/api/profiles/${ctx.pid}`;
+  const poll = async jid => {
+    while (document.body.contains(box)) {
+      let j;
+      try { j = await api('GET', `/api/jobs/${jid}`); } catch { return; }
+      if (j.status === 'done' || j.status === 'error') {
+        if (j.status === 'error') toast(j.message, true);
+        const fresh = await api('GET', `${P}/devices/${d.id}`);
+        Object.assign(d, { services_scan: fresh.services_scan });
+        box.innerHTML = servicesBox(d, ctx.canEdit); wire(); return;
+      }
+      box.innerHTML = servicesBox(d, ctx.canEdit, j);
+      const st = $('[data-svcst]', box);
+      if (st) st.textContent = j.status === 'queued' ? t('Wartet auf den Hintergrunddienst …') : `${t(j.message || 'Scan läuft …')} · ${j.progress}%`;
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  };
+  const wire = () => {
+    const b = $('[data-svcscan]', box);
+    if (b) b.onclick = async () => {
+      b.disabled = true;
+      try {
+        const r = await api('POST', `${P}/devices/${d.id}/services-scan`, { depth: $('[data-depth]', box).value });
+        if (r.nmap === false) toast(t('nmap ist im Hintergrunddienst nicht installiert.'), true);
+        poll(r.job.id);
+      } catch (e) { toast(e.message, true); b.disabled = false; }
+    };
+  };
+  wire();
+  if (d.services_job) poll(d.services_job);
 }
 
 function configTable(d) {

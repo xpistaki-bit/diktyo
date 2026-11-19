@@ -1,9 +1,10 @@
-"""Integrationen abfragen und die Ergebnisse auf den Bestand übertragen (FRITZ!Box, SNMP-Switch)."""
+"""Integrationen abfragen und die Ergebnisse auf den Bestand übertragen (FRITZ!Box, SNMP, ASUS, Proxmox, HA, Omada, UniFi)."""
 import json
 import time
 
 from . import catalog, inventory, metrics, security
 from .db import db, now
+from .drivers import controller as ctl
 from .drivers import DRIVERS, ERRORS
 from .scan import ident, oui, runner
 
@@ -90,6 +91,11 @@ def _slim(driver, res):
                     running=sum(1 for g in res.get("guests", []) if g["running"]))
     if driver == "homeassistant":
         return dict(info=res.get("info"))
+    if driver in CONTROLLERS:
+        return dict(info=res.get("info"), wan=res.get("wan"),
+                    devices=[{k: d[k] for k in ("name", "model", "type", "ip", "online", "clients")} for d in res.get("devices", [])],
+                    clients=len(res.get("clients", [])), wlan=sum(1 for x in res.get("clients", []) if x["medium"] == "wlan"),
+                    port_status={d["mac"]: d["ports"] for d in res.get("devices", []) if d.get("ports")})
     if driver == "fritzbox":
         return dict(info=res.get("info"), wan=res.get("wan"), auth=res.get("auth"), wlan=res.get("wlan"),
                     hosts=len(res.get("hosts", [])), active=sum(1 for h in res.get("hosts", []) if h["active"]))
@@ -254,12 +260,21 @@ def apply_snmp(c, row, res):
 
 
 def live_ports(c, did):
-    """Port-Status aus der letzten SNMP-Abfrage eines Geräts -> {port_no: {...}}"""
+    """Port-Status aus der letzten SNMP-Abfrage eines Geräts bzw. vom Controller (UniFi) -> {port_no: {...}}"""
     r = c.execute("SELECT state FROM integrations WHERE device_id=? AND driver='snmp' ORDER BY id LIMIT 1", (did,)).fetchone()
-    if not r:
+    if r:
+        st = json.loads(r["state"] or "{}")
+        return {p["port_no"]: p for p in (st.get("result") or {}).get("ports") or []}
+    macs = {x["mac"] for x in c.execute("SELECT mac FROM interfaces WHERE device_id=? AND mac<>''", (did,))}
+    pid = c.execute("SELECT profile_id FROM devices WHERE id=?", (did,)).fetchone()
+    if not macs or not pid:
         return {}
-    st = json.loads(r["state"] or "{}")
-    return {p["port_no"]: p for p in (st.get("result") or {}).get("ports") or []}
+    for r in c.execute(f"SELECT state FROM integrations WHERE profile_id=? AND driver IN ({','.join('?' * len(CONTROLLERS))})", (pid[0], *CONTROLLERS)):
+        ps = (json.loads(r["state"] or "{}").get("result") or {}).get("port_status") or {}
+        for m in macs:
+            if m in ps:
+                return {p["port_no"]: p for p in ps[m]}
+    return {}
 
 
 def type_name(t, lang="de"):
@@ -515,4 +530,67 @@ def _publish_ha(c, row, conf):
     return dict(published=len(published), events=len(evs), messages=n)
 
 
-APPLY = {"fritzbox": apply_fritz, "snmp": apply_snmp, "asuswrt": apply_asus, "proxmox": apply_proxmox, "homeassistant": apply_ha}
+# ------------------------------------------------------------ Controller (Omada, UniFi)
+CONTROLLERS = ("omada", "unifi")
+VENDOR = {"omada": "TP-Link", "unifi": "Ubiquiti"}
+
+
+def _port_by_no(c, did, no):
+    if no is None:
+        return None
+    r = c.execute("SELECT id FROM interfaces WHERE device_id=? AND role='port' AND port_no=?", (did, no)).fetchone()
+    return r["id"] if r else None
+
+
+def apply_controller(c, row, res):
+    """Infrastruktur (Gateway, Switches, APs) anlegen und verbinden, Clients einsortieren und an AP bzw. Switch-Port hängen."""
+    pid, src, vendor = row["profile_id"], row["driver"], VENDOR.get(row["driver"], "")
+    oui.ensure(lambda *a: None)
+    dev_of, new, links, own = {}, 0, 0, None
+    for d in res.get("devices", []):
+        did = _find_device(c, pid, d["mac"], d["ip"])
+        if not did:
+            did = _new_device(c, pid, d["name"] or d["model"] or d["type"], d["type"], d["mac"], [d["ip"]], src, d["model"], vendor)
+            new += 1
+        # Ports aus dem Controller anlegen, wenn das Gerät noch keine hat (z. B. Modell nicht im Katalog)
+        if d.get("ports") and not c.execute("SELECT 1 FROM interfaces WHERE device_id=? AND role='port'", (did,)).fetchone():
+            data = json.loads(c.execute("SELECT data FROM devices WHERE id=?", (did,)).fetchone()["data"] or "{}")
+            data["ports"] = ctl.port_groups(d["ports"])
+            c.execute("UPDATE devices SET data=? WHERE id=?", (json.dumps(data, ensure_ascii=False), did))
+            inventory.sync_ports(c, did, data["ports"])
+        runner._set_online(c, did, 1 if d["online"] else 0, now(), src)
+        dev_of[d["mac"]] = did
+        if d["ip"] and d["ip"] == row["host"]:
+            own = did
+    for d in res.get("devices", []):
+        parent = dev_of.get(d["uplink_mac"])
+        if parent and parent != dev_of[d["mac"]]:
+            medium = "mesh" if d["type"] == "ap" and not d["uplink_port"] and c.execute(
+                "SELECT type FROM devices WHERE id=?", (parent,)).fetchone()["type"] == "ap" else "lan"
+            if set_auto_uplink(c, pid, dev_of[d["mac"]], parent, medium, port_id=_port_by_no(c, parent, d["uplink_port"]), source=src):
+                links += 1
+    rules, index = ident.load_rules(c), ident.catalog_index(c)
+    hosts = []
+    for x in res.get("clients", []):
+        if not x["ip"] or not x["online"]:
+            continue
+        h = dict(ip=x["ip"], mac=x["mac"], vendor=x.get("vendor") or (oui.vendor(x["mac"]) if x["mac"] else ""),
+                 random=oui.is_random(x["mac"]) if x["mac"] else False, hostname=x["name"], netbios="", mdns=None, ssdp=None, http=None,
+                 ports=[], services={}, os="")
+        h["ident"] = ident.identify(rules, index, h)
+        hosts.append(h)
+    stats = runner.merge(c, pid, None, hosts, source=src, record=False)
+    by_mac = _device_by_mac(c, pid)
+    for x in res.get("clients", []):
+        d, parent = by_mac.get(x["mac"]), dev_of.get(x["parent_mac"])
+        if not d or not parent or d["id"] == parent:
+            continue
+        if set_auto_uplink(c, pid, d["id"], parent, x["medium"], port_id=_port_by_no(c, parent, x["port"]) if x["medium"] == "lan" else None, source=src):
+            links += 1
+    if own:
+        c.execute("UPDATE integrations SET device_id=? WHERE id=? AND device_id IS NULL", (own, row["id"]))
+    return dict(device_id=own, devices=len(dev_of), clients=len(res.get("clients", [])), new=stats["new"] + new, links=links)
+
+
+APPLY = {"fritzbox": apply_fritz, "snmp": apply_snmp, "asuswrt": apply_asus, "proxmox": apply_proxmox, "homeassistant": apply_ha,
+         "omada": apply_controller, "unifi": apply_controller}

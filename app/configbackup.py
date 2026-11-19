@@ -32,18 +32,33 @@ def due(row, t=None):
     return (t or time.time()) - last >= PERIOD[sched]
 
 
-def run(iid):
-    """Sichert die Konfiguration des Geräts einer Integration. -> dict(status=new|unchanged|error, …)"""
+def run(iid, interactive=False):
+    """Sichert die Konfiguration des Geräts einer Integration. -> dict(status=new|unchanged|error|second_factor, …)
+
+    Verlangt das Gerät einen zweiten Faktor (FRITZ!Box), wird bei einer Sicherung per Knopf die Bestätigung gestartet
+    (status=second_factor mit Hinweisen); nach der Bestätigung ruft die Oberfläche run() erneut auf. Beim Zeitplan
+    lässt sich das nicht bestätigen – dann gibt es einen Hinweis."""
     from .integrations import conf_of
     with db() as c:
         row = c.execute("SELECT * FROM integrations WHERE id=?", (iid,)).fetchone()
     if not row or not can_backup(row):
         return dict(status="error", message="Diese Integration unterstützt kein Konfigurations-Backup")
     state = json.loads(row["state"] or "{}")
+    drv = DRIVERS[row["driver"]]
     try:
-        filename, data, is_text = DRIVERS[row["driver"]].backup(conf_of(row), state)
+        filename, data, is_text = drv.backup(conf_of(row), state)
     except ERRORS as ex:
         res = dict(status="error", message=str(ex))
+        if type(ex).__name__ == "SecondFactorRequired":
+            if interactive and hasattr(drv, "second_factor_start"):
+                try:
+                    res = dict(status="second_factor", **drv.second_factor_start(conf_of(row), state))
+                except ERRORS as ex2:
+                    res = dict(status="error", message=str(ex2))
+            else:
+                res = dict(status="error", second_factor=True,
+                           message="Die FRITZ!Box verlangt für den Export eine Bestätigung (zweiter Faktor). "
+                                   "Automatisch geht das nicht – bitte „Konfiguration sichern“ von Hand auslösen und an der FRITZ!Box bestätigen.")
     except Exception as ex:
         res = dict(status="error", message=f"{type(ex).__name__}: {ex}")
     else:
@@ -65,7 +80,12 @@ def run(iid):
                 res = dict(status="new", id=cid, size=len(data), filename=fname)
     with db() as c:
         row = c.execute("SELECT state FROM integrations WHERE id=?", (iid,)).fetchone()
-        st = {**json.loads(row["state"] or "{}"), **{k: v for k, v in state.items() if k in ("token", "ssh_hostkey")}}
+        st = {**json.loads(row["state"] or "{}"), **{k: v for k, v in state.items() if k in ("token", "ssh_hostkey", "sf_token")}}
+        if "sf_token" not in state:
+            st.pop("sf_token", None)
+        if res["status"] == "second_factor":  # Ergebnis erst nach der Bestätigung
+            c.execute("UPDATE integrations SET state=? WHERE id=?", (json.dumps(st, ensure_ascii=False), iid))
+            return res
         st.update(cfg_try=time.time(), cfg_result=dict(res, ts=now()))
         if res["status"] != "error":
             st["cfg_ok"] = now()

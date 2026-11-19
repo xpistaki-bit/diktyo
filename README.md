@@ -6,7 +6,7 @@ to be a slim, self-hosted alternative to NetBox for private users. It runs as a 
 file, either in a Proxmox LXC or in a Docker container, and is managed in the browser. The interface is available
 in German and English.
 
-> **Status: v0.7 – the planned MVP (milestones M0–M6) is complete.** German step-by-step guide:
+> **Status: v0.8 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plans for later versions are in [docs/architecture.md](docs/architecture.md).
 
 ## Installation
@@ -141,6 +141,10 @@ without a connection are listed separately.
   30 seconds while the view is open.
 - The PDF can contain the topology as a graphic (section "Topology graphic").
 
+- **Full screen** enlarges the topology to the whole window below the header; Esc returns to normal size.
+- **Internet:** a globe in front of the WAN router. With the FRITZ!Box (or UniFi) integration it shows whether the
+  internet connection is up (animated green line or red) and the current traffic down/up on the line.
+
 ## Network scan and identification
 
 The tab **Network scan** finds the devices in the network; new ones land in the **Inbox** with a guess of what
@@ -201,6 +205,14 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
 - **Home Assistant:** names and areas of HA devices are taken over by MAC address; via MQTT díktyo reports online
   sensors, counters, WAN traffic and events (device offline/online, new device). A blueprint for phone notifications
   is in [docs/home-assistant](docs/home-assistant/README.md).
+- **TP-Link Omada** (Open API of the software controller, OC200/OC300 or gateway with controller; app in "Client"
+  mode with Client ID, Client Secret and Omada ID): gateways, switches and access points with their uplink device and
+  port, and the clients with the access point or switch port they are connected to.
+- **Ubiquiti UniFi** (local Network Integration API with an API key, UniFi Network 9.0 or newer; consoles and
+  self-hosted controllers): gateway, switches and access points with port status (shown on the front panel), the
+  connected clients with their access point or switch, and the gateway's WAN traffic.
+- Omada and UniFi were built from the vendors' API documentation and tested against simulated controllers, not yet
+  against real hardware – feedback welcome.
 - Connections set by an integration never replace connections entered by hand.
 - **Online monitoring:** all confirmed devices with an IP address are pinged every 30 s, 1 min or 5 min (per
   profile); devices that drop pings are checked through a known open port. The device dialog shows the last

@@ -103,6 +103,30 @@ def scan_run(pid: int, body: dict = Body(default={}), user=Depends(require_user)
         return dict(job=_job_out(c.execute("SELECT * FROM jobs WHERE id=?", (cur.lastrowid,)).fetchone()), worker=w)
 
 
+@router.post("/api/profiles/{pid}/devices/{did}/services-scan")
+def services_scan(pid: int, did: int, body: dict = Body(default={}), user=Depends(require_user)):
+    """Dienste-Scan (nmap) eines Geräts im Hintergrunddienst starten."""
+    from .scan import services
+    depth = body.get("depth") if body.get("depth") in services.DEPTHS else "standard"
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        if not c.execute("SELECT 1 FROM devices WHERE id=? AND profile_id=?", (did, pid)).fetchone():
+            raise HTTPException(404, "Gerät nicht gefunden")
+        ips = [r["address"] for r in c.execute("SELECT address FROM ip_addresses WHERE device_id=? ORDER BY id", (did,))]
+        ips = [x for x in ips if ipaddress.ip_address(x).version == 4][:4]
+        if not ips:
+            raise HTTPException(400, "Das Gerät hat keine IPv4-Adresse")
+        for j in c.execute("SELECT * FROM jobs WHERE profile_id=? AND kind='services' AND status IN ('queued','running')", (pid,)):
+            if json.loads(j["params"] or "{}").get("device_id") == did:
+                return dict(job=_job_out(j))
+        w = worker_status(c)
+        jid = c.execute("INSERT INTO jobs(profile_id, kind, params, user_id, created) VALUES(?, 'services', ?, ?, ?)",
+                        (pid, json.dumps(dict(device_id=did, ips=ips, depth=depth)), user["id"], now())).lastrowid
+        audit(c, "device.services_scan", user["id"], pid, dict(id=did, depth=depth))
+        return dict(job=_job_out(c.execute("SELECT * FROM jobs WHERE id=?", (jid,)).fetchone()), worker=w,
+                    nmap=services.available())
+
+
 @router.get("/api/jobs/{jid}")
 def job_get(jid: int, user=Depends(require_user)):
     with db() as c:

@@ -97,11 +97,13 @@ async function tabTopology(ctx) {
   ctx.el.innerHTML = `<div class="topo-box" id="tbox"><div class="toolbar topo-tools">
       <button class="pri sm" id="qping">${t('Schnell-Ping')}</button>
       <button class="sm" id="expall">${t('Alle Gruppen aufklappen')}</button><button class="sm" id="colall">${t('Alle zuklappen')}</button>
+      ${ctx.canEdit && data.pinned ? `<button class="sm" id="relayout" title="${t('Alle von Hand verschobenen Geräte wieder automatisch anordnen')}">${t('Anordnung zurücksetzen')}</button>` : ''}
       <span class="grow"></span>
+
       <span class="legend topo-legend">${Object.entries(MSTYLE).map(([k, [c, d]]) => `<span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="${c}" stroke-width="2" stroke-dasharray="${d}"/></svg>${t(MEDIUM_SHORT[k])}</span>`).join('')}</span>
       <button class="sm" id="zout" title="${t('Verkleinern')}">−</button><button class="sm" id="zfit">${t('Einpassen')}</button><button class="sm" id="zin" title="${t('Vergrößern')}">+</button>
       <span class="muted small" id="stamp"></span><button class="sm" id="fs">${t('Vollbild')}</button></div>
-    <div class="topo-wrap"><svg id="topo" viewBox="0 0 ${VW} ${VH}" class="topo"><g id="vp"></g></svg><aside class="topo-side panel" id="side" hidden></aside></div></div>`;
+    <div class="topo-wrap"${ctx.canEdit ? ` data-tip="${t('Geräte lassen sich mit der Maus verschieben')}"` : ''}><svg id="topo" viewBox="0 0 ${VW} ${VH}" class="topo"><g id="vp"></g></svg><aside class="topo-side panel" id="side" hidden></aside></div></div>`;
   const svg = $('#topo', ctx.el), vp = $('#vp', ctx.el);
   const byId = Object.fromEntries(data.nodes.map(n => [n.id, n]));
   const draw = () => {
@@ -151,13 +153,45 @@ async function tabTopology(ctx) {
     const sep = data.loose_from ? `<text x="${PAD}" y="${data.loose_from + PAD - NH / 2 - 10}" class="tsep">${t('Ohne Verbindung')}</text>` : '';
     vp.innerHTML = edges + sep + nodes;
     $$('.tn:not(.inet)', vp).forEach(g => g.addEventListener('click', ev => {
+      if (moved) return;
       const c = ev.target.closest('[data-collapse]');
       if (c) { exp.delete(`${c.dataset.collapse}:wlan`); exp.delete(`${c.dataset.collapse}:virtual`); return ctx.reload(); }
       side(+g.dataset.dev);
     }));
     $$('.tn:not(.inet)', vp).forEach(g => g.addEventListener('dblclick', () => { const n = byId[g.dataset.id]; if (n.ports_total || n.children) location.hash = `#/p/${ctx.pid}/topologie/${n.device_id}`; }));
-    $$('.tg', vp).forEach(g => g.addEventListener('click', () => { const n = byId[g.dataset.id]; exp.add(`${n.parent}:${n.medium}`); ctx.reload(); }));
+    $$('.tg', vp).forEach(g => g.addEventListener('click', () => { if (moved) return; const n = byId[g.dataset.id]; exp.add(`${n.parent}:${n.medium}`); ctx.reload(); }));
   };
+  // Knoten mit der Maus verschieben; die Position wird im Profil gespeichert (auch für das PDF)
+  let nd = null, moved = false;
+  if (ctx.canEdit) {
+    svg.addEventListener('pointerdown', ev => {
+      const g = ev.target.closest('.tn,.tg');
+      if (!g || ev.button !== 0 || ev.target.closest('[data-collapse]')) return;
+      const n = byId[g.dataset.id];
+      nd = { n, x: ev.clientX, y: ev.clientY, nx: n.x, ny: n.y, on: false };
+      moved = false;
+    });
+    svg.addEventListener('pointermove', ev => {
+      if (!nd) return;
+      const k = svg.viewBox.baseVal.width / svg.clientWidth / st.s, dx = (ev.clientX - nd.x) * k, dy = (ev.clientY - nd.y) * k;
+      if (!nd.on && Math.hypot(ev.clientX - nd.x, ev.clientY - nd.y) < 5) return;
+      if (!nd.on) { nd.on = true; svg.setPointerCapture(ev.pointerId); svg.classList.add('moving'); }
+      nd.n.x = Math.max(0, Math.round((nd.nx + dx) / 4) * 4); nd.n.y = Math.max(NH / 2, Math.round((nd.ny + dy) / 4) * 4);
+      draw();
+    });
+    const drop = async () => {
+      if (!nd) return;
+      const d = nd; nd = null; svg.classList.remove('moving');
+      if (!d.on) return;
+      moved = true; setTimeout(() => { moved = false; }, 50);  // folgenden Klick nicht als Auswahl werten
+      d.n.pinned = true;
+      try {
+        await api('PUT', `${P}/topology/positions`, { positions: { [d.n.id]: [d.n.x, d.n.y] } });
+        if (!$('#relayout', ctx.el)) ctx.reload();  // Knopf „Anordnung zurücksetzen“ einblenden
+      } catch (e) { toast(e.message, true); }
+    };
+    svg.addEventListener('pointerup', drop); svg.addEventListener('pointercancel', drop);
+  }
   draw();
   const fit = () => {
     const r = svg.getBoundingClientRect(), s = Math.min(1.2, Math.max(0.2, Math.min(VW / (data.width + PAD * 2), VH / (data.height + PAD * 2))));
@@ -169,6 +203,11 @@ async function tabTopology(ctx) {
   $('#zin', ctx.el).onclick = () => pz.zoom(1.25); $('#zout', ctx.el).onclick = () => pz.zoom(1 / 1.25); $('#zfit', ctx.el).onclick = () => pz.fit();
   $('#expall', ctx.el).onclick = () => { data.nodes.filter(n => n.kind === 'group').forEach(n => exp.add(`${n.parent}:${n.medium}`)); ctx.reload(); };
   $('#colall', ctx.el).onclick = () => { exp.clear(); ctx.reload(); };
+  const rl = $('#relayout', ctx.el);
+  if (rl) rl.onclick = async () => {
+    if (!await confirmDlg(t('Anordnung zurücksetzen'), t('Alle von Hand verschobenen Geräte werden wieder automatisch angeordnet.'), t('Zurücksetzen'))) return;
+    await api('DELETE', `${P}/topology/positions`); delete tabTopology.view[ctx.pid]; ctx.reload();
+  };
   $('#stamp', ctx.el).textContent = t('Stand {d}', { d: new Date().toLocaleTimeString(LANG === 'en' ? 'en-GB' : 'de-DE') });
 
   async function side(did) {
@@ -200,6 +239,7 @@ async function tabTopology(ctx) {
     try {
       const fresh = await api('GET', `${P}/topology?expanded=${[...exp].join(',')}`);
       if (fresh.nodes.length !== data.nodes.length) return ctx.reload();
+      if (nd) return;  // nicht während des Verschiebens neu zeichnen
       fresh.nodes.forEach(n => { if (byId[n.id]) Object.assign(byId[n.id], { online: n.online, online_count: n.online_count, rx_bps: n.rx_bps, tx_bps: n.tx_bps }); });
       fresh.edges.forEach(e => { const o = data.edges.find(x => x.source === e.source && x.target === e.target); if (o) Object.assign(o, e); });
       draw();

@@ -42,6 +42,24 @@ const DRIVER_STEPS = {
     'MQTT-Benutzer und -Passwort aus dem Mosquitto-Add-on (am besten ein eigener Benutzer für díktyo), dann „Verbindung testen“.',
   ],
 };
+Object.assign(DRIVER_HELP, {
+  omada: 'díktyo liest nur: Gateways, Switches und Access Points mit Uplink-Port sowie die Clients mit AP bzw. Switch-Port.',
+  unifi: 'díktyo liest nur: Gateway, Switches und Access Points mit Port-Status, die Clients mit AP bzw. Switch und den WAN-Traffic des Gateways.',
+});
+Object.assign(DRIVER_STEPS, {
+  omada: [
+    'Im Omada-Controller unter <b>Einstellungen → Plattform-Integration → Open API</b> auf <b>Neue App hinzufügen</b> klicken, Modus <b>„Client“</b>, Rolle mit Lesezugriff (z. B. Viewer) und die Sites wählen.',
+    '<b>Client-ID</b> und <b>Client-Secret</b> der App sowie die <b>Omada-ID</b> (oben auf derselben Seite) hier eintragen. Das Secret wird nur einmal angezeigt.',
+    'Als Adresse die IP des Controllers (Software-Controller, OC200/OC300 oder Gateway mit Controller), Port meist <b>8043</b> (OC200/OC300: <b>443</b>).',
+    'Optional eine Site eintragen, sonst liest díktyo alle Sites. „Verbindung testen“ zeigt Sites, Geräte und Clients.',
+  ],
+  unifi: [
+    'In UniFi Network unter <b>Einstellungen → Control Plane → Integrationen</b> einen <b>API-Schlüssel</b> erstellen (UniFi Network 9.0 oder neuer). Nicht den Site-Manager-Schlüssel von unifi.ui.com verwenden.',
+    'Als Adresse die IP der Konsole (UDM, UCG, Cloud Key) bzw. des selbst gehosteten Controllers eintragen, Port <b>443</b> (selbst gehostet meist <b>8443</b>).',
+    'Den Schlüssel einfügen; er wird nur einmal angezeigt und hat vollen Zugriff – díktyo nutzt ihn nur lesend.',
+    'Optional eine Site eintragen, sonst liest díktyo alle Sites. Der WAN-Traffic des Gateways erscheint in der Topologie an der Internet-Leitung.',
+  ],
+});
 const EVENT = { device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät' };
 const RANGES = [[7200, '2 h'], [86400, '24 h'], [172800, '2 Tage'], [604800, '7 Tage']];
 const fmtBps = v => {
@@ -98,7 +116,8 @@ async function tabIntegrations(ctx) {
       <div class="panel"><h3>${t('Integrationen')}</h3>
         <p class="muted small" style="margin-top:0">${t('Geräte, die díktyo direkt abfragt. Die FRITZ!Box liefert alle angeschlossenen Geräte mit MAC-Adresse (auch aus Netzen hinter einem Router) und den WAN-Traffic; ein Switch per SNMP liefert Port-Status, Traffic und welches Gerät an welchem Port hängt.')}</p>
         ${ctx.canEdit ? `<div class="row"><button class="pri" data-add="fritzbox">${t('+ FRITZ!Box')}</button><button class="pri" data-add="snmp">${t('+ Switch (SNMP)')}</button>
-          <button class="pri" data-add="asuswrt">${t('+ ASUS (AiMesh)')}</button><button class="pri" data-add="proxmox">${t('+ Proxmox')}</button><button class="pri" data-add="homeassistant">${t('+ Home Assistant')}</button></div>` : ''}</div>
+          <button class="pri" data-add="asuswrt">${t('+ ASUS (AiMesh)')}</button><button class="pri" data-add="proxmox">${t('+ Proxmox')}</button><button class="pri" data-add="homeassistant">${t('+ Home Assistant')}</button>
+          <button class="pri" data-add="omada">${t('+ Omada')}</button><button class="pri" data-add="unifi">${t('+ UniFi')}</button></div>` : ''}</div>
     </div>
     <div id="ints" class="stack" style="margin-top:16px">${r.integrations.map(i => `<div class="panel integ" data-id="${i.id}">
         <div class="row between"><div class="row"><span class="dot ${st(i)}"></span><b>${h(i.name)}</b><span class="muted mono small">${h(i.host)}</span>
@@ -110,7 +129,7 @@ async function tabIntegrations(ctx) {
         ${i.can_backup ? `<p class="small cfgline"><b>${t('Konfiguration')}:</b> ${i.cfg_ok ? t('zuletzt gesichert {d}', { d: h(ago(i.cfg_ok)) }) : t('noch nicht gesichert')}
           ${i.cfg_result?.status === 'error' ? ` · <span class="errtxt">${h(i.cfg_result.message)}</span>` : i.cfg_result?.status === 'unchanged' ? ` · <span class="muted">${t('unverändert')}</span>` : ''}
           ${ctx.canEdit ? `<button class="sm" data-cfg>${t('Konfiguration sichern')}</button>` : ''}</p>` : ''}
-        ${i.driver === 'fritzbox' ? fritzCard(i) : i.driver === 'snmp' ? snmpCard(i) : i.driver === 'asuswrt' ? asusCard(i) : i.driver === 'proxmox' ? pveCard(i) : haCard(i)}
+        ${i.driver === 'fritzbox' ? fritzCard(i) : i.driver === 'snmp' ? snmpCard(i) : i.driver === 'asuswrt' ? asusCard(i) : i.driver === 'proxmox' ? pveCard(i) : ['omada', 'unifi'].includes(i.driver) ? ctrlCard(i) : haCard(i)}
       </div>`).join('') || `<div class="panel empty-box">${t('Noch keine Integration. Füge deine FRITZ!Box hinzu – das geht auch ohne Passwort.')}</div>`}</div>
     <h2>${t('Letzte Ereignisse')}</h2><div id="events"></div>`;
   api('GET', `${P}/events?limit=15`).then(({ events }) => {
@@ -138,7 +157,11 @@ async function tabIntegrations(ctx) {
     if (cb) cb.onclick = async () => {
       cb.disabled = true;
       try {
-        const r = await api('POST', `${P}/integrations/${i.id}/config-backup`);
+        let r = await api('POST', `${P}/integrations/${i.id}/config-backup`);
+        if (r.status === 'second_factor') {
+          if (!await secondFactor(P, i, r)) { cb.disabled = false; return; }
+          r = await api('POST', `${P}/integrations/${i.id}/config-backup`);
+        }
         toast(r.status === 'new' ? t('Konfiguration gesichert ({n} KB)', { n: Math.max(1, Math.round(r.size / 1024)) }) : t('Konfiguration unverändert seit der letzten Sicherung'));
         ctx.reload();
       } catch (e) { toast(e.message, true); cb.disabled = false; }
@@ -151,8 +174,9 @@ async function tabIntegrations(ctx) {
     const dv = $('[data-dev]', card); if (dv) dv.onclick = ev => { ev.preventDefault(); deviceDialog(ctx, +dv.dataset.dev); };
     const ch = $('.chartbox', card);
     if (ch) {
-      const keys = () => i.driver === 'fritzbox' ? [`i${i.id}:wan:rx`, `i${i.id}:wan:tx`] : [`i${i.id}:port:${card.dataset.port || ch.dataset.port}:rx`, `i${i.id}:port:${card.dataset.port || ch.dataset.port}:tx`];
-      const names = i.driver === 'fritzbox' ? [t('Download'), t('Upload')] : [t('empfangen'), t('gesendet')];
+      const wanChart = ['fritzbox', 'unifi'].includes(i.driver);
+      const keys = () => wanChart ? [`i${i.id}:wan:rx`, `i${i.id}:wan:tx`] : [`i${i.id}:port:${card.dataset.port || ch.dataset.port}:rx`, `i${i.id}:port:${card.dataset.port || ch.dataset.port}:tx`];
+      const names = wanChart ? [t('Download'), t('Upload')] : [t('empfangen'), t('gesendet')];
       const draw = () => drawChart(ch, ctx.pid, keys(), names, tabIntegrations.since || 7200).catch(() => { });
       $$('[data-range]', card).forEach(b => b.onclick = () => { tabIntegrations.since = +b.dataset.range; $$('[data-range]', card).forEach(x => x.classList.toggle('on', x === b)); draw(); });
       $$('[data-port]', card).forEach(b => b.onclick = () => { card.dataset.port = b.dataset.port; $$('.pstrip [data-port]', card).forEach(x => x.classList.toggle('sel', x === b)); $('.pname', card).textContent = b.title; draw(); });
@@ -198,6 +222,48 @@ function asusCard(i) {
   return `<div class="kv">${info.model ? `<span>${t('Modell')}: <b>${h(info.model)}</b></span>` : ''}${info.firmware ? `<span>Firmware: <b>${h(info.firmware)}</b></span>` : ''}
       ${r.clients != null ? `<span>${t('Clients')}: <b>${r.online} ${t('online')} / ${r.clients}</b> (${t('{n} per WLAN', { n: r.wlan })})</span>` : ''}</div>
     ${r.nodes?.length ? `<div class="kv">${r.nodes.map(n => `<span><span class="dot ${n.online ? 'on' : 'off'}"></span> <b>${h(n.name)}</b> <span class="mono small">${h(n.ip)}</span> <small class="muted">${n.wired_backhaul ? t('LAN-Backhaul') : n.ip === info.ip ? t('Hauptrouter') : t('Mesh')}</small></span>`).join('')}</div>` : ''}
+    ${s.links != null ? `<p class="muted small">${t('Letzte Abfrage: {n} neu im Posteingang, {l} Verbindungen gesetzt.', { n: s.new, l: s.links })}</p>` : ''}`;
+}
+
+/* Zweiter Faktor: Hinweis anzeigen, Status abfragen, bis bestätigt oder abgebrochen. -> true bei Erfolg */
+async function secondFactor(P, i, r) {
+  let timer = null;
+  const html = `<p>${t('Die FRITZ!Box schützt den Export ihrer Einstellungen mit einem zweiten Faktor. Bitte jetzt bestätigen:')}</p>
+    <ol class="steps">${r.button ? `<li>${t('eine <b>beliebige Taste an der FRITZ!Box</b> drücken (z. B. Connect/WPS oder DECT)')}</li>` : ''}
+      ${r.dtmf ? `<li>${t('oder an einem angeschlossenen Telefon <b class="mono">{c}</b> wählen', { c: h(r.dtmf) })}</li>` : ''}</ol>
+    <p class="muted small" id="sfst">${t('Warte auf Bestätigung …')}</p>`;
+  const ok = await dialog(t('Bestätigung an der FRITZ!Box'), html, {
+    ok: null,
+    onOpen: (f, close) => {
+      const started = Date.now();
+      const err = msg => { clearInterval(timer); const e = $('.dlg-err', f); e.textContent = msg; $('#sfst', f).hidden = true; };
+      timer = setInterval(async () => {
+        if (!document.body.contains(f) || !$('#dlg').open) return clearInterval(timer);
+        try {
+          const s = await api('GET', `${P}/integrations/${i.id}/second-factor`);
+          if (s.state === 'authenticated') { clearInterval(timer); return close(true); }
+          if (s.state !== 'waitingforauth' || Date.now() - started > 180000) {
+            err({ blocked: t('Gesperrt – zu viele Versuche. Bis zu 60 Minuten warten.'), anotherauthprocess: t('Eine andere Bestätigung läuft gerade.'),
+              disabled: t('Zweiter Faktor ist an der FRITZ!Box ausgeschaltet.'), failure: t('Interner Fehler der FRITZ!Box.') }[s.state] || t('Zeit abgelaufen oder abgebrochen.'));
+          }
+        } catch (e) { err(e.message); }
+      }, 2000);
+    },
+  });
+  clearInterval(timer);
+  if (ok !== true) api('DELETE', `${P}/integrations/${i.id}/second-factor`).catch(() => { });
+  return ok === true;
+}
+
+function ctrlCard(i) {
+  const r = i.result || {}, s = i.summary || {}, w = r.wan || {};
+  const label = { router: t('Gateway'), switch: t('Switch'), ap: t('Access Point') };
+  return `<div class="kv">${r.info?.sites?.length ? `<span>${t('Sites')}: <b>${h(r.info.sites.join(', '))}</b></span>` : ''}
+      ${r.clients != null ? `<span>${t('Clients')}: <b>${r.clients}</b> (${t('{n} per WLAN', { n: r.wlan })})</span>` : ''}</div>
+    ${r.devices?.length ? `<div class="kv">${r.devices.map(d => `<span><span class="dot ${d.online ? 'on' : 'off'}"></span> <b>${h(d.name)}</b> <span class="mono small">${h(d.ip)}</span>
+      <small class="muted">${h(label[d.type] || d.model)}${d.clients ? ' · ' + t('{n} Clients', { n: d.clients }) : ''}</small></span>`).join('')}</div>` : ''}
+    ${w.rx_bps != null ? `<div class="wan-now"><span>↓ <b class="mono">${fmtBps(w.rx_bps)}</b></span><span>↑ <b class="mono">${fmtBps(w.tx_bps)}</b></span><small class="muted">${t('WAN aktuell')}</small></div>
+      <div class="row between" style="margin-top:8px"><b class="small">${t('WAN-Traffic')}</b>${rangeButtons(tabIntegrations.since || 7200)}</div><div class="chartbox"></div>` : ''}
     ${s.links != null ? `<p class="muted small">${t('Letzte Abfrage: {n} neu im Posteingang, {l} Verbindungen gesetzt.', { n: s.new, l: s.links })}</p>` : ''}`;
 }
 

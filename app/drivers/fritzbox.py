@@ -177,15 +177,86 @@ def _wlan(fc):
     return out
 
 
+# ------------------------------------------------------------ Zweiter Faktor (TR-064 X_AVM-DE_Auth)
+class SecondFactorRequired(DriverError):
+    """Die Aktion braucht eine Bestätigung an der FRITZ!Box (Taste oder Telefon-Code)."""
+
+
+SF_ERRORS = {"866": None, "867": "Bestätigung an der FRITZ!Box gesperrt (zu viele Versuche) – bis zu 60 Minuten warten",
+             "868": "Die FRITZ!Box wartet gerade auf eine andere Bestätigung – in zwei Minuten erneut versuchen"}
+SF_STATES = {"disabled", "waitingforauth", "anotherauthprocess", "authenticated", "stopped", "blocked", "failure"}
+
+
+def _soap(fc, svc, act, args=None, token=None):
+    """TR-064-Aufruf mit optionalem Token des zweiten Faktors im SOAP-Header (fritzconnection kann keine eigenen Header)."""
+    import re
+    from xml.sax.saxutils import escape
+    s = fc.services[svc]
+    stype = s.serviceType
+    body = "".join(f"<{k}>{escape(str(v))}</{k}>" for k, v in (args or {}).items())
+    head = (f'<s:Header><avm:token xmlns:avm="avm.de" s:mustUnderstand="1">{escape(token)}</avm:token></s:Header>' if token else "")
+    env = (f'<?xml version="1.0" encoding="utf-8"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" '
+           f'xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">{head}<s:Body><u:{act} xmlns:u="{stype}">{body}</u:{act}></s:Body></s:Envelope>')
+    auth = httpx.DigestAuth(fc.soaper.user, fc.soaper.password) if getattr(fc.soaper, "password", None) else None
+    base = fc.soaper.address if fc.soaper.address.startswith("http") else f"http://{fc.soaper.address}"
+    r = httpx.post(f"{base}:{fc.soaper.port}{s.controlURL}", content=env.encode(), auth=auth, timeout=10, verify=False,
+                   headers={"Content-Type": 'text/xml; charset="utf-8"', "SOAPAction": f"{stype}#{act}"})
+    if r.status_code == 401:
+        raise PermissionError("401")
+    code = re.search(r"<errorCode>(\d+)</errorCode>", r.text)
+    if r.status_code >= 400 or code:
+        c = code.group(1) if code else str(r.status_code)
+        if c == "866":
+            raise SecondFactorRequired("Die FRITZ!Box verlangt eine Bestätigung (zweiter Faktor)")
+        if c in SF_ERRORS:
+            raise DriverError(SF_ERRORS[c])
+        if c in ("606", "401"):
+            raise PermissionError(c)
+        desc = re.search(r"<errorDescription>([^<]*)</errorDescription>", r.text)
+        raise DriverError(f"FRITZ!Box meldet Fehler {c}{': ' + desc.group(1) if desc else ''}")
+    return {m.group(1): m.group(2) for m in re.finditer(r"<(New[\w-]+)>([^<]*)</\1>", r.text)}
+
+
+def second_factor_start(conf, state):
+    """Bestätigung an der FRITZ!Box anfordern. -> dict(state, methods=[...], dtmf)"""
+    fc = _connect(conf)
+    r = _soap(fc, "X_AVM-DE_Auth1", "SetConfig", {"NewAction": "start"})
+    state["sf_token"] = r.get("NewToken", "")
+    methods = [m.strip() for m in (r.get("NewMethods") or "").split(",") if m.strip()]
+    dtmf = next((m.split(";", 1)[1] for m in methods if m.startswith("dtmf;")), "")
+    return dict(state=r.get("NewState", ""), button=any(m.startswith("button") for m in methods), dtmf=dtmf)
+
+
+def second_factor_state(conf, state):
+    if not state.get("sf_token"):
+        return "stopped"
+    st = _soap(_connect(conf), "X_AVM-DE_Auth1", "GetState", token=state["sf_token"]).get("NewState", "")
+    return st if st in SF_STATES else "failure"
+
+
+def second_factor_stop(conf, state):
+    if state.get("sf_token"):
+        try:
+            _soap(_connect(conf), "X_AVM-DE_Auth1", "SetConfig", {"NewAction": "stop"}, token=state["sf_token"])
+        except (DriverError, PermissionError, httpx.HTTPError):
+            pass
+    state.pop("sf_token", None)
+
+
 def backup(conf, state):
-    """Konfigurationsexport der FRITZ!Box (wie System → Sicherung). -> (Dateiname, Inhalt, Text?)"""
+    """Konfigurationsexport der FRITZ!Box (wie System → Sicherung). -> (Dateiname, Inhalt, Text?)
+    Verlangt die FRITZ!Box einen zweiten Faktor, wird SecondFactorRequired geworfen; nach der Bestätigung liegt der
+    Token in state["sf_token"] und wird im SOAP-Header mitgeschickt."""
     if not conf.get("password"):
         raise DriverError("Für das Konfigurations-Backup Benutzer und Passwort der FRITZ!Box angeben")
     fc = _connect(conf)
     try:
-        r = _call(fc, "DeviceConfig1", "X_AVM-DE_GetConfigFile", **{"NewX_AVM-DE_Password": conf.get("export_pass") or conf["password"]})
+        r = _soap(fc, "DeviceConfig1", "X_AVM-DE_GetConfigFile", {"NewX_AVM-DE_Password": conf.get("export_pass") or conf["password"]},
+                  token=state.get("sf_token"))
     except PermissionError:
         raise DriverError("Benutzer hat nicht das Recht „FRITZ!Box Einstellungen“")
+    finally:
+        state.pop("sf_token", None)  # ein Token gilt nur für einen Vorgang
     url = r.get("NewX_AVM-DE_ConfigFileUrl")
     if not url:
         raise DriverError("FRITZ!Box hat keine Konfigurationsdatei geliefert")
