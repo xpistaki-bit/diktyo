@@ -116,6 +116,24 @@ class Doc:
             self.para("–", size)
         self.y += 3
 
+    def figure(self, inner, w, h, max_scale=0.32):
+        """Eine Zeichnung (SVG-Inhalt in eigenen Einheiten) auf Seitenbreite skaliert einsetzen, bei Bedarf über mehrere Seiten."""
+        scale = min((W - 2 * M) / w, max_scale)
+        drawn_h = h * scale
+        top = 0.0
+        while top < drawn_h - 0.01:
+            avail = BOTTOM - self.y
+            if avail < 30:
+                self._new()
+                avail = BOTTOM - self.y
+            part = min(avail, drawn_h - top)
+            self._put(f'<svg x="{M}" y="{self.y:.2f}" width="{w * scale:.2f}" height="{part:.2f}" viewBox="0 {top / scale:.2f} {w:.2f} {part / scale:.2f}">{inner}</svg>')
+            self.y += part
+            top += part
+            if top < drawn_h - 0.01:
+                self._new()
+        self.y += 4
+
     def _svg(self, body, n, total):
         head = (f'<rect x="0" y="0" width="{W}" height="17" fill="{NAVY}"/>'
                 f'<rect x="0" y="17" width="{W}" height="0.8" fill="{ACC}"/>'

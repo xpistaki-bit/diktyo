@@ -6,11 +6,15 @@ import io
 from . import catalog, inventory, ipam
 from .pdf import Doc
 
-SECTIONS = ("devices", "ipplan", "vlans", "ports", "wlan", "notes")
+SECTIONS = ("topology", "devices", "ipplan", "vlans", "ports", "wlan", "notes")
 MEDIUM = {"de": {"lan": "LAN", "wlan": "WLAN", "mesh": "Mesh-Backhaul", "virtual": "virtuell"},
           "en": {"lan": "LAN", "wlan": "Wi-Fi", "mesh": "Mesh backhaul", "virtual": "virtual"}}
 KIND = {"de": {"static": "statisch", "dhcp": "DHCP", "reserved": "reserviert"}, "en": {"static": "static", "dhcp": "DHCP", "reserved": "reserved"}}
 S = {
+    "topology": ("Topologie", "Topology"), "loose": ("Ohne Verbindung", "Not connected"),
+    "group_wlan": ("{n} WLAN-Geräte", "{n} Wi-Fi devices"), "group_virtual": ("{n} VMs / Container", "{n} VMs / containers"),
+    "legend": ("Linien: durchgezogen LAN · gestrichelt WLAN · gepunktet Mesh-Backhaul · fein virtuell",
+               "Lines: solid LAN · dashed Wi-Fi · dotted mesh backhaul · fine virtual"),
     "devices": ("Geräteliste", "Device list"), "ipplan": ("IP-Plan", "IP plan"), "vlans": ("VLANs", "VLANs"),
     "ports": ("Portbelegung", "Port assignment"), "wlan": ("WLAN-Übersicht", "Wi-Fi overview"), "notes": ("Notizen", "Notes"),
     "name": ("Name", "Name"), "type": ("Typ", "Type"), "model": ("Hersteller / Modell", "Manufacturer / model"), "ip": ("IP", "IP"),
@@ -68,6 +72,49 @@ def ips_csv(c, pid, lang="de"):
     return "﻿" + buf.getvalue()
 
 
+# ------------------------------------------------------------ Topologie (helle Druckvariante)
+PRINT_STYLE = {"lan": ("#0091A8", ""), "wlan": ("#13A88A", "7 6"), "mesh": ("#2D5BFF", "2 5"), "virtual": ("#7A8FA6", "1 4")}
+
+
+def topology_svg(c, pid, lang="de"):
+    """-> (SVG-Inhalt, Breite, Höhe) des Gesamtbaums; WLAN-Gruppen bleiben zusammengefasst."""
+    from . import topology
+    from .pdf import esc
+    t = topology.build(c, pid)
+    if not t["nodes"]:
+        return "", 0, 0
+    NW, NH, PAD = t["node_w"], t["node_h"], 20
+    by = {n["id"]: n for n in t["nodes"]}
+    out = []
+    for e in t["edges"]:
+        a, b = by[e["source"]], by[e["target"]]
+        x1, y1, x2, y2 = a["x"] + NW + PAD, a["y"] + PAD, b["x"] + PAD, b["y"] + PAD
+        mx = (x1 + x2) / 2
+        col, dash = PRINT_STYLE.get(e["medium"], PRINT_STYLE["lan"])
+        out.append(f'<path d="M{x1},{y1} C{mx},{y1} {mx},{y2} {x2},{y2}" fill="none" stroke="{col}" stroke-width="1.6" stroke-dasharray="{dash}"/>')
+        if e["label"]:
+            out.append(f'<text x="{x1 + 6}" y="{y1 - 4}" font-size="10" fill="#56708A">{esc(e["label"])}</text>')
+    if t["loose_from"]:
+        out.append(f'<text x="{PAD}" y="{t["loose_from"] + PAD - NH / 2 - 8}" font-size="11" font-weight="bold" fill="#56708A">{esc(tr("loose", lang).upper())}</text>')
+    for n in t["nodes"]:
+        x, y = n["x"] + PAD, n["y"] + PAD - NH / 2
+        if n["kind"] == "group":
+            col = PRINT_STYLE.get(n["medium"], PRINT_STYLE["lan"])[0]
+            label = tr("group_wlan" if n["medium"] != "virtual" else "group_virtual", lang, n=n["count"])
+            out.append(f'<rect x="{x}" y="{y}" width="{NW}" height="{NH}" rx="8" fill="#F6FAFC" stroke="{col}" stroke-dasharray="5 4"/>'
+                       f'<text x="{x + 12}" y="{y + 21}" font-size="13" font-weight="bold" fill="#0A1A33">{esc(label)}</text>'
+                       f'<text x="{x + 12}" y="{y + 37}" font-size="10" fill="#56708A">{esc(", ".join(n["names"][:4])[:44])}</text>')
+            continue
+        dot = {1: "#1E9E5A", 0: "#D23A55"}.get(n["online"], "#A9B8C6")
+        sub = n["ip"] or catalog.type_name(n["type"], lang)
+        out.append(f'<rect x="{x}" y="{y}" width="{NW}" height="{NH}" rx="8" fill="#FFFFFF" stroke="#9FB4C8"/>'
+                   f'<circle cx="{x + NW - 12}" cy="{y + 12}" r="4" fill="{dot}"/>'
+                   f'<text x="{x + 12}" y="{y + 20}" font-size="13" font-weight="bold" fill="#0A1A33">{esc(n["name"][:26])}</text>'
+                   f'<text x="{x + 12}" y="{y + 36}" font-size="10" fill="#56708A" font-family="DejaVu Sans Mono, monospace">'
+                   f'{esc(sub)} · {esc(catalog.type_name(n["type"], lang))}</text>')
+    return "".join(out), t["width"] + PAD * 2 - (280 - NW), t["height"] + PAD * 2
+
+
 # ------------------------------------------------------------ PDF
 def profile_pdf(c, pid, sections=SECTIONS, lang="de"):
     p = c.execute("SELECT * FROM profiles WHERE id=?", (pid,)).fetchone()
@@ -77,7 +124,15 @@ def profile_pdf(c, pid, sections=SECTIONS, lang="de"):
     secs = [s for s in SECTIONS if s in sections]
 
     for s in secs:
-        if s == "devices":
+        if s == "topology":
+            doc.heading(tr("topology", lang))
+            inner, w, h = topology_svg(c, pid, lang)
+            if inner:
+                doc.para(tr("legend", lang), 2.8)
+                doc.figure(inner, w, h)
+            else:
+                doc.para(tr("none", lang))
+        elif s == "devices":
             doc.heading(f'{tr("devices", lang)} ({tr("devices_n", lang, n=len(devs))})')
             doc.table([(tr("name", lang), 27, False), (tr("type", lang), 21, False), (tr("model", lang), 24, False), (tr("ip", lang), 27, True),
                        (tr("mac", lang), 30, True), (tr("location", lang), 19, False), (tr("uplink", lang), 34, False)],

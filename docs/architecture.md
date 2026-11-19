@@ -64,7 +64,7 @@ shipped in the repository. `nmap` is installed from the distribution packages.
 | M1 | inventory, IPAM, catalog seed + CSV, table view, PDF with selectable content, backup + restore | done |
 | M2 | worker, scanner, identification with reasons, inbox, scheduled scans, OUI and Fingerbank | done |
 | M3 | FRITZ!Box TR-064, SNMP/Zyxel, metrics, status history, configurable interval | done |
-| M4 | topology: overall tree + detail view with switch front panel, clickable ports, collapsible WLAN, quick ping, live status | |
+| M4 | topology: overall tree + detail view with switch front panel, clickable ports, collapsible WLAN, quick ping, live status | done |
 | M5 | ASUS AiMesh, Proxmox, Home Assistant (MQTT discovery, blueprint, areas) | |
 | M6 | config backups for FRITZ!Box, Zyxel and ASUS; polish, documentation | |
 

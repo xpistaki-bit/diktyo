@@ -6,10 +6,10 @@ to be a slim, self-hosted alternative to NetBox for private users. It runs as a 
 file, either in a Proxmox LXC or in a Docker container, and is managed in the browser. The interface is available
 in German and English.
 
-> **Status: early development (v0.4, milestone M3).** Accounts, profiles, devices with ports and connections, IPAM,
+> **Status: early development (v0.5, milestone M4).** Accounts, profiles, devices with ports and connections, IPAM,
 > the device catalog, PDF/CSV output, backups, the network scan with device identification, the FRITZ!Box and SNMP
-> integrations and online monitoring work. Topology view and further integrations (ASUS, Proxmox, Home Assistant)
-> follow – see [docs/architecture.md](docs/architecture.md) for the plan.
+> integrations, online monitoring and the graphical topology work. Further integrations (ASUS, Proxmox, Home
+> Assistant) and device configuration backups follow – see [docs/architecture.md](docs/architecture.md).
 
 ## Installation
 
@@ -124,6 +124,25 @@ Each profile has the tabs **Devices**, **IPAM**, **Locations**, **Output** and *
   addresses outside every subnet and overlapping subnets.
 - **Locations:** a tree such as house › ground floor › office.
 
+## Topology
+
+The tab **Topology** draws the network as a tree from left to right, built from the connections of the devices:
+router → switch (with the port names on the lines) → access points, servers and so on. Line styles show the
+medium: solid LAN, dashed Wi-Fi, dotted mesh backhaul, fine virtual (VMs and containers on their host). Devices
+without a connection are listed separately.
+
+- Wi-Fi clients of an access point or mesh node (from 4) and VMs of a host (from 5) are combined into one box, for
+  example "12 Wi-Fi devices · 9 online"; a click expands it.
+- Drag to move, mouse wheel or −/+ to zoom, "Fit" to see everything. A click on a device shows its details at the
+  side, a double click opens the detail view.
+- **Detail view** of a switch or router: the front panel with all ports (odd numbers on top, even at the bottom,
+  SFP ports set apart) and the connected devices around it; the uplink is marked. A click on a port shows the
+  device behind it with name, IP and MAC, and with SNMP also link speed, traffic, learned MAC addresses and the
+  LLDP neighbour. Wi-Fi, mesh and virtual devices are listed at the side and can be collapsed.
+- **Quick ping** checks all devices (or those of the detail view) at once; the online status is refreshed every
+  30 seconds while the view is open.
+- The PDF can contain the topology as a graphic (section "Topology graphic").
+
 ## Network scan and identification
 
 The tab **Network scan** finds the devices in the network; new ones land in the **Inbox** with a guess of what
@@ -198,7 +217,7 @@ by updates) and import a CSV (separator `;` or `,`, German or English column nam
 
 ## Output
 
-**Output** creates a PDF in a light print layout. Choose the sections: device list, IP plan per subnet, VLAN
+**Output** creates a PDF in a light print layout. Choose the sections: topology graphic, device list, IP plan per subnet, VLAN
 overview, port assignment per switch, Wi-Fi overview (clients per access point/mesh node) and notes. The device
 list and the IP addresses are also available as CSV.
 

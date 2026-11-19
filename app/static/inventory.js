@@ -4,7 +4,7 @@ const MEDIUM = { lan: 'LAN', wlan: 'WLAN', mesh: 'Mesh-Backhaul', virtual: 'Virt
 const MEDIUM_SHORT = { lan: 'LAN', wlan: 'WLAN', mesh: 'Mesh', virtual: 'virtuell' };
 const PORT_KINDS = ['rj45', 'sfp', 'sfp+', 'sfp28', 'coax', 'dsl', 'fiber', 'usb'];
 const IP_KIND = { static: 'statisch', dhcp: 'DHCP', reserved: 'reserviert' };
-const SECTIONS = [['devices', 'Geräteliste'], ['ipplan', 'IP-Plan pro Subnetz'], ['vlans', 'VLAN-Übersicht'], ['ports', 'Portbelegung pro Switch'],
+const SECTIONS = [['topology', 'Topologie-Grafik'], ['devices', 'Geräteliste'], ['ipplan', 'IP-Plan pro Subnetz'], ['vlans', 'VLAN-Übersicht'], ['ports', 'Portbelegung pro Switch'],
   ['wlan', 'WLAN-Übersicht'], ['notes', 'Notizen']];
 let META = null, META_LANG = null;
 async function meta(pid) {
@@ -394,7 +394,6 @@ function tabOutput(ctx) {
   ctx.el.innerHTML = `<div class="grid-out">
     <div class="panel"><h3>${t('Drucken / PDF')}</h3><p class="muted">${t('Wähle aus, was ins PDF soll. Das PDF ist hell gesetzt und für A4 gedacht.')}</p>
       ${SECTIONS.map(([k, n]) => `<label class="chk"><input type="checkbox" data-sec="${k}" ${on(k) ? 'checked' : ''}> ${t(n)}</label>`).join('')}
-      <label class="chk muted"><input type="checkbox" disabled> ${t('Topologie-Grafik (folgt mit der Topologie-Ansicht)')}</label>
       <div class="row" style="margin-top:14px"><button class="pri" id="pdf">${t('PDF erstellen')}</button></div></div>
     <div class="panel"><h3>${t('Tabellen (CSV)')}</h3><p class="muted">${t('Für Excel, LibreOffice oder Numbers. Trennzeichen ist das Semikolon.')}</p>
       <div class="row"><a class="btn" href="${P}/export/devices.csv?lang=${LANG}">${t('Geräteliste')}</a><a class="btn" href="${P}/export/ips.csv?lang=${LANG}">${t('IP-Adressen')}</a></div></div></div>`;

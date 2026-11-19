@@ -30,7 +30,7 @@ const ICON = {  // 24×24, Linien
 };
 const icon = (type, x, y, s = 22) => `<g transform="translate(${x},${y}) scale(${s / 24})"><path d="${ICON[type] || ICON.other}" class="ico"/></g>`;
 const statusCls = o => o == null ? 'unk' : o ? 'on' : 'off';
-const esc = h;
+const esc = s => h(s);  // h kommt aus app.js, das nach dieser Datei geladen wird
 
 /* ---------------------------------------------------------------- Zoom und Verschieben */
 function panZoom(svg, vp, state, fit) {
@@ -190,19 +190,31 @@ async function topoDetail(ctx, did) {
   const sfpCols = twoRows ? Math.ceil(sfp.length / 2) : sfp.length;
   const chassisW = Math.max(420, LEFT + cols * (PW + PG) + SG + sfpCols * (PW + 8 + PG) + 30);
   const chassisH = twoRows ? 2 * PH + 3 * PG + 26 : PH + 2 * PG + 34;
-  const CARD_W = 136, CARD_H = 44, LEVEL = 54, LEVELS = 3;
-  const cx0 = 40, cy0 = 40 + LEVELS * LEVEL + 40;
+  const CARD_W = 128, CARD_H = 44, LEVEL = 54, LEVELS = 4;
+  // Wie viele Kartenebenen oben und unten gebraucht werden (bestimmt die Höhe der Zeichnung)
+  const colOf = (p, i, list, off = 0) => (twoRows ? Math.floor(i / 2) : i) + off;
+  const topOf = i => twoRows ? i % 2 === 0 : i % 2 === 0;
+  const need = { top: -1, bot: -1 };
+  [[rj, 0], [sfp, cols]].forEach(([list, off]) => list.forEach((p, i) => {
+    if (!p.peer) return;
+    const lvl = colOf(p, i, list, off) % LEVELS;
+    if (topOf(i)) need.top = Math.max(need.top, lvl); else need.bot = Math.max(need.bot, lvl);
+  }));
+  const topH = need.top < 0 ? 20 : 40 + (need.top + 1) * LEVEL;
+  const cx0 = 40, cy0 = 20 + topH;
   // Positionen der Ports
   const pos = {};
+  // row = obere/untere Portreihe am Gerät, top = Seite der Karte; bei einer Reihe stehen alle Beschriftungen oben
   rj.forEach((p, i) => {
-    const col = twoRows ? Math.floor(i / 2) : i, top = !twoRows || i % 2 === 0;
-    pos[p.id] = { x: cx0 + LEFT + col * (PW + PG), y: cy0 + 14 + (top ? 0 : PH + PG), top: twoRows ? top : i % 2 === 0, col };
+    const col = twoRows ? Math.floor(i / 2) : i, upper = !twoRows || i % 2 === 0;
+    pos[p.id] = { x: cx0 + LEFT + col * (PW + PG), y: cy0 + 14 + (upper ? 0 : PH + PG), upper, top: topOf(i), col };
   });
   sfp.forEach((p, i) => {
-    const col = twoRows ? Math.floor(i / 2) : i, top = !twoRows || i % 2 === 0;
-    pos[p.id] = { x: cx0 + LEFT + cols * (PW + PG) + SG + col * (PW + 8 + PG), y: cy0 + 14 + (top ? 0 : PH + PG), top: twoRows ? top : i % 2 === 0, col: cols + col, sfp: true };
+    const col = twoRows ? Math.floor(i / 2) : i, upper = !twoRows || i % 2 === 0;
+    pos[p.id] = { x: cx0 + LEFT + cols * (PW + PG) + SG + col * (PW + 8 + PG), y: cy0 + 14 + (upper ? 0 : PH + PG), upper, top: topOf(i), col: cols + col, sfp: true };
   });
-  const VW = Math.max(980, chassisW + 80 + CARD_W), VH = cy0 + chassisH + 40 + LEVELS * LEVEL + 40;
+  const botH = need.bot < 0 ? 30 : 40 + (need.bot + 1) * LEVEL;
+  const VW = Math.max(760, chassisW + 80), VH = cy0 + chassisH + botH;
   // Karten der angeschlossenen Geräte: oben für die obere Portreihe, unten für die untere, gestaffelt in drei Ebenen
   const cards = [];
   ports.forEach(p => {
@@ -210,7 +222,7 @@ async function topoDetail(ctx, did) {
     const ps = pos[p.id], lvl = ps.col % LEVELS, w = ps.sfp ? PW + 8 : PW;
     const x = Math.min(VW - CARD_W - 10, Math.max(10, ps.x + w / 2 - CARD_W / 2));
     const y = ps.top ? cy0 - 40 - lvl * LEVEL - CARD_H : cy0 + chassisH + 40 + lvl * LEVEL;
-    cards.push({ p, x, y, px: ps.x + w / 2, py: ps.top ? ps.y : ps.y + PH });
+    cards.push({ p, x, y, px: ps.x + w / 2, py: ps.top ? (ps.upper ? ps.y : ps.y - PG) : (ps.upper ? ps.y + PH + PG : ps.y + PH) });
   });
   const live = ports.some(p => p.live);
   const portCls = p => p.peer ? 'conn' : p.live ? (p.live.oper === 'up' ? 'up' : 'down') : 'free';
@@ -224,8 +236,8 @@ async function topoDetail(ctx, did) {
       <text x="${cx0 + 16}" y="${cy0 + 60}" class="ch-sub">${esc((d.ips[0] || {}).address || '')}</text>
       <circle cx="${cx0 + chassisW - 16}" cy="${cy0 + 14}" r="4" class="tn-dot ${statusCls(d.online)}"/></g>
     ${ports.map(p => { const ps = pos[p.id], w = ps.sfp ? PW + 8 : PW; return `<g class="port ${portCls(p)}${p.poe ? ' poe' : ''}" data-port="${p.id}" transform="translate(${ps.x},${ps.y})">
-      <rect width="${w}" height="${PH}" rx="3"/>${ps.sfp ? '' : `<rect x="${w / 2 - 7}" y="${ps.top ? PH - 7 : 0}" width="14" height="7" class="notch"/>`}
-      <text x="${w / 2}" y="${ps.top ? -5 : PH + 13}" text-anchor="middle" class="pnum">${esc(p.name)}</text>${p.poe ? `<text x="${w - 4}" y="11" text-anchor="end" class="poe-mark">⚡</text>` : ''}
+      <rect width="${w}" height="${PH}" rx="3"/>${ps.sfp ? '' : `<rect x="${w / 2 - 7}" y="${ps.upper ? PH - 7 : 0}" width="14" height="7" class="notch"/>`}
+      <text x="${w / 2}" y="${ps.upper ? -5 : PH + 13}" text-anchor="middle" class="pnum">${esc(p.name)}</text>${p.poe ? `<text x="${w - 4}" y="11" text-anchor="end" class="poe-mark">⚡</text>` : ''}
       <title>${esc(p.name)}${p.peer ? ' → ' + esc(p.peer.device_name) : ''}</title></g>`; }).join('')}
     ${cards.map(c => { const pe = c.p.peer; return `<g class="card ${statusCls(null)}" data-dev="${pe.device_id}" data-port="${c.p.id}" transform="translate(${c.x},${c.y})">
       <rect width="${CARD_W}" height="${CARD_H}" rx="6" class="${pe.direction === 'up' ? 'card-up' : ''}"/>${icon(pe.type || 'other', 8, 11, 20)}
