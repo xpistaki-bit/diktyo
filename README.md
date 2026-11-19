@@ -6,7 +6,7 @@ to be a slim, self-hosted alternative to NetBox for private users. It runs as a 
 file, either in a Proxmox LXC or in a Docker container, and is managed in the browser. The interface is available
 in German and English.
 
-> **Status: v0.9 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.11 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plans for later versions are in [docs/architecture.md](docs/architecture.md).
 
 ## Installation
@@ -232,6 +232,16 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
 
 Integrations and monitoring run in the background service next to the scans. Credentials are stored encrypted and
 go into backups only with the backup passphrase.
+
+## Actions
+
+Profile owners can switch things through the integrations (device dialog, topology side panel, front panel port):
+Wi-Fi on/off and restart (FRITZ!Box), block/allow internet access and Wake-on-LAN for devices in the FRITZ!Box
+network, switch port off/on and PoE restart (SNMP with write access), start/shut down/restart VMs and containers
+(Proxmox token with `VM.PowerMgmt`). Every action shows a preview and asks for confirmation; Wi-Fi, internet block and
+switch ports can switch back automatically (15 min, 1 h, 2 h, tomorrow 6:00). The configuration is backed up first if
+the last backup is older than an hour. díktyo refuses to disable the switch port it or the router uses to reach the
+switch, does not block infrastructure from the internet and does not shut down its own VM. All actions are logged.
 
 ## Device configuration backups
 

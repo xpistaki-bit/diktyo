@@ -102,6 +102,11 @@ def poller():
                 integrations.poll(iid, log)
             with db() as c:
                 cfg_due = [r["id"] for r in c.execute("SELECT * FROM integrations").fetchall() if configbackup.due(r, t)]
+            try:
+                from . import actions
+                actions.run_due_undos(log)
+            except Exception as ex:  # Rückschaltungen dürfen den Hintergrunddienst nicht anhalten
+                log(f"Zurückschalten: {type(ex).__name__}: {ex}")
             for iid in cfg_due:
                 res = configbackup.run(iid)
                 log(f"Konfigurations-Backup Integration {iid}: {res['status']} {res.get('message', '')}".strip())

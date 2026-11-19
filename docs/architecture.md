@@ -74,7 +74,7 @@ Phase 2:
 |---|---|---|
 | P2.1 | topology full screen, internet node with WAN status and live traffic | done (0.7.1) |
 | P2.2 | integrations TP-Link Omada (Open API) and Ubiquiti UniFi (Network Integration API) | done (0.8.0), not yet tested on real hardware |
-| P2.3 | write actions (named actions with preview, confirmation and automatic config backup first) | open |
+| P2.3 | write actions (named actions with preview, confirmation and automatic config backup first) | done (0.11.0): FRITZ!Box, SNMP switch, Proxmox |
 | P2.4 | more integrations: Netgear, devolo, Docker API | open |
 | P2.5 | nmap service detection on demand | done (0.9.0) |
 | P2.6 | topology: move nodes, positions stored per profile | done (0.9.0) |

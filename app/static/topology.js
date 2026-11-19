@@ -228,7 +228,8 @@ async function tabTopology(ctx) {
       ${d.ident_full?.label ? `<p class="small muted">${t('Erkannt als')}: ${esc(identLabel(d.ident_full))}</p>` : ''}
       <div class="row" style="margin-top:10px">${ctx.canEdit ? `<button class="sm" data-edit>${t('Bearbeiten')}</button>` : `<button class="sm" data-edit>${t('Details')}</button>`}
         ${d.ports.length || d.connected.length ? `<a class="btn sm pri" href="#/p/${ctx.pid}/topologie/${d.id}">${t('Detailansicht')}</a>` : ''}
-        <button class="sm" data-ping>${t('Ping')}</button></div>`;
+        <button class="sm" data-ping>${t('Ping')}</button></div><div id="sideact"></div>`;
+    actionsBox(ctx, d.id, $('#sideact', el));
     $('[data-close]', el).onclick = () => { el.hidden = true; tabTopology.sel = null; $$('.tn', vp).forEach(g => g.classList.remove('sel')); };
     $('[data-edit]', el).onclick = () => deviceDialog(ctx, d.id);
     $('[data-ping]', el).onclick = () => quickPing(ctx, [d.id]).then(() => side(did));
@@ -349,15 +350,16 @@ async function topoDetail(ctx, did) {
     const pe = p.peer, lv = p.live;
     $('#pinfo', ctx.el).innerHTML = `<h4>${t('Port')} ${esc(p.name)}</h4><div class="kvt2">
       ${[[t('Art'), `${esc(p.kind.toUpperCase())} ${esc(p.speed)}${p.poe ? ' · PoE' : ''}`],
-        lv ? [t('Link'), lv.oper === 'up' ? `<span class="okc">${lv.speed >= 1000 ? lv.speed / 1000 + ' Gbit/s' : lv.speed + ' Mbit/s'}</span>` : `<span class="offc">${t('kein Link')}</span>`] : null,
+        lv ? [t('Link'), lv.admin === 'down' ? `<span class="offc">${t('abgeschaltet')}</span>` : lv.oper === 'up' ? `<span class="okc">${lv.speed >= 1000 ? lv.speed / 1000 + ' Gbit/s' : lv.speed + ' Mbit/s'}</span>` : `<span class="offc">${t('kein Link')}</span>`] : null,
         lv && lv.in_bps != null ? ['↓ / ↑', `${fmtBps(lv.in_bps)} / ${fmtBps(lv.out_bps)}`] : null,
         lv && lv.macs ? [t('gelernt'), t('{n} MAC-Adressen', { n: lv.macs })] : null,
         lv && lv.lldp ? ['LLDP', `${esc(lv.lldp.name)}${lv.lldp.port ? ' · ' + esc(lv.lldp.port) : ''}`] : null,
         [t('Verbunden mit'), pe ? `<b>${esc(pe.device_name)}</b>${pe.direction === 'up' ? ` <span class="badge">${t('Uplink')}</span>` : ''}` : '–'],
         pe ? [t('IP'), esc(pe.ip)] : null, pe ? [t('MAC'), esc(pe.mac)] : null].filter(Boolean).map(([k, v]) => `<div><span>${k}</span><span class="mono">${v}</span></div>`).join('')}</div>
       ${pe ? `<div class="row" style="margin-top:8px"><button class="sm" data-open="${pe.device_id}">${t('Gerät öffnen')}</button>
-        <a class="btn sm" href="#/p/${ctx.pid}/topologie/${pe.device_id}">${t('Detailansicht')}</a></div>` : ''}`;
+        <a class="btn sm" href="#/p/${ctx.pid}/topologie/${pe.device_id}">${t('Detailansicht')}</a></div>` : ''}<div id="portact"></div>`;
     const ob = $('[data-open]', ctx.el); if (ob) ob.onclick = () => deviceDialog(ctx, +ob.dataset.open);
+    if (lv) actionsBox(ctx, did, $('#portact', ctx.el), p.port_no);
   };
   $$('.port', ctx.el).forEach(g => g.addEventListener('click', () => info(+g.dataset.port)));
   $$('.card', ctx.el).forEach(g => g.addEventListener('click', () => info(+g.dataset.port)));

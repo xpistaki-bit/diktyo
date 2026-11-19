@@ -210,7 +210,37 @@ getestet, aber noch nicht an echter Hardware. Klappt etwas nicht, die Meldung de
   und die Sicherung wird per *Konfiguration sichern* von Hand ausgelöst. (Die Bestätigung lässt sich in der FRITZ!Box
   unter *System → FRITZ!Box-Benutzer → Anmeldung im Heimnetz* abschalten; das schwächt aber den Schutz.)
 
-## 8. Ausgabe und Sicherung
+## 8. Schalten (Aktionen)
+
+Besitzer eines Profils können über die Integrationen schalten – im Gerätedialog unter *Aktionen*, in der
+Topologie-Seitenleiste und in der Frontplatte beim angeklickten Port:
+
+| Wo | Aktion | Voraussetzung |
+|---|---|---|
+| FRITZ!Box | WLAN (auch Gastnetz) ein/aus, Neustart | Benutzer mit Recht „FRITZ!Box Einstellungen“ |
+| Gerät im FRITZ!Box-Netz | Internetzugang sperren/freigeben, Aufwecken (Wake-on-LAN) | wie oben |
+| Gerät an einem Switch-Port | Port ab-/einschalten, PoE neu starten | SNMP mit **Schreibrechten** (Zyxel: Benutzer in einer Gruppe mit Schreibrechten, z. B. „admin“, bzw. Community mit read-write) |
+| VM / LXC | starten, herunterfahren, neu starten | Proxmox-Token mit `VM.PowerMgmt` (siehe unten) |
+
+- Vor jeder Aktion kommt eine **Vorschau mit Bestätigung**. Bei WLAN, Internetsperre und Switch-Port lässt sich
+  **automatisch zurückschalten** (nach 15 min, 1 h, 2 h oder morgen um 6:00) – praktisch etwa für eine Internetpause.
+- Vor Änderungen sichert díktyo die **Konfiguration**, wenn die letzte Sicherung älter als eine Stunde ist.
+- **Schutz vor dem Aussperren:** Den Switch-Port, über den díktyo bzw. der Router den Switch erreicht, schaltet díktyo
+  nicht ab; Router, Switches und Access Points werden nicht vom Internet gesperrt; die VM, in der díktyo läuft, wird
+  nicht heruntergefahren.
+- Verlangt die FRITZ!Box eine **Bestätigung** (zweiter Faktor), erscheint der bekannte Dialog (Taste oder Telefon-Code).
+  Gelingt das automatische Zurückschalten deshalb nicht, meldet díktyo das unter *Letzte Aktionen* und – falls
+  eingerichtet – per Home Assistant.
+- Alle Aktionen stehen unter *Integrationen → Letzte Aktionen*; geplantes Zurückschalten lässt sich dort abbrechen.
+
+Proxmox-Rechte für VMs schalten (einmal auf einem Knoten):
+
+```bash
+pveum role add DiktyoPower -privs VM.PowerMgmt
+pveum acl modify / --tokens 'diktyo@pve!diktyo' --roles DiktyoPower
+```
+
+## 9. Ausgabe und Sicherung
 
 - *Ausgabe:* PDF (Topologie-Grafik, Geräteliste, IP-Plan, VLANs, Portbelegung, WLAN-Übersicht, Notizen – wählbar) und CSV.
 - *Einstellungen → Sicherung:* Ziele Ordner/NAS, WebDAV oder rclone, automatisch alle 12 h, täglich oder wöchentlich.
@@ -219,7 +249,7 @@ getestet, aber noch nicht an echter Hardware. Klappt etwas nicht, die Meldung de
 - **Wiederherstellen:** In einer neuen, leeren Installation bietet die Ersteinrichtung „Aus einer Sicherung
   wiederherstellen“ an.
 
-## 9. Wenn etwas nicht klappt
+## 10. Wenn etwas nicht klappt
 
 | Problem | Lösung |
 |---|---|

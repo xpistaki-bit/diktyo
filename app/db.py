@@ -263,6 +263,25 @@ MIGRATIONS = [
         y REAL NOT NULL,
         PRIMARY KEY(profile_id, node));
     """,
+    # 8: Schaltaktionen (WLAN, Internetzugang, Switch-Port, PoE, VM) mit optionalem automatischen Zurückschalten
+    """
+    CREATE TABLE actions(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        device_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+        integration_id INTEGER REFERENCES integrations(id) ON DELETE SET NULL,
+        user_id INTEGER,
+        kind TEXT NOT NULL,
+        params TEXT NOT NULL DEFAULT '{}',
+        label TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL,
+        message TEXT NOT NULL DEFAULT '',
+        created TEXT NOT NULL,
+        undo_at TEXT,
+        undone TEXT,
+        undo_result TEXT);
+    CREATE INDEX actions_profile ON actions(profile_id, id);
+    """,
 ]
 
 

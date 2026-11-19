@@ -68,6 +68,24 @@ def _usable(ip):
         return False
 
 
+def action(conf, state, kind, params):
+    """kind: vm (node, kind=qemu|lxc, vmid, op=start|shutdown|reboot) -> Meldung. Braucht VM.PowerMgmt."""
+    op = params.get("op")
+    if kind != "vm" or op not in ("start", "shutdown", "reboot") or params.get("kind") not in ("qemu", "lxc"):
+        raise DriverError("Unbekannte Aktion")
+    with _client(conf) as cl:
+        try:
+            r = cl.post(f'/nodes/{params["node"]}/{params["kind"]}/{int(params["vmid"])}/status/{op}')
+        except httpx.HTTPError as ex:
+            raise DriverError(f"Proxmox nicht erreichbar: {ex}")
+    if r.status_code in (401, 403):
+        raise DriverError("Token darf VMs nicht schalten. Auf dem Proxmox-Knoten: pveum role add DiktyoPower -privs VM.PowerMgmt && "
+                          "pveum acl modify / --tokens 'diktyo@pve!diktyo' --roles DiktyoPower")
+    if r.status_code >= 400:
+        raise DriverError(f"Proxmox meldet Fehler {r.status_code}: {r.text[:160]}")
+    return {"start": "wird gestartet", "shutdown": "wird heruntergefahren", "reboot": "wird neu gestartet"}[op]
+
+
 def test(conf):
     with _client(conf) as cl:
         v = _get(cl, "/version")

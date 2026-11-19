@@ -6,7 +6,10 @@ import socket
 INT, OCTETS, NULL, OID, SEQ = 0x02, 0x04, 0x05, 0x06, 0x30
 IPADDR, COUNTER32, GAUGE32, TIMETICKS, OPAQUE, COUNTER64 = 0x40, 0x41, 0x42, 0x43, 0x44, 0x46
 NOSUCHOBJECT, NOSUCHINSTANCE, ENDOFMIB = 0x80, 0x81, 0x82
-GET, GETNEXT, RESPONSE, GETBULK = 0xA0, 0xA1, 0xA2, 0xA5
+GET, GETNEXT, RESPONSE, GETBULK, SET = 0xA0, 0xA1, 0xA2, 0xA5, 0xA3
+SET_ERRORS = {4: "Wert nicht schreibbar (readOnly)", 6: "Kein Schreibzugriff (noAccess) – SNMP-Benutzer bzw. Community braucht Schreibrechte",
+              7: "falscher Datentyp", 10: "ungültiger Wert", 16: "Kein Schreibzugriff (authorizationError) – SNMP-Benutzer bzw. Community braucht Schreibrechte",
+              17: "Objekt nicht schreibbar (notWritable)", 2: "Objekt unbekannt (noSuchName)", 11: "Objekt nicht vorhanden (noCreation)"}
 
 
 class SNMPError(Exception):
@@ -79,8 +82,13 @@ def _value(tag, b):
     return bytes(b)
 
 
-def _message(community, pdu_type, oids, req_id, non_rep=0, max_rep=0):
-    vbs = b"".join(_tlv(SEQ, _oid(o) + _tlv(NULL, b"")) for o in oids)
+def _varbinds(oids, values=None):
+    """Varbinds; values (gleich lang wie oids) für SET als INTEGER, sonst NULL."""
+    return b"".join(_tlv(SEQ, _oid(o) + (_int(values[n]) if values else _tlv(NULL, b""))) for n, o in enumerate(oids))
+
+
+def _message(community, pdu_type, oids, req_id, non_rep=0, max_rep=0, values=None):
+    vbs = _varbinds(oids, values)
     pdu = _tlv(pdu_type, _int(req_id) + _int(non_rep) + _int(max_rep) + _tlv(SEQ, vbs))
     return _tlv(SEQ, _int(1) + _tlv(OCTETS, community.encode()) + pdu)
 
@@ -124,13 +132,17 @@ class Client:
                         r_id, err, vbs = _parse(data)
                         if r_id == rid:
                             if err:
-                                raise SNMPError(f"SNMP-Fehler {err}")
+                                raise SNMPError(SET_ERRORS.get(err, f"SNMP-Fehler {err}") if pdu_type == SET else f"SNMP-Fehler {err}")
                             return vbs
                 except socket.timeout:
                     continue
             raise SNMPError("Keine Antwort (Adresse, Community oder SNMP am Gerät prüfen)")
         finally:
             s.close()
+
+    def set_int(self, oid, value):
+        """Einen INTEGER-Wert schreiben (z. B. ifAdminStatus)."""
+        return self._request(SET, [oid], values=[value])
 
     def get(self, *oids):
         return {o: v for o, t, v in self._request(GET, list(oids)) if t not in (NOSUCHOBJECT, NOSUCHINSTANCE, ENDOFMIB)}
@@ -341,12 +353,12 @@ class ClientV3(Client):
             # AES-128 nutzt den mit dem Authentifizierungs-Hash lokalisierten Privacy-Schlüssel (die ersten 16 Byte)
             self.k_priv = localize_key(self.priv_pass, self.engine_id, self.auth_proto)
 
-    def _request(self, pdu_type, oids, non_rep=0, max_rep=0, _retry=True):
+    def _request(self, pdu_type, oids, non_rep=0, max_rep=0, _retry=True, values=None):
         import time as _t
         if not self.engine_id:
             self._discover()
         rid = mid = random.randint(1, 2 ** 31 - 1)
-        vbs = b"".join(_tlv(SEQ, _oid(o) + _tlv(NULL, b"")) for o in oids)
+        vbs = _varbinds(oids, values)
         pdu = _tlv(pdu_type, _int(rid) + _int(non_rep) + _int(max_rep) + _tlv(SEQ, vbs))
         r = self._send(self._build(pdu, mid), mid)
         if r["ptype"] == 0xA8:  # Report
@@ -355,8 +367,8 @@ class ClientV3(Client):
                 self.boots, self.time, self.t0 = r["boots"], r["time"], _t.time()
                 if oid == UNKNOWN_ENGINE:
                     self.engine_id = b""
-                return self._request(pdu_type, oids, non_rep, max_rep, _retry=False)
+                return self._request(pdu_type, oids, non_rep, max_rep, _retry=False, values=values)
             raise SNMPError(REPORTS.get(oid, f"SNMP-Report {oid}"))
         if r["err"]:
-            raise SNMPError(f"SNMP-Fehler {r['err']}")
+            raise SNMPError(SET_ERRORS.get(r["err"], f"SNMP-Fehler {r['err']}") if pdu_type == SET else f"SNMP-Fehler {r['err']}")
         return r["vbs"]

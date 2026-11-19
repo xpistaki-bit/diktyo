@@ -7,7 +7,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import catalog, mailer, routes_backup, routes_catalog, routes_integrations, routes_inventory, routes_scan, security, users
+from . import catalog, mailer, routes_actions, routes_backup, routes_catalog, routes_integrations, routes_inventory, routes_scan, security, users
 from .scan import ident
 from .auth import (COOKIE, ROLES, client_ip, current_user, lang_of, profile_access, rate_limit, require_admin, require_user,
                    start_session, text, touch)
@@ -28,6 +28,7 @@ app.include_router(routes_catalog.rules_router)
 app.include_router(routes_backup.router)
 app.include_router(routes_scan.router)
 app.include_router(routes_integrations.router)
+app.include_router(routes_actions.router)
 
 
 def owner_count(c, pid):
@@ -413,6 +414,10 @@ ERR_EN = {
     "Token oder MQTT-Broker angeben": "Enter a token or an MQTT broker",
     "Konfigurations-Backup nicht gefunden": "Configuration backup not found",
     "Ungültige Positionen": "Invalid positions",
+    "Diese Aktion ist für das Gerät nicht (mehr) verfügbar – Ansicht neu laden": "This action is not (or no longer) available for the device – reload the view",
+    "Ungültige Zeit für das Zurückschalten": "Invalid time for switching back",
+    "Kein geplantes Zurückschalten": "No scheduled switch-back",
+    "Für Schaltaktionen Benutzer und Passwort der FRITZ!Box angeben (Recht „FRITZ!Box Einstellungen“)": "Enter the FRITZ!Box user and password for actions (permission “FRITZ!Box settings”)",
     "Kein Claude-API-Schlüssel hinterlegt (Einstellungen → KI)": "No Claude API key stored (Settings → AI)",
     "Hersteller und Modell werden für die KI-Suche gebraucht": "Manufacturer and model are needed for the AI lookup",
     "Die KI hat die Anfrage abgelehnt": "The AI declined the request",

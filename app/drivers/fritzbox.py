@@ -174,7 +174,7 @@ def _wlan(fc):
             r = _call(fc, f"WLANConfiguration{n}", "GetInfo")
         except Exception:
             break
-        out.append(dict(ssid=r.get("NewSSID", ""), channel=r.get("NewChannel"), enabled=str(r.get("NewEnable")) in ("1", "True"),
+        out.append(dict(index=n, ssid=r.get("NewSSID", ""), channel=r.get("NewChannel"), enabled=str(r.get("NewEnable")) in ("1", "True"),
                         standard=r.get("NewStandard", "")))
     return out
 
@@ -357,6 +357,33 @@ def backup(conf, state):
     data = _fetch(fc, url).encode("utf-8")
     model = (getattr(fc, "modelname", "") or "FRITZ.Box").replace(" ", "_").replace("!", "")
     return f"{model}.export", data, True
+
+
+def action(conf, state, kind, params):
+    """Schaltaktion an der FRITZ!Box. kind: wlan (index, on) | internet (ip, block) | wol (mac) | reboot.
+    Verlangt die Box einen zweiten Faktor, wird SecondFactorRequired geworfen; danach mit state["sf_token"] erneut."""
+    if not conf.get("password"):
+        raise DriverError("Für Schaltaktionen Benutzer und Passwort der FRITZ!Box angeben (Recht „FRITZ!Box Einstellungen“)")
+    fc = _connect(conf)
+    token = state.pop("sf_token", None)
+    try:
+        if kind == "wlan":
+            _soap(fc, f"WLANConfiguration{int(params['index'])}", "SetEnable", {"NewEnable": 1 if params["on"] else 0}, token=token)
+            return f"WLAN „{params.get('ssid', '')}“ {'eingeschaltet' if params['on'] else 'ausgeschaltet'}"
+        if kind == "internet":
+            _soap(fc, "X_AVM-DE_HostFilter1", "DisallowWANAccessByIP", {"NewIPv4Address": params["ip"], "NewDisallow": 1 if params["block"] else 0}, token=token)
+            return f"Internet für {params['ip']} {'gesperrt' if params['block'] else 'freigegeben'}"
+        if kind == "wol":
+            _soap(fc, "Hosts1", "X_AVM-DE_WakeOnLANByMACAddress", {"NewMACAddress": params["mac"]}, token=token)
+            return f"Weckruf an {params['mac']} gesendet"
+        if kind == "reboot":
+            _soap(fc, "DeviceConfig1", "Reboot", token=token)
+            return "FRITZ!Box startet neu (dauert etwa 2–3 Minuten)"
+    except PermissionError:
+        raise DriverError("Benutzer hat nicht das Recht „FRITZ!Box Einstellungen“ bzw. „Zugang aus dem Internet“")
+    except KeyError as ex:
+        raise DriverError(f"Diese FRITZ!Box kennt die Funktion nicht ({ex})")
+    raise DriverError(f"Unbekannte Aktion {kind}")
 
 
 def test(conf):

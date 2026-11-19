@@ -282,7 +282,7 @@ def device_detail(c, pid, did):
         lp = live.get(r["port_no"])
         ports.append(dict(id=r["id"], port_no=r["port_no"], name=r["name"], kind=r["kind"], speed=r["speed"], poe=bool(r["poe"]), peer=peer,
                           live=dict(oper=lp["oper"], speed=lp["speed"], in_bps=lp["in_bps"], out_bps=lp["out_bps"], macs=len(lp["macs"]),
-                                    lldp=lp["lldp"]) if lp else None))
+                                    lldp=lp["lldp"], admin=lp.get("admin", "up"), poe=lp.get("poe")) if lp else None))
     kids = [dict(id=k, name=by_id[k]["name"], type=by_id[k]["type"], medium=uplinks[k]["medium"], port_name=uplinks[k]["port_name"],
                  ip=(by_id[k]["ips"] or [{}])[0].get("address", ""), mac=by_id[k]["mac"]) for k in children.get(did, []) if k in by_id]
     data = json.loads(d["data"] or "{}")

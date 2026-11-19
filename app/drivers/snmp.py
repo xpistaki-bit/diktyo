@@ -31,6 +31,8 @@ CAN_BACKUP = True
 SYS = {"descr": "1.3.6.1.2.1.1.1.0", "object_id": "1.3.6.1.2.1.1.2.0", "uptime": "1.3.6.1.2.1.1.3.0", "name": "1.3.6.1.2.1.1.5.0",
        "location": "1.3.6.1.2.1.1.6.0"}
 IF_DESCR, IF_TYPE, IF_OPER = "1.3.6.1.2.1.2.2.1.2", "1.3.6.1.2.1.2.2.1.3", "1.3.6.1.2.1.2.2.1.8"
+IF_ADMIN = "1.3.6.1.2.1.2.2.1.7"                 # ifAdminStatus: 1 up, 2 down
+POE_ADMIN = "1.3.6.1.2.1.105.1.1.1.3"            # POWER-ETHERNET-MIB pethPsePortAdminEnable.<gruppe>.<port>: 1 an, 2 aus
 IF_NAME, IF_IN, IF_OUT, IF_SPEED, IF_ALIAS = ("1.3.6.1.2.1.31.1.1.1.1", "1.3.6.1.2.1.31.1.1.1.6", "1.3.6.1.2.1.31.1.1.1.10",
                                                "1.3.6.1.2.1.31.1.1.1.15", "1.3.6.1.2.1.31.1.1.1.18")
 BASE_PORT_IF = "1.3.6.1.2.1.17.1.4.1.2"
@@ -185,6 +187,29 @@ def diagnose(conf, nat_hint=None):
     return dict(steps=steps, summary=summary, source=src, sender=sender)
 
 
+def action(conf, state, kind, params):
+    """Schaltaktion am Switch. kind: port (ifindex, up) | poe_cycle (port_no). -> Meldung"""
+    import time as _t
+    c = _client(conf)
+    try:
+        if kind == "port":
+            c.set_int(f"{IF_ADMIN}.{int(params['ifindex'])}", 1 if params["up"] else 2)
+            return f"Port {params['port_no']} {'eingeschaltet' if params['up'] else 'abgeschaltet'}"
+        if kind == "poe_cycle":
+            oid = f"{POE_ADMIN}.1.{int(params['port_no'])}"
+            c.set_int(oid, 2)
+            _t.sleep(5)
+            c.set_int(oid, 1)
+            return f"PoE an Port {params['port_no']} aus- und wieder eingeschaltet"
+    except snmplib.SNMPError as ex:
+        msg = str(ex)
+        if "Schreib" in msg or "Keine Antwort" in msg:
+            msg += (" – Zyxel: unter Management → Access Control → SNMP den Benutzer einer Gruppe mit Schreibrechten (z. B. „admin“) "
+                    "zuordnen bzw. eine Community mit read-write anlegen, dann Save.")
+        raise DriverError(msg)
+    raise DriverError(f"Unbekannte Aktion {kind}")
+
+
 def test(conf):
     try:
         r = _client(conf).get(SYS["descr"], SYS["name"])
@@ -201,6 +226,11 @@ def poll(conf, state):
         raise DriverError(str(ex))
     info = {k: (snmplib.text(sysv.get(o)) if k != "uptime" else int(sysv.get(o) or 0) // 100) for k, o in SYS.items()}
     types, oper = _col(c, IF_TYPE), _col(c, IF_OPER)
+    admin = _col(c, IF_ADMIN)
+    try:
+        poe = {k: v for k, v in _col(c, POE_ADMIN).items() if k.startswith("1.")}  # Gruppe 1 = Ports des Switches
+    except Exception:
+        poe = {}
     names, descr = _col(c, IF_NAME), _col(c, IF_DESCR)
     speed, alias = _col(c, IF_SPEED), _col(c, IF_ALIAS)
     hc_in, hc_out = _col(c, IF_IN), _col(c, IF_OUT)
@@ -220,7 +250,9 @@ def poll(conf, state):
         if cin is not None:
             counters[k] = (cin, cout, now)
         ports.append(dict(port_no=no, ifindex=ifi, name=snmplib.text(names.get(k)) or snmplib.text(descr.get(k)), alias=snmplib.text(alias.get(k)),
-                          oper="up" if oper.get(k) == 1 else "down", speed=int(speed.get(k) or 0), in_bps=in_bps, out_bps=out_bps, macs=[], lldp=None))
+                          oper="up" if oper.get(k) == 1 else "down", admin="down" if admin.get(k) == 2 else "up",
+                          poe=None if f"1.{no}" not in poe else poe[f"1.{no}"] == 1,
+                          speed=int(speed.get(k) or 0), in_bps=in_bps, out_bps=out_bps, macs=[], lldp=None))
     by_if = {p["ifindex"]: p for p in ports}
     # Bridge-Port -> ifIndex
     bp = {int(k): int(v) for k, v in _col(c, BASE_PORT_IF).items() if isinstance(v, int)}

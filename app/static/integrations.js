@@ -61,7 +61,7 @@ Object.assign(DRIVER_STEPS, {
     'Optional eine Site eintragen, sonst liest díktyo alle Sites. Der WAN-Traffic des Gateways erscheint in der Topologie an der Internet-Leitung.',
   ],
 });
-const EVENT = { device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät' };
+const EVENT = { device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät', action_undo_failed: 'Zurückschalten fehlgeschlagen' };
 const RANGES = [[7200, '2 h'], [86400, '24 h'], [172800, '2 Tage'], [604800, '7 Tage']];
 const fmtBps = v => {
   if (v == null || isNaN(v)) return '–';
@@ -185,6 +185,7 @@ async function tabIntegrations(ctx) {
     }
   }
   // Ansicht aktuell halten, solange der Reiter offen ist
+  { const box = document.createElement('div'); box.id = 'recentact'; box.style.marginTop = '16px'; ctx.el.appendChild(box); recentActions(ctx, box); }
   clearTimeout(tabIntegrations.timer);
   tabIntegrations.timer = setTimeout(() => { if (document.body.contains(ctx.el) && location.hash.endsWith('/integrationen') && !$('#dlg').open) ctx.reload(); }, 60000);
   void since;
@@ -228,15 +229,15 @@ function asusCard(i) {
 
 /* Zweiter Faktor: Hinweis anzeigen, Status abfragen, bis bestätigt oder abgebrochen. -> true bei Erfolg */
 let totpResult = null;
-async function secondFactor(P, i, r) {
+async function secondFactor(P, i, r, { totp = true } = {}) {
   let timer = null;
   totpResult = null;
   const html = `<p>${t('Die FRITZ!Box schützt den Export ihrer Einstellungen mit einem zweiten Faktor. Bitte jetzt bestätigen:')}</p>
     <ol class="steps">${r.button ? `<li>${t('eine <b>beliebige Taste an der FRITZ!Box</b> drücken (z. B. Connect/WPS oder DECT)')}</li>` : ''}
       ${r.dtmf ? `<li>${t('oder an einem angeschlossenen Telefon <b class="mono">{c}</b> wählen', { c: h(r.dtmf) })}</li>` : ''}
-      <li>${t('oder den <b>Code aus der Authenticator-App</b> eingeben (wenn in der FRITZ!Box eingerichtet):')}
+      ${totp ? `<li>${t('oder den <b>Code aus der Authenticator-App</b> eingeben (wenn in der FRITZ!Box eingerichtet):')}
         <div class="row" style="margin-top:6px"><input name="totp" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456" style="max-width:140px">
-        <button type="button" class="sm pri" data-totp>${t('Code senden')}</button></div></li></ol>
+        <button type="button" class="sm pri" data-totp>${t('Code senden')}</button></div></li>` : ''}</ol>
     <p class="muted small" id="sfst">${t('Warte auf Bestätigung …')}</p>`;
   const ok = await dialog(t('Bestätigung an der FRITZ!Box'), html, {
     ok: null,
@@ -250,8 +251,10 @@ async function secondFactor(P, i, r) {
         try { totpResult = await api('POST', `${P}/integrations/${i.id}/config-backup`, { totp: code }); close(true); }
         catch (e) { $('.dlg-err', f).textContent = e.message; $('[data-totp]', f).disabled = false; $('#sfst', f).textContent = ''; }
       };
-      $('[data-totp]', f).onclick = send;
-      $('[name=totp]', f).addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); send(); } });
+      if ($('[data-totp]', f)) {
+        $('[data-totp]', f).onclick = send;
+        $('[name=totp]', f).addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); send(); } });
+      }
       const err = msg => { clearInterval(timer); const e = $('.dlg-err', f); e.textContent = msg; $('#sfst', f).hidden = true; };
       timer = setInterval(async () => {
         if (!document.body.contains(f) || !$('#dlg').open) return clearInterval(timer);
@@ -269,6 +272,53 @@ async function secondFactor(P, i, r) {
   clearInterval(timer);
   if (ok !== true) api('DELETE', `${P}/integrations/${i.id}/second-factor`).catch(() => { });
   return ok === true;
+}
+
+/* ---------------------------------------------------------------- Schaltaktionen */
+const UNDO = [['', 'nicht automatisch'], ['15', 'nach 15 Minuten'], ['60', 'nach 1 Stunde'], ['120', 'nach 2 Stunden'], ['morning', 'morgen um 6:00']];
+
+async function actionsBox(ctx, did, el, port = 0) {
+  if (!ctx.isOwner) { el.innerHTML = ''; return; }
+  let r;
+  try { r = await api('GET', `/api/profiles/${ctx.pid}/devices/${did}/actions${port ? `?port=${port}` : ''}`); } catch { el.innerHTML = ''; return; }
+  if (!r.actions.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<h4>${t('Aktionen')}</h4><div class="act-list">${r.actions.map((a, n) => `<button type="button" class="sm ${a.danger ? 'warn-btn' : ''}" data-act="${n}"
+      ${a.blocked ? `disabled title="${h(t(a.blocked))}"` : `title="${h(t(a.detail))}"`}>${h(t(a.label))}</button>`).join('')}</div>
+    ${r.actions.some(a => a.blocked) ? `<p class="muted small">${r.actions.filter(a => a.blocked).map(a => `${h(t(a.label))}: ${h(t(a.blocked))}`).join('<br>')}</p>` : ''}`;
+  $$('[data-act]', el).forEach(b => b.onclick = async () => { if (await runAction(ctx, did, r.actions[+b.dataset.act], port)) actionsBox(ctx, did, el, port); });
+}
+
+async function runAction(ctx, did, a, port = 0) {
+  const P = `/api/profiles/${ctx.pid}`;
+  const v = await dialog(t(a.label), `<p>${h(t(a.detail)) || t('Aktion ausführen?')}</p>
+    ${a.undo ? `<label>${t('Automatisch zurückschalten')}</label><select name="undo">${UNDO.map(([k, n]) => `<option value="${k}">${t(n)}</option>`).join('')}</select>` : ''}
+    <p class="muted small">${t('Vorher sichert díktyo die Konfiguration, falls die letzte Sicherung älter als eine Stunde ist. Die Aktion wird protokolliert.')}</p>`,
+    { ok: t('Ausführen'), danger: a.danger, onOk: f => fd(f) });
+  if (!v) return false;
+  const body = { key: a.key, undo: v.undo || null, port };
+  try {
+    let r = await api('POST', `${P}/devices/${did}/actions`, body);
+    if (r.status === 'second_factor') {
+      if (!await secondFactor(P, { id: a.integration_id }, r, { totp: false })) return false;
+      r = await api('POST', `${P}/devices/${did}/actions`, body);
+    }
+    toast([r.message, r.backup, r.undo_at ? t('Zurück um {d}', { d: fmtDate(r.undo_at) }) : ''].filter(Boolean).join(' · '));
+    return true;
+  } catch (e) { toast(e.message, true); return false; }
+}
+
+async function recentActions(ctx, el) {
+  let r;
+  try { r = await api('GET', `/api/profiles/${ctx.pid}/actions`); } catch { return; }
+  if (!r.actions.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="panel"><h3>${t('Letzte Aktionen')}</h3><div class="table-wrap"><table class="compact"><tbody>
+    ${r.actions.map(x => `<tr><td class="mono small">${h(fmtDate(x.created))}</td><td>${h(t(x.label))}${x.device ? ` · <b>${h(x.device)}</b>` : ''}</td>
+      <td class="small ${x.status === 'done' ? 'okc' : 'errtxt'}">${h(x.status === 'done' ? (x.message || t('erledigt')) : x.message)}</td>
+      <td class="small muted">${h(x.user)}</td>
+      <td class="small">${x.undo_at && !x.undone ? `${t('zurück um {d}', { d: h(fmtDate(x.undo_at)) })} ${ctx.isOwner ? `<button class="sm link" data-cu="${x.id}">${t('abbrechen')}</button>` : ''}`
+        : x.undone ? `<span class="${(x.undo_result || '').startsWith('done') ? 'muted' : 'errtxt'}">${t('zurückgeschaltet')}${(x.undo_result || '').startsWith('done') ? '' : ': ' + h(x.undo_result)}</span>` : ''}</td></tr>`).join('')}
+  </tbody></table></div></div>`;
+  $$('[data-cu]', el).forEach(b => b.onclick = async () => { await api('DELETE', `/api/profiles/${ctx.pid}/actions/${b.dataset.cu}/undo`); recentActions(ctx, el); });
 }
 
 function ctrlCard(i) {
