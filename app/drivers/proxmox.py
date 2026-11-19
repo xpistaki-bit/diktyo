@@ -131,6 +131,21 @@ def poll(conf, state):
             guests.append(dict(vmid=g["vmid"], name=g.get("name") or f'{kind}-{g["vmid"]}', node=g["node"], kind=kind,
                                running=g.get("status") == "running", nets=nets, ips=[ip for ip in dict.fromkeys(ips) if _usable(ip)]))
     res = dict(info=dict(version=version, nodes=len(nodes)), nodes=nodes, guests=guests)
+    # Paket-Updates je Knoten (höchstens alle 6 Stunden; braucht Sys.Audit bzw. Sys.Modify – ohne Recht einfach weglassen)
+    import time as _t
+    if _t.time() - state.get("apt_checked", 0) >= 6 * 3600:
+        fw = []
+        with _client(conf) as cl:
+            for n in nodes:
+                try:
+                    pk = _get(cl, f"/nodes/{n['name']}/apt/update") or []
+                except (PermissionError, DriverError, httpx.HTTPError):
+                    continue
+                pve = next((p for p in pk if p.get("Package") == "pve-manager"), None)
+                fw.append(dict(node=n["name"], installed=version, latest=(pve or {}).get("Version", "") or (f"{len(pk)} Paket-Updates" if pk else ""),
+                               update=bool(pk), info=""))
+        state = dict(state, apt_checked=_t.time(), apt=fw)
+    res["nodes_fw"] = state.get("apt") or []
     if warn:
         res["warning"] = warn
     return res, {}, state

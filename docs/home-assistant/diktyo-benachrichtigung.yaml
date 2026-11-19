@@ -44,6 +44,8 @@ blueprint:
               value: quarantined
             - label: Zeitplan fehlgeschlagen
               value: schedule_failed
+            - label: Firmware-Update verfügbar
+              value: firmware_update
 
 mode: queued
 max: 20
@@ -70,6 +72,6 @@ actions:
     title: >
       {{ {'device_offline': 'Gerät offline', 'device_online': 'Gerät wieder online',
           'new_device': 'Neues Gerät im Netz', 'action_undo_failed': 'Zurückschalten fehlgeschlagen', 'quarantined': 'Neues Gerät in Quarantäne',
-          'schedule_failed': 'Zeitplan fehlgeschlagen'}.get(ev, 'díktyo') }}
+          'schedule_failed': 'Zeitplan fehlgeschlagen', 'firmware_update': 'Firmware-Update verfügbar'}.get(ev, 'díktyo') }}
     message: >
-      {% set a = trigger.to_state.attributes %}{% if ev == 'action_undo_failed' %}{{ a.label }}: {{ a.message }} – bitte in díktyo von Hand zurückschalten.{% elif ev == 'schedule_failed' %}{{ a.label }}: {{ a.message }}{% elif ev == 'quarantined' %}{{ a.name }} ({{ a.ip }}){% if a.ok %} – Internet gesperrt, bis du es in díktyo übernimmst.{% else %} – Sperre fehlgeschlagen: {{ a.message }}{% endif %}{% else %}{{ a.device }}{% if a.ip %} ({{ a.ip }}){% endif %}{% if ev == 'new_device' and a.label %} – vermutlich {{ a.label }}{% endif %}{% endif %}
+      {% set a = trigger.to_state.attributes %}{% if ev == 'action_undo_failed' %}{{ a.label }}: {{ a.message }} – bitte in díktyo von Hand zurückschalten.{% elif ev == 'schedule_failed' %}{{ a.label }}: {{ a.message }}{% elif ev == 'firmware_update' %}{{ a.name }}: {{ a.installed }} → {{ a.latest or 'neue Version' }}{% elif ev == 'quarantined' %}{{ a.name }} ({{ a.ip }}){% if a.ok %} – Internet gesperrt, bis du es in díktyo übernimmst.{% else %} – Sperre fehlgeschlagen: {{ a.message }}{% endif %}{% else %}{{ a.device }}{% if a.ip %} ({{ a.ip }}){% endif %}{% if ev == 'new_device' and a.label %} – vermutlich {{ a.label }}{% endif %}{% endif %}

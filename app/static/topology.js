@@ -148,6 +148,7 @@ async function tabTopology(ctx) {
         <text x="44" y="21" class="tn-name">${esc(n.name.length > 24 ? n.name.slice(0, 23) + '…' : n.name)}</text>
         <text x="44" y="37" class="tn-sub">${esc(n.ip || typeName(n.type))}${infra ? ` · ${n.ports_used}/${n.ports_total}` : ''}</text>
         <circle cx="${NW - 14}" cy="14" r="5" class="tn-dot"/>
+        ${n.fw_update ? `<text x="${NW - 30}" y="18" class="tn-fw"><title>${t('Firmware-Update verfügbar')}</title>⬆</text>` : ''}
         ${exp.has(`${n.device_id}:wlan`) || exp.has(`${n.device_id}:virtual`) ? `<text x="${NW - 18}" y="40" class="tg-plus small" data-collapse="${n.device_id}">−</text>` : ''}</g>`;
     }).join('');
     const sep = data.loose_from ? `<text x="${PAD}" y="${data.loose_from + PAD - NH / 2 - 10}" class="tsep">${t('Ohne Verbindung')}</text>` : '';

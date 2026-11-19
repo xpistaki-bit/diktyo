@@ -6,7 +6,7 @@ to be a slim, self-hosted alternative to NetBox for private users. It runs as a 
 file, either in a Proxmox LXC or in a Docker container, and is managed in the browser. The interface is available
 in German and English.
 
-> **Status: v0.14 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.15 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -146,6 +146,14 @@ without a connection are listed separately.
 - **Full screen** enlarges the topology to the whole window below the header; Esc returns to normal size.
 - **Internet:** a globe in front of the WAN router. With the FRITZ!Box (or UniFi) integration it shows whether the
   internet connection is up (animated green line or red) and the current traffic down/up on the line.
+
+## Reachability and firmware
+
+Online monitoring also records the response time of every ping. The device dialog shows availability over 24 hours,
+7 and 30 days (outages, longest outage), the average response time and a chart. Firmware hints come from the
+integrations: FRITZ!Box, ASUS, MikroTik (RouterOS and RouterBOOT), UniFi and Omada per device, Proxmox as pending
+package updates. Devices with an update are marked in the topology, version changes appear in the history, and new
+updates can be reported to Home Assistant. An overview lists problems first.
 
 ## History
 

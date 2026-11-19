@@ -198,6 +198,17 @@ sich zwischen zwei Ständen geändert hat.
 - Statuswechsel und neue Geräte erscheinen unter *Letzte Ereignisse* und gehen – falls eingerichtet – an Home Assistant.
 - Messwerte (WAN- und Port-Traffic) werden 2 Tage aufbewahrt, einstellbar bis 14 (*Einstellungen → Erkennung*).
 
+### Erreichbarkeit und Firmware
+
+- Die Online-Überwachung misst bei jedem Ping auch die **Antwortzeit**. Im Gerätedialog unter *Erreichbarkeit &
+  Firmware*: Verfügbarkeit über 24 Stunden, 7 und 30 Tage mit Zahl der Ausfälle und dem längsten Ausfall, mittlere
+  Antwortzeit und ein Diagramm (2 h bis 7 Tage). Gezählt wird nur der Zeitraum, in dem díktyo das Gerät überwacht.
+- **Firmware-Hinweise** liefern die Integrationen: FRITZ!Box (die Box prüft selbst, díktyo liest das Ergebnis), ASUS,
+  MikroTik (RouterOS und RouterBOOT, Prüfung höchstens alle 12 Stunden), UniFi und Omada je Gerät, Proxmox als Zahl der
+  ausstehenden Paket-Updates. Geräte mit Update sind in der Topologie mit ⬆ markiert; neue Updates können per Home
+  Assistant gemeldet werden; ein Versionswechsel steht im Verlauf.
+- *Integrationen → Erreichbarkeit & Firmware* zeigt alles auf einen Blick – Geräte mit Problemen zuerst.
+
 ## 6. Topologie
 
 - Gesamtbaum von links nach rechts mit Port-Namen an den Linien; WLAN-Geräte und VMs sind zu aufklappbaren Gruppen

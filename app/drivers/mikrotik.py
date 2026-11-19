@@ -236,10 +236,35 @@ def test(conf):
                 wifi=len(res["wifi"]))
 
 
+def firmware(conf, state, rb=None):
+    """RouterOS-Update prüfen (höchstens alle 12 Stunden – der MikroTik fragt dabei bei MikroTik an) und RouterBOOT."""
+    now_ = time.time()
+    fw = state.get("fw") or {}
+    if now_ - state.get("fw_checked", 0) >= 12 * 3600:
+        with _client(conf) as cl:
+            try:
+                _req(cl, "POST", "system/package/update/check-for-updates", json={}, optional=True)
+            except DriverError:
+                pass
+            u = _get(cl, "system/package/update", optional=True) or {}
+        inst, latest = u.get("installed-version", ""), u.get("latest-version", "")
+        fw = dict(installed=inst, latest=latest, update=bool(latest and inst and latest != inst),
+                  info="https://mikrotik.com/download/changelogs" if latest else "")
+        state["fw_checked"], state["fw"] = now_, fw
+    if rb and rb.get("current-firmware") and rb.get("upgrade-firmware") and rb["current-firmware"] != rb["upgrade-firmware"]:
+        fw = dict(fw, update=True, latest=(fw.get("latest") or "") + f" (RouterBOOT {rb['upgrade-firmware']})")
+    return fw
+
+
 def poll(conf, state):
     raw = collect(conf, state)
     res, metrics, counters = normalize(raw, state)
-    return res, metrics, dict(state, counters=counters)
+    state = dict(state, counters=counters)
+    try:
+        res["firmware"] = firmware(conf, state, raw.get("routerboard"))
+    except DriverError:
+        pass
+    return res, metrics, state
 
 
 def backup(conf, state):

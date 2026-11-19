@@ -253,7 +253,8 @@ def list_devices(c, pid, status=None):
             notes=d["notes"], tags=json.loads(d["tags"] or "[]"), mac=nic["mac"] if nic else "",
             ips=sorted(ips.get(d["id"], []), key=lambda x: ip_key(x["address"])), uplink=uplinks.get(d["id"]),
             ports_total=len(pl), ports_used=sum(1 for i in pl if i in port_peer), children=len(children.get(d["id"], [])),
-            updated=d["updated"], online=d["online"], last_seen=d["last_seen"], ident=_ident_short(d["data"])))
+            updated=d["updated"], online=d["online"], last_seen=d["last_seen"], ident=_ident_short(d["data"]),
+            fw_update=bool((json.loads(d["data"] or "{}").get("firmware") or {}).get("update"))))
     return sorted(out, key=lambda x: natural(x["name"]))
 
 

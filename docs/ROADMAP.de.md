@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.14.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.15.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt
@@ -23,6 +23,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | MikroTik | RouterOS 7 über REST: Ports, Clients, WLAN, Nachbarn, WAN, `/export`-Backup, Aktionen | 0.12 |
 | Automatisierung | Zeitpläne für Aktionen (Zeitfenster, nur an Übergängen), Quarantäne für neue Geräte | 0.13 |
 | Verlauf | Änderungsverlauf je Gerät und Profil mit Quelle, Zeitleiste, Kurzfassung „seit gestern“, CSV | 0.14 |
+| Erreichbarkeit | Antwortzeit je Gerät, Verfügbarkeit 24 h/7/30 Tage mit Ausfällen; Firmware-Hinweise aus sechs Integrationen | 0.15 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan
 
@@ -70,8 +71,8 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
-| Latenz und Paketverlust je Gerät als Diagramm, Ausfallzeiten/Verfügbarkeit (SLA-Bericht) | ★★★ | M |
-| Hinweise auf Firmware-Updates (FRITZ!OS, RouterOS, UniFi, Proxmox, Switch) | ★★★ | M |
+| ~~Latenz je Gerät, Ausfallzeiten/Verfügbarkeit~~ – erledigt in 0.15 (Bericht als PDF noch offen) | ★★★ | M |
+| ~~Hinweise auf Firmware-Updates~~ – erledigt in 0.15 (Zyxel-Switch per SNMP liefert dazu nichts) | ★★★ | M |
 | TLS-Zertifikate: Warnung vor Ablauf (Daten aus dem Dienste-Scan) | ★★ | S |
 | Speedtest bzw. iperf zwischen Geräten, Verlauf | ★★ | M |
 | Benachrichtigungen auch per E-Mail, ntfy, Telegram (zusätzlich zu Home Assistant) | ★★ | S |
@@ -137,5 +138,4 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 ## 6. Vorschlag für die nächsten Schritte
 
 1. Rückmeldungen der Tester (UniFi, MikroTik) einarbeiten.
-2. **Firmware-Hinweise** und **Latenz-/Verfügbarkeitsdiagramme** – mehr Monitoring ohne neue Hardware.
-3. **OPNsense/pfSense** und **Docker** als nächste Integrationen.
+2. **OPNsense/pfSense** und **Docker** als nächste Integrationen.

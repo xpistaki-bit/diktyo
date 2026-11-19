@@ -404,6 +404,12 @@ def test(conf):
 def poll(conf, state):
     fc = _connect(conf)
     res = dict(info=_info(fc), wan=_wan(fc), auth=False, mesh={}, wlan=[])
+    try:  # Firmware: prüft die FRITZ!Box selbst; hier nur deren Ergebnis lesen
+        u = _call(fc, "UserInterface1", "X_AVM-DE_GetInfo")
+        res["firmware"] = dict(installed=res["info"].get("firmware", ""), latest=u.get("NewX_AVM-DE_Version") or "",
+                               update=str(u.get("NewUpgradeAvailable")) in ("1", "True", "true"), info=u.get("NewX_AVM-DE_InfoURL") or "")
+    except Exception:
+        res["firmware"] = dict(installed=res["info"].get("firmware", ""), latest="", update=None)
     try:
         res["hosts"] = _hosts_basic(fc)
     except PermissionError:

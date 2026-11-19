@@ -359,9 +359,14 @@ def quick_ping(pid: int, body: dict = Body(default={}), user=Depends(require_use
             continue
         ports = (_json.loads(r["data"] or "{}").get("seen") or {}).get("ports") or []
         targets.append((r["id"], r["address"], ports[0] if ports else None))
-    res = asyncio.run(monitor._check(targets)) if targets else {}
+    full = asyncio.run(monitor._check(targets)) if targets else {}
+    res = {did: ok for did, (ok, _) in full.items()}
+    rtt = {did: r for did, (ok, r) in full.items() if ok and r is not None}
     ts = now()
     with db() as c:
         for did, ok in res.items():
             runner._set_online(c, did, 1 if ok else 0, ts, "ping")
-    return dict(results={str(k): v for k, v in res.items()}, checked=len(res), online=sum(res.values()))
+    with db() as c:
+        from . import metrics
+        metrics.put(c, pid, {f"d{did}:rtt": v for did, v in rtt.items()}, unit="ms")
+    return dict(results={str(k): v for k, v in res.items()}, rtt={str(k): v for k, v in rtt.items()}, checked=len(res), online=sum(res.values()))

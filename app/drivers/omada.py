@@ -108,7 +108,9 @@ def normalize(sites):
             devices.append(dict(mac=mac(d.get("mac")), ip=d.get("ip") or "", name=d.get("name") or d.get("model") or "", model=d.get("model") or "",
                                 type=TYPES.get(str(d.get("type", "")).lower(), "other"), online=_online(d),
                                 uplink_mac=mac(d.get("uplinkDeviceMac")), uplink_port=int(port) if str(port or "").isdigit() else None,
-                                clients=int(d.get("clientNum") or 0), firmware=d.get("firmwareVersion") or "", ports=[]))
+                                clients=int(d.get("clientNum") or 0), firmware=d.get("firmwareVersion") or "", ports=[],
+                                firmware_info=dict(installed=d.get("firmwareVersion") or "", latest="",
+                                                   update=bool(d.get("needUpgrade")) if "needUpgrade" in d else None)))
         for x in cls:
             wl = bool(x.get("wireless"))
             parent = mac(x.get("apMac")) if wl else mac(x.get("switchMac") or x.get("gatewayMac"))

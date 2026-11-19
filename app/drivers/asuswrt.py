@@ -23,7 +23,8 @@ FIELDS = [
 ]
 CAN_BACKUP = True
 UA = "asusrouter--DUTUtil-"
-HOOK = "get_clientlist();get_cfg_clientlist();nvram_get(productid);nvram_get(firmver);nvram_get(buildno);nvram_get(lan_ipaddr);nvram_get(label_mac)"
+HOOK = ("get_clientlist();get_cfg_clientlist();nvram_get(productid);nvram_get(firmver);nvram_get(buildno);nvram_get(extendno);"
+        "nvram_get(lan_ipaddr);nvram_get(label_mac);nvram_get(webs_state_flag);nvram_get(webs_state_info)")
 BANDS = {"0": ("lan", ""), "1": ("wlan", "2,4 GHz"), "2": ("wlan", "5 GHz"), "3": ("wlan", "5 GHz (2)"), "4": ("wlan", "6 GHz")}
 
 
@@ -133,4 +134,7 @@ def poll(conf, state):
     data, token = _fetch(conf, state)
     info, nodes, clients = normalize(data)
     res = dict(info=info, nodes=nodes, clients=clients, keys=sorted(data.keys())[:30])
+    flag, latest = str(data.get("webs_state_flag", "")), str(data.get("webs_state_info", "") or "")
+    installed = "_".join(x for x in (str(data.get("firmver", "")).replace(".", ""), str(data.get("buildno", "")), str(data.get("extendno", ""))) if x)
+    res["firmware"] = dict(installed=installed or info["firmware"], latest=latest, update=flag in ("1", "2") if flag else None)
     return res, {}, dict(state, token=token)

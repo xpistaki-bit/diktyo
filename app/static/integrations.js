@@ -68,7 +68,7 @@ DRIVER_STEPS.mikrotik = [
   'Eigenen Benutzer anlegen – nur lesen:<pre>/user group add name=diktyo-read policy=read,rest-api,api,ssh,!local,!telnet,!ftp,!winbox,!web\n/user add name=diktyo group=diktyo-read password=GEHEIM</pre>Für <b>Aktionen</b> (Port, PoE, WLAN, Neustart, Wake-on-LAN) stattdessen <span class="mono">policy=read,write,reboot,test,rest-api,api,ssh</span>.',
   'Konfigurations-Backup liest „/export“ per SSH (Dienst ssh, Port 22) mit demselben Benutzer – Passwörter sind im Export nicht enthalten.',
 ];
-const EVENT = { device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät', action_undo_failed: 'Zurückschalten fehlgeschlagen', quarantined: 'Neues Gerät in Quarantäne', schedule_failed: 'Zeitplan fehlgeschlagen' };
+const EVENT = { device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät', action_undo_failed: 'Zurückschalten fehlgeschlagen', quarantined: 'Neues Gerät in Quarantäne', schedule_failed: 'Zeitplan fehlgeschlagen', firmware_update: 'Firmware-Update verfügbar' };
 const RANGES = [[7200, '2 h'], [86400, '24 h'], [172800, '2 Tage'], [604800, '7 Tage']];
 const fmtBps = v => {
   if (v == null || isNaN(v)) return '–';
@@ -78,7 +78,7 @@ const fmtBps = v => {
 const fmtUptime = s => { if (!s) return '–'; const d = Math.floor(s / 86400), hh = Math.floor(s % 86400 / 3600); return d ? t('{d} Tage {h} h', { d, h: hh }) : t('{h} h', { h: hh }); };
 
 /* Liniendiagramm als SVG. series = [{name, color, points: [[ts, v], ...]}] */
-function chartSvg(series, since, { height = 150 } = {}) {
+function chartSvg(series, since, { height = 150, fmt = fmtBps } = {}) {
   const W = 720, H = height, L = 86, R = 8, T = 10, B = 22;
   const now = Date.now() / 1000, t0 = now - since;
   const max = Math.max(1, ...series.flatMap(s => s.points.map(p => p[1])));
@@ -89,8 +89,8 @@ function chartSvg(series, since, { height = 150 } = {}) {
     const area = `${d}L${x(s.points[s.points.length - 1][0]).toFixed(1)},${y(0)}L${x(s.points[0][0]).toFixed(1)},${y(0)}Z`;
     return `<path d="${area}" fill="${s.color}" opacity=".12"/><path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.6"/>`;
   }).join('');
-  const grid = [0, .5, 1].map(f => `<line x1="${L}" x2="${W - R}" y1="${y(max * f)}" y2="${y(max * f)}" class="grid"/><text x="${L - 6}" y="${y(max * f) + 4}" text-anchor="end" class="ax">${fmtBps(max * f)}</text>`).join('');
-  const tl = ts => new Date(ts * 1000).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', since > 86400 ? { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' });
+  const grid = [0, .5, 1].map(f => `<line x1="${L}" x2="${W - R}" y1="${y(max * f)}" y2="${y(max * f)}" class="grid"/><text x="${L - 6}" y="${y(max * f) + 4}" text-anchor="end" class="ax">${fmt(max * f)}</text>`).join('');
+  const tl = ts => new Date(ts * 1000).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', since >= 86400 ? { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' });
   const empty = series.every(s => !s.points.length);
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">${grid}${lines}
     <text x="${L}" y="${H - 6}" class="ax">${tl(t0)}</text><text x="${W - R}" y="${H - 6}" class="ax" text-anchor="end">${tl(now)}</text>
@@ -98,11 +98,16 @@ function chartSvg(series, since, { height = 150 } = {}) {
     <div class="legend">${series.map(s => `<span><i style="background:${s.color}"></i>${h(s.name)}</span>`).join('')}</div>`;
 }
 
-async function drawChart(el, pid, keys, names, since) {
+async function drawChart(el, pid, keys, names, since, opts = {}) {
   const r = await api('GET', `/api/profiles/${pid}/metrics?keys=${keys.join(',')}&since=${since}`);
   const colors = ['#00E5FF', '#19F5C8', '#2D7BFF', '#FFB020'];
-  el.innerHTML = chartSvg(keys.map((k, i) => ({ name: names[i], color: colors[i % colors.length], points: r.series[k] || [] })), since);
+  el.innerHTML = chartSvg(keys.map((k, i) => ({ name: names[i], color: colors[i % colors.length], points: r.series[k] || [] })), since, opts);
 }
+const fmtMs = v => v == null || isNaN(v) ? '–' : `${(+v).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: v < 10 ? 1 : 0 })} ms`;
+const fmtDur = s => !s ? '–' : s < 60 ? `${s} s` : s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${(s / 3600).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: 1 })} h` : t('{d} Tage {h} h', { d: Math.floor(s / 86400), h: Math.floor(s % 86400 / 3600) });
+const pctCls = p => p == null ? 'muted' : p >= 99.9 ? 'okc' : p >= 98 ? 'warnc' : 'errtxt';
+const fmtPct = a => a ? `<span class="${pctCls(a.pct)}">${a.pct.toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: a.pct >= 99.9 ? 2 : 1 })} %</span>` : '<span class="muted">–</span>';
+const fwBadge = fw => !fw ? '' : fw.update ? `<span class="badge fwup" title="${h(t('Update verfügbar'))}">⬆ ${h(fw.latest || t('Update'))}</span>` : '';
 
 function rangeButtons(cur) {
   return `<span class="ranges">${RANGES.map(([s, n]) => `<button type="button" class="sm ${s === cur ? 'on' : ''}" data-range="${s}">${t(n)}</button>`).join('')}</span>`;
@@ -194,6 +199,7 @@ async function tabIntegrations(ctx) {
     }
   }
   // Ansicht aktuell halten, solange der Reiter offen ist
+  { const hb = document.createElement('div'); hb.style.marginTop = '16px'; ctx.el.appendChild(hb); healthPanel(ctx, hb); }
   { const qb = document.createElement('div'); qb.style.marginTop = '16px'; ctx.el.appendChild(qb); quarantinePanel(ctx, qb); }
   { const sb = document.createElement('div'); sb.className = 'panel'; sb.style.marginTop = '16px'; sb.innerHTML = `<h3>${t('Zeitpläne')}</h3><div></div>`; ctx.el.appendChild(sb); scheduleList(ctx, sb.lastElementChild); }
   { const box = document.createElement('div'); box.id = 'recentact'; box.style.marginTop = '16px'; ctx.el.appendChild(box); recentActions(ctx, box); }
@@ -328,6 +334,46 @@ async function scheduleList(ctx, el, did = 0) {
     if (!await confirmDlg(t('Zeitplan löschen'), t('Diesen Zeitplan löschen?'), t('Löschen'))) return;
     await api('DELETE', `/api/profiles/${ctx.pid}/schedules/${b.dataset.sd}`); scheduleList(ctx, el, did);
   });
+}
+
+async function healthPanel(ctx, el) {
+  let r;
+  try { r = await api('GET', `/api/profiles/${ctx.pid}/health`); } catch { return; }
+  if (!r.devices.length) { el.innerHTML = ''; return; }
+  const ups = r.devices.filter(d => d.firmware?.update);
+  const show = r.devices.slice(0, tabIntegrations.healthAll ? 500 : 15);
+  el.innerHTML = `<div class="panel"><div class="row between"><h3 style="margin:0">${t('Erreichbarkeit & Firmware')}</h3>
+      <span class="muted small">${ups.length ? `<span class="warnc">${ups.length === 1 ? t('1 Firmware-Update verfügbar') : t('{n} Firmware-Updates verfügbar', { n: ups.length })}</span>` : t('Firmware aktuell, soweit bekannt')}</span></div>
+    <div class="table-wrap"><table class="compact"><thead><tr><th>${t('Gerät')}</th><th>24 h</th><th>7 ${t('Tage')}</th><th>${t('Ausfälle')}</th><th>${t('Ø Antwortzeit')}</th><th>${t('Firmware')}</th></tr></thead><tbody>
+      ${show.map(d => `<tr><td><span class="dot ${d.online === 1 ? 'on' : d.online === 0 ? 'off' : ''}"></span> <a href="#" data-hdev="${d.id}">${h(d.name)}</a></td>
+        <td class="mono small">${fmtPct(d.a24)}</td><td class="mono small">${fmtPct(d.a7)}</td>
+        <td class="mono small">${d.a24 ? d.a24.outages : '–'}${d.a7 && d.a7.outages ? ` <span class="muted">(${t('7 T')}: ${d.a7.outages})</span>` : ''}</td>
+        <td class="mono small">${fmtMs(d.rtt)}</td><td class="small">${d.firmware ? `<span class="mono">${h(d.firmware.installed || '')}</span> ${fwBadge(d.firmware)}` : ''}</td></tr>`).join('')}
+    </tbody></table></div>
+    ${r.devices.length > 15 ? `<button class="sm link" data-hall>${tabIntegrations.healthAll ? t('weniger anzeigen') : t('alle {n} anzeigen', { n: r.devices.length })}</button>` : ''}
+    <p class="muted small">${t('Verfügbarkeit aus der Online-Überwachung (nur der überwachte Zeitraum zählt), Antwortzeit als Mittel der letzten 24 Stunden. Firmware-Angaben liefern FRITZ!Box, ASUS, MikroTik, UniFi, Omada und Proxmox.')}</p></div>`;
+  $$('[data-hdev]', el).forEach(a => a.onclick = ev => { ev.preventDefault(); deviceDialog(ctx, +a.dataset.hdev); });
+  const all = $('[data-hall]', el); if (all) all.onclick = () => { tabIntegrations.healthAll = !tabIntegrations.healthAll; healthPanel(ctx, el); };
+}
+
+async function deviceHealth(ctx, did, el) {
+  let r;
+  try { r = await api('GET', `/api/profiles/${ctx.pid}/devices/${did}/health`); } catch { el.innerHTML = ''; return; }
+  const a = r.availability, fw = r.firmware;
+  if (!a['24'] && !a['168'] && !fw && r.rtt_24h == null) { el.innerHTML = ''; return; }
+  const cell = (x, label) => `<div class="hcell"><span class="muted small">${t(label)}</span><b class="mono">${fmtPct(x)}</b>${x ? `<span class="small muted">${x.outages === 1 ? t('1 Ausfall') : t('{n} Ausfälle', { n: x.outages })}${x.longest_s ? ' · ' + t('längster {d}', { d: fmtDur(x.longest_s) }) : ''}</span>` : ''}</div>`;
+  el.innerHTML = `<h4>${t('Erreichbarkeit & Firmware')}</h4>
+    ${fw ? `<p class="small">${t('Firmware')}: <b class="mono">${h(fw.installed || '–')}</b> ${fw.update ? `${fwBadge(fw)}${fw.info ? ` <a href="${h(fw.info)}" target="_blank" rel="noopener">${t('Hinweise des Herstellers')}</a>` : ''}`
+      : fw.update === false ? `<span class="okc">${t('aktuell')}</span>` : ''} <span class="muted">· ${t('Quelle')}: ${h(fw.source)}</span></p>` : ''}
+    ${a['24'] || a['168'] ? `<div class="hcells">${cell(a['24'], '24 Stunden')}${cell(a['168'], '7 Tage')}${cell(a['720'], '30 Tage')}
+      <div class="hcell"><span class="muted small">${t('Ø Antwortzeit (24 h)')}</span><b class="mono">${fmtMs(r.rtt_24h)}</b></div></div>` : ''}
+    ${r.rtt_24h != null ? `<div class="row between" style="margin-top:8px"><b class="small">${t('Antwortzeit')}</b>${rangeButtons(deviceHealth.since || 86400)}</div><div class="chartbox"></div>` : ''}`;
+  const ch = $('.chartbox', el);
+  if (ch) {
+    const draw = () => drawChart(ch, ctx.pid, [`d${did}:rtt`], [t('Antwortzeit')], deviceHealth.since || 86400, { fmt: fmtMs, height: 120 }).catch(() => { });
+    $$('[data-range]', el).forEach(b => b.onclick = () => { deviceHealth.since = +b.dataset.range; $$('[data-range]', el).forEach(x => x.classList.toggle('on', x === b)); draw(); });
+    draw();
+  }
 }
 
 async function quarantinePanel(ctx, el) {

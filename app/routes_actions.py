@@ -152,3 +152,20 @@ def history_csv(pid: int, days: int = 30, user=Depends(require_user)):
                     x.get("source") or "", x.get("user") or ""])
     return Response("\ufeff" + buf.getvalue(), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="diktyo-verlauf-{pid}.csv"'})
+
+
+# ------------------------------------------------------------ Erreichbarkeit und Firmware
+@router.get("/health")
+def health_overview(pid: int, user=Depends(require_user)):
+    from . import health
+    with db() as c:
+        profile_access(c, user, pid)
+        return dict(devices=health.overview(c, pid))
+
+
+@router.get("/devices/{did}/health")
+def health_device(pid: int, did: int, user=Depends(require_user)):
+    from . import health
+    with db() as c:
+        profile_access(c, user, pid)
+        return health.device(c, pid, did)

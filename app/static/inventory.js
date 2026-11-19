@@ -155,7 +155,7 @@ async function deviceDialog(ctx, did) {
     ${d && d.configs?.length ? configTable(d) : ''}
     ${d && d.ips?.length ? `<div id="svcbox">${servicesBox(d, ctx.canEdit)}</div>` : ''}
     ${d && ctx.isOwner ? '<div id="actbox"></div>' : ''}
-    ${d ? '<div id="histbox"></div>' : ''}
+    ${d ? '<div id="healthbox"></div><div id="histbox"></div>' : ''}
     ${d && d.connected.length ? `<h4>${t('Verbundene Geräte')} (${d.connected.length})</h4><div class="table-wrap"><table class="compact"><thead><tr><th>${t('Name')}</th><th>${t('Verbindung')}</th><th>${t('IP')}</th><th>${t('MAC')}</th></tr></thead><tbody>
       ${d.connected.map(k => `<tr><td>${h(k.name)}</td><td>${t(MEDIUM_SHORT[k.medium])}${k.port_name ? ' · ' + t('Port') + ' ' + h(k.port_name) : ''}</td><td class="mono">${h(k.ip)}</td><td class="mono">${h(k.mac)}</td></tr>`).join('')}
       </tbody></table></div>` : ''}`;
@@ -171,6 +171,7 @@ async function deviceDialog(ctx, did) {
       $$('[data-diff]', f).forEach(b => b.onclick = () => showDiff(ctx.pid, b.dataset.diff, b.dataset.prev));
       if (d && $('#svcbox', f)) bindServices(ctx, d, $('#svcbox', f));
       if (d && $('#actbox', f)) actionsBox(ctx, d.id, $('#actbox', f));
+      if (d && $('#healthbox', f)) deviceHealth(ctx, d.id, $('#healthbox', f));
       if (d && $('#histbox', f)) deviceHistory(ctx, d.id, $('#histbox', f));
       const bindIps = () => $$('[data-rmip]', f).forEach(b => b.onclick = () => b.closest('.iprow').remove());
       bindIps();

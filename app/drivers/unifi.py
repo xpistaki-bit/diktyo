@@ -93,7 +93,8 @@ def normalize(sites):
             dev = dict(mac=mac(d.get("macAddress")), ip=d.get("ipAddress") or "", name=d.get("name") or d.get("model") or "",
                        model=d.get("model") or "", type=typ, online=d.get("state") == "ONLINE",
                        uplink_mac=by_id.get((d.get("uplink") or {}).get("deviceId"), ""), uplink_port=None, clients=0,
-                       firmware=d.get("firmwareVersion") or "", ports=ports)
+                       firmware=d.get("firmwareVersion") or "", ports=ports,
+                       firmware_info=dict(installed=d.get("firmwareVersion") or "", latest="", update=bool(d.get("firmwareUpdatable"))))
             devices.append(dev)
             st = stats.get(d.get("id")) or {}
             up = st.get("uplink") or {}

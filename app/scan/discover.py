@@ -31,6 +31,23 @@ async def ping(ip, timeout=1.0):
         return False
 
 
+async def ping_rtt(ip, timeout=1.0):
+    """Ein Ping mit Antwortzeit. -> Millisekunden oder None"""
+    import re
+    try:
+        import os
+        p = await asyncio.create_subprocess_exec("ping", "-n", "-c", "1", "-W", str(max(1, int(timeout))), ip,
+                                                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                                 env={**os.environ, "LC_ALL": "C", "LANG": "C"})  # „time=“ statt „Zeit=“
+        out, _ = await p.communicate()
+    except (FileNotFoundError, PermissionError):
+        return None
+    if p.returncode != 0:
+        return None
+    m = re.search(rb"(?:time|zeit)[=<]([\d.]+)\s*ms", out, re.I)
+    return float(m.group(1)) if m else 0.0
+
+
 async def tcp(ip, port, timeout=0.8):
     try:
         _, w = await asyncio.wait_for(asyncio.open_connection(ip, port), timeout)

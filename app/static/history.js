@@ -1,6 +1,6 @@
 'use strict';
 /* Änderungsverlauf: Kurzfassung, Filter, Zeitleiste nach Tagen; kompakter Verlauf im Gerätedialog. */
-const HIST_FIELD = { name: 'Name', type: 'Typ', status: 'Status', model: 'Modell', location: 'Standort', ips: 'IP-Adresse', mac: 'MAC', uplink: 'Anschluss', ports: 'Offene Ports' };
+const HIST_FIELD = { name: 'Name', type: 'Typ', status: 'Status', model: 'Modell', location: 'Standort', ips: 'IP-Adresse', mac: 'MAC', uplink: 'Anschluss', ports: 'Offene Ports', firmware: 'Firmware' };
 const HIST_SOURCE = { user: 'von Hand', scan: 'Netzscan', fritzbox: 'FRITZ!Box', snmp: 'Switch (SNMP)', asuswrt: 'ASUS', proxmox: 'Proxmox',
   homeassistant: 'Home Assistant', omada: 'Omada', unifi: 'UniFi', mikrotik: 'MikroTik', nmap: 'Dienste-Scan', monitor: 'Überwachung', '': 'Abgleich' };
 const HIST_KINDS = [['change', 'Änderungen'], ['status', 'Online/Offline'], ['action', 'Aktionen'], ['config', 'Konfiguration'], ['quarantine', 'Quarantäne']];

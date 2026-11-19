@@ -34,7 +34,7 @@ def build(c, pid, expanded=(), status="confirmed"):
     def node_of(d, depth):
         return dict(id=f"d{d['id']}", device_id=d["id"], kind="device", name=d["name"], type=d["type"], ip=(d["ips"] or [{}])[0].get("address", ""),
                     mac=d["mac"], online=d["online"], last_seen=d["last_seen"], model=" ".join(x for x in (d["manufacturer"], d["model"]) if x),
-                    ports_total=d["ports_total"], ports_used=d["ports_used"], location=d["location"], depth=depth)
+                    ports_total=d["ports_total"], ports_used=d["ports_used"], location=d["location"], depth=depth, fw_update=d.get("fw_update", False))
 
     def place(d, depth):
         n = node_of(d, depth)

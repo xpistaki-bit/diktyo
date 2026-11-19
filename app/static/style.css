@@ -389,3 +389,10 @@ ul.hist .hi{text-align:center;color:var(--dim)}
 ul.hist li.hc-status.hk-offline .hi{color:var(--err)} ul.hist li.hc-status.hk-online .hi{color:var(--ok)}
 ul.hist li.hc-change.hk-created .hi{color:var(--cyan)} ul.hist li.hc-quarantine .hi{color:var(--warn,#ffb84d)}
 .hist-dev{max-height:260px;overflow:auto}
+
+/* ---- Erreichbarkeit & Firmware ---- */
+.hcells{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.hcell{border:1px solid var(--line);border-radius:8px;padding:6px 10px;display:flex;flex-direction:column;gap:2px;background:rgba(2,8,20,.5)}
+.hcell b{font-size:17px}
+.badge.fwup{border-color:rgba(255,184,77,.6);color:var(--warn,#ffb84d)}
+.tn-fw{fill:var(--warn,#ffb84d);font-size:13px;font-weight:700}

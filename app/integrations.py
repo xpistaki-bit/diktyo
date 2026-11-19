@@ -64,7 +64,8 @@ def poll(iid, log=print):
         if not row:
             return None
         summary = APPLY[row["driver"]](c, row, res)
-        from . import changes
+        from . import changes, health
+        health.apply_result(c, row, res, summary)
         changes.sync(c, row["profile_id"], row["driver"])
         if summary.get("device_id"):
             runner._set_online(c, summary["device_id"], 1, now(), row["driver"])
@@ -524,7 +525,8 @@ def _publish_ha(c, row, conf):
     # Ereignisse
     msgs.append((f"{disc}/event/diktyo_{pid}_events/config", dict(
         name="Ereignis", unique_id=f"diktyo_{pid}_events", state_topic=f"{base}/event", device=hub, icon="mdi:bell-ring",
-        event_types=["device_offline", "device_online", "new_device", "action_undo_failed", "quarantined", "schedule_failed"]), True))
+        event_types=["device_offline", "device_online", "new_device", "action_undo_failed", "quarantined", "schedule_failed",
+                     "firmware_update"]), True))
     evs = c.execute("SELECT * FROM events WHERE profile_id=? AND delivered='' ORDER BY id LIMIT 200", (pid,)).fetchall()
     for e in evs:
         d = json.loads(e["data"] or "{}")
