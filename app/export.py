@@ -90,7 +90,7 @@ def topology_svg(c, pid, lang="de"):
         a, b = by[e["source"]], by[e["target"]]
         x1, y1, x2, y2 = a["x"] + NW + PAD, a["y"] + PAD, b["x"] + PAD, b["y"] + PAD
         mx = (x1 + x2) / 2
-        col, dash = PRINT_STYLE.get(e["medium"], PRINT_STYLE["lan"])
+        col, dash = PRINT_STYLE.get(e["medium"], ("#0091A8", "") if e["medium"] == "wan" else PRINT_STYLE["lan"])
         out.append(f'<path d="M{x1},{y1} C{mx},{y1} {mx},{y2} {x2},{y2}" fill="none" stroke="{col}" stroke-width="1.6" stroke-dasharray="{dash}"/>')
         if e["label"]:
             out.append(f'<text x="{x1 + 6}" y="{y1 - 4}" font-size="10" fill="#56708A">{esc(e["label"])}</text>')
@@ -98,6 +98,12 @@ def topology_svg(c, pid, lang="de"):
         out.append(f'<text x="{PAD}" y="{t["loose_from"] + PAD - NH / 2 - 8}" font-size="11" font-weight="bold" fill="#56708A">{esc(tr("loose", lang).upper())}</text>')
     for n in t["nodes"]:
         x, y = n["x"] + PAD, n["y"] + PAD - NH / 2
+        if n["kind"] == "internet":
+            st = {1: ("verbunden", "connected"), 0: ("getrennt", "disconnected")}.get(n["online"], ("Status unbekannt", "status unknown"))[1 if lang == "en" else 0]
+            out.append(f'<rect x="{x}" y="{y}" width="{NW}" height="{NH}" rx="24" fill="#EAF7FB" stroke="#0091A8"/>'
+                       f'<text x="{x + 14}" y="{y + 21}" font-size="13" font-weight="bold" fill="#0A1A33">Internet</text>'
+                       f'<text x="{x + 14}" y="{y + 37}" font-size="10" fill="#56708A">{esc(st)}</text>')
+            continue
         if n["kind"] == "group":
             col = PRINT_STYLE.get(n["medium"], PRINT_STYLE["lan"])[0]
             label = tr("group_wlan" if n["medium"] != "virtual" else "group_virtual", lang, n=n["count"])

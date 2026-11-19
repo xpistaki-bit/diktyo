@@ -324,3 +324,22 @@ pre.diff{font:12px/1.5 var(--mono);background:rgba(2,8,20,.8);border:1px solid v
 pre.diff .add{color:var(--ok);background:rgba(46,229,157,.08);display:inline-block;width:100%}
 pre.diff .del{color:var(--err);background:rgba(255,77,106,.08);display:inline-block;width:100%}
 pre.diff .hunk{color:var(--blue)}
+
+/* ---- Topologie: Vollbild und Internet ---- */
+.topo-box.full{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--bg);padding:10px 14px;display:flex;flex-direction:column}
+.topo-box.full .topo-wrap{flex:1;min-height:0}
+.topo-box.full .topo{height:100%;max-height:none}
+.topo-box.full .topo-side{max-height:100%}
+body.topo-fs main{overflow:hidden}
+.tn.inet .tn-box{fill:rgba(0,229,255,.08);stroke:var(--cyan)}
+.tn.inet.on .tn-box{stroke:var(--ok);filter:drop-shadow(0 0 8px rgba(46,229,157,.45))}
+.tn.inet.off .tn-box{stroke:var(--err);filter:drop-shadow(0 0 8px rgba(255,77,106,.5))}
+.tn.inet{cursor:default}
+path.wan{fill:none;stroke-width:2.6}
+path.wan.up{stroke:var(--ok);stroke-dasharray:10 7;animation:wanflow 1.2s linear infinite;filter:drop-shadow(0 0 4px rgba(46,229,157,.6))}
+path.wan.down{stroke:var(--err);stroke-dasharray:5 6}
+path.wan.unk{stroke:var(--dim);stroke-dasharray:3 5}
+@keyframes wanflow{to{stroke-dashoffset:-34}}
+.wanlabel{fill:var(--ink);font:600 13px var(--mono);paint-order:stroke;stroke:var(--bg);stroke-width:4px}
+@media (prefers-reduced-motion: reduce){path.wan.up{animation:none}}
+.wanlabel.up{fill:var(--dim)}

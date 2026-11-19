@@ -7,6 +7,7 @@ from . import inventory
 
 COLW, ROWH = 280, 64           # Abstand der Spalten und Zeilen (Einheiten der Zeichnung)
 NODE_W, NODE_H = 220, 48
+INET_GAP = 110                 # zusätzlicher Platz für die Traffic-Anzeige an der Internet-Leitung
 COLLAPSE = {"wlan": 4, "virtual": 5}  # ab so vielen Kindern derselben Art zusammenfassen
 ROOT_ORDER = ("modem", "router", "firewall", "switch", "mesh", "ap", "hypervisor", "server", "nas")
 
@@ -80,7 +81,38 @@ def build(c, pid, expanded=(), status="confirmed"):
         row[0] += 0.6
         for d in sorted(loose, key=_rank):
             place(d, 0)
-    width = (max([n["depth"] for n in nodes] or [0]) + 1) * COLW
+    internet = _internet(c, pid, devs, [d for d in linked if d["type"] in ("modem", "router", "firewall")])
+    if internet:
+        # Internet als eigene Spalte vor dem WAN-Router; alles andere rückt eine Spalte nach rechts
+        for n in nodes:
+            n["x"] += COLW + INET_GAP
+            n["depth"] += 1
+        wan_nodes = [n for n in nodes if n.get("device_id") in internet["routers"]]
+        y = (min(n["y"] for n in wan_nodes) + max(n["y"] for n in wan_nodes)) / 2 if wan_nodes else 0
+        nodes.insert(0, dict(id="internet", kind="internet", name="Internet", x=0, y=y, depth=0, online=internet["connected"],
+                             rx_bps=internet["rx_bps"], tx_bps=internet["tx_bps"], max_down=internet["max_down"], max_up=internet["max_up"],
+                             source=internet["source"], uptime=internet["uptime"], updated=internet["updated"]))
+        for n in wan_nodes:
+            edges.insert(0, dict(source="internet", target=n["id"], medium="wan", label="", connected=internet["connected"],
+                                 rx_bps=internet["rx_bps"], tx_bps=internet["tx_bps"]))
+    width = (max([n["depth"] for n in nodes] or [0]) + 1) * COLW + (INET_GAP if internet else 0)
     height = max(row[0], 1) * ROWH
     return dict(nodes=nodes, edges=edges, width=width, height=height, node_w=NODE_W, node_h=NODE_H,
                 loose_from=(loose_start + 0.6) * ROWH if loose else None, total=len(devs))
+
+
+def _internet(c, pid, devs, root_routers):
+    """Internet-Knoten: verbunden mit dem Gerät der FRITZ!Box-Integration (mit WAN-Status und Traffic),
+    sonst mit den Routern/Modems ohne Uplink (Status unbekannt)."""
+    import json
+    for r in c.execute("SELECT * FROM integrations WHERE profile_id=? AND driver='fritzbox' AND enabled=1 ORDER BY id", (pid,)):
+        st = json.loads(r["state"] or "{}")
+        wan = (st.get("result") or {}).get("wan") or {}
+        if r["device_id"] in devs:
+            return dict(routers={r["device_id"]}, connected=1 if wan.get("connected") else (0 if wan.get("connected") is False else None),
+                        rx_bps=wan.get("rx_bps"), tx_bps=wan.get("tx_bps"), max_down=wan.get("max_down"), max_up=wan.get("max_up"),
+                        uptime=wan.get("uptime"), source=r["name"], updated=r["last_ok"])
+    if root_routers:
+        return dict(routers={d["id"] for d in root_routers}, connected=None, rx_bps=None, tx_bps=None, max_down=None, max_up=None,
+                    uptime=None, source="", updated=None)
+    return None

@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from pypdf import PdfReader
 
 from app import main, users
-from app.db import db
+from app.db import db, now
 
 H = {"X-Requested-With": "diktyo"}
 
@@ -51,13 +51,30 @@ def test_topology_tree_and_groups():
     assert e["source"] == f"d{d['fb']['id']}" and e["label"] == "LAN 3" and e["medium"] == "lan"
     assert next(e for e in t["edges"] if e["target"] == f"d{d['ap']['id']}")["label"] == "1"
     # Spalten = Tiefe, Eltern mittig zu ihren Kindern
-    assert nodes[f"d{d['fb']['id']}"]["x"] == 0 and nodes[f"d{d['sw']['id']}"]["x"] == 280 and nodes[f"d{d['ap']['id']}"]["x"] == 560
+    # (Spalte 0 = Internet, ohne FRITZ!Box-Integration mit unbekanntem Status am Router)
+    assert nodes["internet"]["x"] == 0 and nodes["internet"]["online"] is None
+    assert nodes[f"d{d['fb']['id']}"]["x"] == 390 and nodes[f"d{d['sw']['id']}"]["x"] == 670 and nodes[f"d{d['ap']['id']}"]["x"] == 950
+    assert any(e["source"] == "internet" and e["target"] == f"d{d['fb']['id']}" and e["medium"] == "wan" for e in t["edges"])
     # Drucker ohne Verbindung steht unten in eigenem Bereich
     pr = next(n for n in t["nodes"] if n.get("name") == "Drucker")
     assert t["loose_from"] is not None and pr["y"] >= t["loose_from"] - 1
     # Gruppe aufklappen
     t2 = cl.get(f"{P}/topology?expanded={d['ap']['id']}:wlan").json()
     assert not [n for n in t2["nodes"] if n["kind"] == "group"] and sum(1 for n in t2["nodes"] if n.get("type") == "phone") == 6
+
+
+def test_internet_node_from_fritzbox():
+    import json
+    cl, pid, P, d = setup_net()
+    with db() as c:
+        c.execute("INSERT INTO integrations(profile_id, driver, name, host, secret, options, device_id, state, created, last_ok) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                  (pid, "fritzbox", "FRITZ!Box", "192.0.2.1", "", "{}", d["fb"]["id"],
+                   json.dumps({"result": {"wan": {"connected": True, "rx_bps": 52_000_000, "tx_bps": 4_000_000, "max_down": 1_000_000_000}}}), now(), now()))
+    t = cl.get(f"{P}/topology").json()
+    inet = next(n for n in t["nodes"] if n["id"] == "internet")
+    e = next(e for e in t["edges"] if e["source"] == "internet")
+    assert inet["online"] == 1 and inet["source"] == "FRITZ!Box" and e["connected"] == 1 and e["rx_bps"] == 52_000_000 and e["target"] == f"d{d['fb']['id']}"
+    assert cl.get(f"{P}/export/report.pdf?sections=topology").content.startswith(b"%PDF")
 
 
 def test_quick_ping_and_pdf():

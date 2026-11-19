@@ -134,6 +134,9 @@ Zählern, WAN-Traffic und der Ereignis-Entität. Für Handy-Benachrichtigungen d
 - Doppelklick auf einen Switch oder Router öffnet die **Frontplatte** mit allen Ports. Klick auf einen Port zeigt das
   angeschlossene Gerät mit IP und MAC (mit SNMP auch Link, Traffic und LLDP).
 - *Schnell-Ping* prüft alle Geräte sofort.
+- **Internet:** Links steht die Weltkugel, verbunden mit dem Router. Mit FRITZ!Box-Integration zeigt sie, ob die
+  Internetverbindung steht (grün animiert bzw. rot), und an der Leitung den aktuellen Traffic ↓/↑ – alle 30 s aktuell.
+- *Vollbild* vergrößert die Topologie auf den ganzen Bildschirm unter der Kopfzeile; *Normalgröße* oder Esc schaltet zurück.
 
 ## 7. Konfigurations-Backups der Geräte
 

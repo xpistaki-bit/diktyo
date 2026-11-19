@@ -27,7 +27,26 @@ const ICON = {  // 24×24, Linien
   console: 'M6 9h12a4 4 0 0 1 0 8H6a4 4 0 0 1 0-8zM8 13h3M9.5 11.5v3M16 12h.01M18 14h.01',
   ups: 'M5 3h14v18H5zM13 7l-3 5h4l-3 5',
   other: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zM12 16h.01M10 9a2 2 0 1 1 3 2c-1 .5-1 1-1 2',
+  globe: 'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zM2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20M4.5 6.5h15M4.5 17.5h15',
 };
+/* Vollbild: Topologie füllt den Bildschirm unter der Kopfzeile */
+function fullscreenToggle(box, btn, onChange) {
+  const set = on => {
+    box.classList.toggle('full', on);
+    box.style.top = on ? `${$('.bar').getBoundingClientRect().bottom}px` : '';
+    btn.textContent = on ? t('Normalgröße') : t('Vollbild');
+    btn.title = on ? t('Zurück zur Normalgröße (Esc)') : t('Topologie auf den ganzen Bildschirm vergrößern');
+    document.body.classList.toggle('topo-fs', on);
+    tabTopology.full = on;
+    onChange && onChange();
+  };
+  btn.onclick = () => set(!box.classList.contains('full'));
+  const esc = ev => { if (ev.key === 'Escape' && box.classList.contains('full') && !$('#dlg').open) set(false); };
+  document.addEventListener('keydown', esc);
+  const obs = new MutationObserver(() => { if (!document.body.contains(box)) { document.removeEventListener('keydown', esc); document.body.classList.remove('topo-fs'); obs.disconnect(); } });
+  obs.observe(document.body, { childList: true, subtree: true });
+  if (tabTopology.full) set(true);
+}
 const icon = (type, x, y, s = 22) => `<g transform="translate(${x},${y}) scale(${s / 24})"><path d="${ICON[type] || ICON.other}" class="ico"/></g>`;
 const statusCls = o => o == null ? 'unk' : o ? 'on' : 'off';
 const esc = s => h(s);  // h kommt aus app.js, das nach dieser Datei geladen wird
@@ -75,14 +94,14 @@ async function tabTopology(ctx) {
   }
   const NW = data.node_w, NH = data.node_h, PAD = 40;
   const VW = Math.max(900, data.width + PAD * 2), VH = Math.max(420, data.height + PAD * 2);
-  ctx.el.innerHTML = `<div class="toolbar topo-tools">
+  ctx.el.innerHTML = `<div class="topo-box" id="tbox"><div class="toolbar topo-tools">
       <button class="pri sm" id="qping">${t('Schnell-Ping')}</button>
       <button class="sm" id="expall">${t('Alle Gruppen aufklappen')}</button><button class="sm" id="colall">${t('Alle zuklappen')}</button>
       <span class="grow"></span>
       <span class="legend topo-legend">${Object.entries(MSTYLE).map(([k, [c, d]]) => `<span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="${c}" stroke-width="2" stroke-dasharray="${d}"/></svg>${t(MEDIUM_SHORT[k])}</span>`).join('')}</span>
       <button class="sm" id="zout" title="${t('Verkleinern')}">−</button><button class="sm" id="zfit">${t('Einpassen')}</button><button class="sm" id="zin" title="${t('Vergrößern')}">+</button>
-      <span class="muted small" id="stamp"></span></div>
-    <div class="topo-wrap"><svg id="topo" viewBox="0 0 ${VW} ${VH}" class="topo"><g id="vp"></g></svg><aside class="topo-side panel" id="side" hidden></aside></div>`;
+      <span class="muted small" id="stamp"></span><button class="sm" id="fs">${t('Vollbild')}</button></div>
+    <div class="topo-wrap"><svg id="topo" viewBox="0 0 ${VW} ${VH}" class="topo"><g id="vp"></g></svg><aside class="topo-side panel" id="side" hidden></aside></div></div>`;
   const svg = $('#topo', ctx.el), vp = $('#vp', ctx.el);
   const byId = Object.fromEntries(data.nodes.map(n => [n.id, n]));
   const draw = () => {
@@ -90,12 +109,30 @@ async function tabTopology(ctx) {
       const a = byId[e.source], b = byId[e.target];
       if (!a || !b) return '';
       const x1 = a.x + NW + PAD, y1 = a.y + PAD, x2 = b.x + PAD, y2 = b.y + PAD, mx = (x1 + x2) / 2;
+      if (e.medium === 'wan') {
+        const cls = e.connected === 1 ? 'wan up' : e.connected === 0 ? 'wan down' : 'wan unk';
+        const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+        const lbl = e.rx_bps != null
+          ? `<text x="${cx}" y="${cy - 9}" text-anchor="middle" class="wanlabel">↓ ${esc(fmtBps(e.rx_bps))}</text>
+             <text x="${cx}" y="${cy + 19}" text-anchor="middle" class="wanlabel up">↑ ${esc(fmtBps(e.tx_bps))}</text>`
+          : e.connected === 0 ? `<text x="${cx}" y="${cy - 9}" text-anchor="middle" class="wanlabel">${t('getrennt')}</text>` : '';
+        return `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" class="${cls}"/>${lbl}`;
+      }
       const [col, dash] = MSTYLE[e.medium] || MSTYLE.lan;
       return `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" fill="none" stroke="${col}" stroke-width="1.6" stroke-dasharray="${dash}" opacity=".85"/>
         ${e.label ? `<text x="${x1 + 8}" y="${y1 - 5}" class="elabel">${esc(e.label)}</text>` : ''}${e.child_label ? `<text x="${x2 - 8}" y="${y2 - 5}" class="elabel" text-anchor="end">${esc(e.child_label)}</text>` : ''}`;
     }).join('');
     const nodes = data.nodes.map(n => {
       const x = n.x + PAD, y = n.y + PAD - NH / 2;
+      if (n.kind === 'internet') {
+        const st = n.online === 1 ? t('verbunden') : n.online === 0 ? t('getrennt') : t('Status unbekannt');
+        return `<g class="tn inet ${statusCls(n.online)}" data-id="internet" transform="translate(${x},${y})">
+          <rect width="${NW}" height="${NH}" rx="24" class="tn-box"/>${icon('globe', 12, 12, 24)}
+          <text x="46" y="21" class="tn-name">${t('Internet')}</text>
+          <text x="46" y="37" class="tn-sub">${esc(st)}${n.max_down ? ` · ${fmtBps(n.max_down)}` : ''}</text>
+          <circle cx="${NW - 16}" cy="${NH / 2}" r="5" class="tn-dot"/>
+          <title>${esc(n.source ? t('Quelle: {n}', { n: n.source }) : t('Kein WAN-Status – FRITZ!Box-Integration einrichten'))}</title></g>`;
+      }
       if (n.kind === 'group') {
         const [col] = MSTYLE[n.medium] || MSTYLE.lan;
         return `<g class="tg" data-id="${n.id}" transform="translate(${x},${y})"><rect width="${NW}" height="${NH}" rx="8" class="tg-box" style="stroke:${col}"/>
@@ -113,12 +150,12 @@ async function tabTopology(ctx) {
     }).join('');
     const sep = data.loose_from ? `<text x="${PAD}" y="${data.loose_from + PAD - NH / 2 - 10}" class="tsep">${t('Ohne Verbindung')}</text>` : '';
     vp.innerHTML = edges + sep + nodes;
-    $$('.tn', vp).forEach(g => g.addEventListener('click', ev => {
+    $$('.tn:not(.inet)', vp).forEach(g => g.addEventListener('click', ev => {
       const c = ev.target.closest('[data-collapse]');
       if (c) { exp.delete(`${c.dataset.collapse}:wlan`); exp.delete(`${c.dataset.collapse}:virtual`); return ctx.reload(); }
       side(+g.dataset.dev);
     }));
-    $$('.tn', vp).forEach(g => g.addEventListener('dblclick', () => { const n = byId[g.dataset.id]; if (n.ports_total || n.children) location.hash = `#/p/${ctx.pid}/topologie/${n.device_id}`; }));
+    $$('.tn:not(.inet)', vp).forEach(g => g.addEventListener('dblclick', () => { const n = byId[g.dataset.id]; if (n.ports_total || n.children) location.hash = `#/p/${ctx.pid}/topologie/${n.device_id}`; }));
     $$('.tg', vp).forEach(g => g.addEventListener('click', () => { const n = byId[g.dataset.id]; exp.add(`${n.parent}:${n.medium}`); ctx.reload(); }));
   };
   draw();
@@ -128,6 +165,7 @@ async function tabTopology(ctx) {
   };
   const st = tabTopology.view[ctx.pid] || (tabTopology.view[ctx.pid] = fit());
   const pz = panZoom(svg, vp, st, fit);
+  fullscreenToggle($('#tbox', ctx.el), $('#fs', ctx.el), () => setTimeout(() => pz.fit(), 50));
   $('#zin', ctx.el).onclick = () => pz.zoom(1.25); $('#zout', ctx.el).onclick = () => pz.zoom(1 / 1.25); $('#zfit', ctx.el).onclick = () => pz.fit();
   $('#expall', ctx.el).onclick = () => { data.nodes.filter(n => n.kind === 'group').forEach(n => exp.add(`${n.parent}:${n.medium}`)); ctx.reload(); };
   $('#colall', ctx.el).onclick = () => { exp.clear(); ctx.reload(); };
@@ -162,7 +200,8 @@ async function tabTopology(ctx) {
     try {
       const fresh = await api('GET', `${P}/topology?expanded=${[...exp].join(',')}`);
       if (fresh.nodes.length !== data.nodes.length) return ctx.reload();
-      fresh.nodes.forEach(n => { if (byId[n.id]) Object.assign(byId[n.id], { online: n.online, online_count: n.online_count }); });
+      fresh.nodes.forEach(n => { if (byId[n.id]) Object.assign(byId[n.id], { online: n.online, online_count: n.online_count, rx_bps: n.rx_bps, tx_bps: n.tx_bps }); });
+      fresh.edges.forEach(e => { const o = data.edges.find(x => x.source === e.source && x.target === e.target); if (o) Object.assign(o, e); });
       draw();
       $('#stamp', ctx.el).textContent = t('Stand {d}', { d: new Date().toLocaleTimeString(LANG === 'en' ? 'en-GB' : 'de-DE') });
     } catch { }
@@ -243,15 +282,16 @@ async function topoDetail(ctx, did) {
       <rect width="${CARD_W}" height="${CARD_H}" rx="6" class="${pe.direction === 'up' ? 'card-up' : ''}"/>${icon(pe.type || 'other', 8, 11, 20)}
       <text x="34" y="18" class="tn-name sm">${esc(pe.device_name.length > 14 ? pe.device_name.slice(0, 13) + '…' : pe.device_name)}</text>
       <text x="34" y="33" class="tn-sub sm">${pe.direction === 'up' ? '↑ ' + t('Uplink') : esc(pe.ip || '')}</text></g>`; }).join('')}`;
-  ctx.el.innerHTML = `<div class="toolbar"><a class="btn sm" href="#/p/${ctx.pid}/topologie">← ${t('Gesamtansicht')}</a><b>${esc(d.name)}</b>
+  ctx.el.innerHTML = `<div class="topo-box" id="tbox"><div class="toolbar"><a class="btn sm" href="#/p/${ctx.pid}/topologie">← ${t('Gesamtansicht')}</a><b>${esc(d.name)}</b>
       <span class="muted small">${ports.length ? t('{n} Ports, {m} belegt', { n: ports.length, m: ports.filter(p => p.peer).length }) : ''}${live ? ' · ' + t('Status per SNMP') : ''}</span>
-      <span class="grow"></span><button class="pri sm" id="pingall">${t('Schnell-Ping')}</button>
+      <span class="grow"></span><button class="pri sm" id="pingall">${t('Schnell-Ping')}</button><button class="sm" id="fs">${t('Vollbild')}</button>
       <span class="legend topo-legend"><span><i class="lg conn"></i>${t('belegt')}</span>${live ? `<span><i class="lg up"></i>${t('Link, Gerät unbekannt')}</span><span><i class="lg down"></i>${t('kein Link')}</span>` : `<span><i class="lg free"></i>${t('frei')}</span>`}</span></div>
     <div class="topo-wrap detail">${ports.length ? `<svg viewBox="0 0 ${VW} ${VH}" class="topo face">${svgBody}</svg>` : `<div class="panel empty-box">${t('Dieses Gerät hat keine Ports. Ports kommen aus dem Katalogmodell oder lassen sich im Gerätedialog anlegen.')}</div>`}
       <aside class="topo-side panel" id="side">${d.uplink && !d.uplink.local_port_id ? `<p class="small"><b>${t('Uplink')}:</b> ${esc(uplinkText(d.uplink))}</p>` : ''}
         ${[[t('WLAN / Mesh'), wl], [t('Virtuell'), vm], [t('LAN ohne Port'), wired]].filter(([, l]) => l.length).map(([n, l]) => `<details open><summary>${n} (${l.length})</summary>
           <ul class="clist">${l.map(k => `<li data-dev="${k.id}"><span class="dot ${statusCls(null)}"></span>${esc(k.name)} <span class="mono muted small">${esc(k.ip)}</span></li>`).join('')}</ul></details>`).join('')
-        || `<p class="muted small">${t('Klicke auf einen Port oder ein Gerät.')}</p>`}<div id="pinfo"></div></aside></div>`;
+        || `<p class="muted small">${t('Klicke auf einen Port oder ein Gerät.')}</p>`}<div id="pinfo"></div></aside></div></div>`;
+  fullscreenToggle($('#tbox', ctx.el), $('#fs', ctx.el));
   // Online-Status der Karten aus der Geräteliste
   const { devices } = await api('GET', `${P}/devices`);
   const on = Object.fromEntries(devices.map(x => [x.id, x.online]));
