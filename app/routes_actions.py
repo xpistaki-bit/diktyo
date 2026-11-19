@@ -118,3 +118,37 @@ def quarantine_release(pid: int, qid: int, user=Depends(require_user)):
     if res["status"] == "error":
         raise HTTPException(400, res["message"])
     return res
+
+
+# ------------------------------------------------------------ Änderungsverlauf
+@router.get("/history")
+def history(pid: int, device_id: int = 0, days: int = 7, kinds: str = "", q: str = "", user=Depends(require_user)):
+    import datetime as dt
+    from . import changes
+    days = max(1, min(365, days))
+    since = (dt.datetime.now().astimezone() - dt.timedelta(days=days)).isoformat(timespec="seconds")
+    with db() as c:
+        profile_access(c, user, pid)
+        items = changes.timeline(c, pid, device_id or None, since, [k for k in kinds.split(",") if k] or None, q[:80], limit=500)
+        return dict(items=items, summary=changes.summary(c, pid) if not device_id else None)
+
+
+@router.get("/history.csv")
+def history_csv(pid: int, days: int = 30, user=Depends(require_user)):
+    import csv
+    import datetime as dt
+    import io
+    from fastapi import Response
+    from . import changes
+    since = (dt.datetime.now().astimezone() - dt.timedelta(days=max(1, min(365, days)))).isoformat(timespec="seconds")
+    with db() as c:
+        profile_access(c, user, pid)
+        items = changes.timeline(c, pid, None, since, limit=20000)
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter=";")
+    w.writerow(["Zeit", "Art", "Gerät", "Feld", "Vorher", "Nachher", "Quelle", "Benutzer"])
+    for x in items:
+        w.writerow([x["ts"], f'{x["cat"]}:{x["kind"]}', x.get("device") or "", x.get("field") or "", x.get("old") or "", x.get("new") or "",
+                    x.get("source") or "", x.get("user") or ""])
+    return Response("\ufeff" + buf.getvalue(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="diktyo-verlauf-{pid}.csv"'})

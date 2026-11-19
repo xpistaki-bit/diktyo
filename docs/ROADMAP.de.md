@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.13.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.14.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt
@@ -22,6 +22,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Sicherung | Google Drive geführt verbinden (rclone, nur eigene Dateien) | 0.11.1 |
 | MikroTik | RouterOS 7 über REST: Ports, Clients, WLAN, Nachbarn, WAN, `/export`-Backup, Aktionen | 0.12 |
 | Automatisierung | Zeitpläne für Aktionen (Zeitfenster, nur an Übergängen), Quarantäne für neue Geräte | 0.13 |
+| Verlauf | Änderungsverlauf je Gerät und Profil mit Quelle, Zeitleiste, Kurzfassung „seit gestern“, CSV | 0.14 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan
 
@@ -29,7 +30,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 |---|---|---|
 | P2.4 | Weitere Integrationen: Netgear (Smart Switches/Router), devolo (Powerline), Docker-API | Docker zuerst: Container als virtuelle Geräte am Host, analog zu Proxmox |
 | P2.8 | Passive DHCP-Erkennung (Fingerprinting aus DHCP-Anfragen) | braucht einen Lauscher im Netz bzw. DHCP-Logs vom Router |
-| Phase 3 | Änderungsverlauf zwischen Scans | „Was ist seit gestern neu / weg / anders?“ je Profil und je Gerät |
+| ~~Phase 3~~ | ~~Änderungsverlauf zwischen Scans~~ | erledigt in 0.14 |
 | Phase 3 | Kabel- und Patchpanel-Dokumentation | Patchfelder, Dosen, Kabelnummern zwischen Port und Gerät |
 | Phase 3 | Prometheus-Endpunkt | Messwerte für Grafana |
 | Phase 3 | REST-API mit Tokens | für Skripte, Home Assistant, eigene Auswertungen |
@@ -80,7 +81,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 | Idee | Nutzen | Aufwand |
 |---|---|---|
 | ~~Neue unbekannte Geräte automatisch in „Quarantäne“~~ – erledigt in 0.13 | ★★★ | S |
-| Vergleich offener Ports über die Zeit („Port 23 ist neu offen“) | ★★ | S |
+| ~~Vergleich offener Ports über die Zeit~~ – im Verlauf seit 0.14 | ★★ | S |
 | Anmeldung an díktyo mit 2FA (TOTP) oder Passkey, Sitzungsverwaltung | ★★★ | M |
 | Audit-Log-Ansicht in der Oberfläche | ★ | S |
 
@@ -88,7 +89,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
-| Änderungsverlauf je Gerät (Timeline: neu, IP geändert, Port gewechselt, Konfig geändert) | ★★★ | M |
+| ~~Änderungsverlauf je Gerät~~ – erledigt in 0.14 | ★★★ | M |
 | Grundriss/Raumplan mit Geräten, Rack-Ansicht | ★★ | L |
 | Kabel und Patchpanels | ★★ | M |
 | Export nach draw.io / SVG / PNG, Netzplan als Poster-PDF | ★★ | S |
@@ -136,6 +137,5 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 ## 6. Vorschlag für die nächsten Schritte
 
 1. Rückmeldungen der Tester (UniFi, MikroTik) einarbeiten.
-2. **Änderungsverlauf** je Gerät und Profil (Phase 3) – macht aus der Doku eine Chronik.
-3. **Firmware-Hinweise** und **Latenz-/Verfügbarkeitsdiagramme** – mehr Monitoring ohne neue Hardware.
-4. **OPNsense/pfSense** und **Docker** als nächste Integrationen.
+2. **Firmware-Hinweise** und **Latenz-/Verfügbarkeitsdiagramme** – mehr Monitoring ohne neue Hardware.
+3. **OPNsense/pfSense** und **Docker** als nächste Integrationen.

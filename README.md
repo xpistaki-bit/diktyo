@@ -6,7 +6,7 @@ to be a slim, self-hosted alternative to NetBox for private users. It runs as a 
 file, either in a Proxmox LXC or in a Docker container, and is managed in the browser. The interface is available
 in German and English.
 
-> **Status: v0.13 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.14 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -146,6 +146,14 @@ without a connection are listed separately.
 - **Full screen** enlarges the topology to the whole window below the header; Esc returns to normal size.
 - **Internet:** a globe in front of the WAN router. With the FRITZ!Box (or UniFi) integration it shows whether the
   internet connection is up (animated green line or red) and the current traffic down/up on the line.
+
+## History
+
+The **History** tab shows what changed when and why: devices added or removed, name, type, status, model, location, IP
+addresses, MAC and connection (e.g. switch port 3 → 5), each with its source (by hand with the account, network scan,
+FRITZ!Box, SNMP, MikroTik, service scan …), plus online/offline, actions, new configuration versions, quarantine and
+open ports appearing or disappearing. A "since yesterday" summary, filters, search and CSV export; the device dialog
+shows the last 30 days. Roaming between Wi-Fi/mesh access points is not recorded. Kept for a year and included in backups.
 
 ## Network scan and identification
 

@@ -212,6 +212,21 @@ sich zwischen zwei Ständen geändert hat.
   automatische Anordnung wieder her.
 - *Vollbild* vergrößert die Topologie auf den ganzen Bildschirm unter der Kopfzeile; *Normalgröße* oder Esc schaltet zurück.
 
+### Verlauf
+
+Der Reiter **Verlauf** zeigt, was sich wann geändert hat – und wodurch:
+
+- **Geräte:** neu, gelöscht, Name, Typ, Status (Posteingang/bestätigt/ignoriert), Modell, Standort, IP-Adresse, MAC und
+  Anschluss (z. B. „XGS1935 · Port 3 → Port 5“). Bei jeder Zeile steht die Quelle: von Hand (mit Konto), Netzscan,
+  FRITZ!Box, Switch, MikroTik, Dienste-Scan …
+- **Dazu:** online/offline, Schaltaktionen, neue Konfigurationsstände, Quarantäne und neu geöffnete oder geschlossene
+  Ports aus dem Dienste-Scan.
+- Oben die **Kurzfassung seit gestern** (neu, gelöscht, geändert, IP-Wechsel, Anschlusswechsel, Ausfälle,
+  Konfigurationsstände, Port-Änderungen); darunter Zeitraum, Art und Suche; **CSV** zum Weiterverarbeiten.
+- Im **Gerätedialog** steht der Verlauf der letzten 30 Tage.
+- Wechselt ein Handy nur zwischen WLAN- bzw. Mesh-Zugangspunkten (Roaming), wird das nicht eingetragen.
+- Der Verlauf wird ein Jahr aufbewahrt und ist Teil der díktyo-Sicherung.
+
 ## 7. Konfigurations-Backups der Geräte
 
 - FRITZ!Box (mit Benutzer), ASUS-Router und Switches per SSH sichern ihre Konfiguration wöchentlich oder täglich

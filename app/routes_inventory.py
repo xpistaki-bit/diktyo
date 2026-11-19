@@ -28,7 +28,7 @@ def device_create(pid: int, body: dict = Body(...), user=Depends(require_user)):
         profile_access(c, user, pid, "edit")
         did = inventory.save_device(c, pid, body)
         audit(c, "device.create", user["id"], pid, dict(id=did, name=body.get("name")))
-        touch(c, pid)
+        touch(c, pid, user)
         return inventory.device_detail(c, pid, did)
 
 
@@ -47,7 +47,7 @@ def device_update(pid: int, did: int, body: dict = Body(...), user=Depends(requi
             raise HTTPException(404, "Gerät nicht gefunden")
         inventory.save_device(c, pid, body, did)
         audit(c, "device.update", user["id"], pid, dict(id=did, name=body.get("name")))
-        touch(c, pid)
+        touch(c, pid, user)
         return inventory.device_detail(c, pid, did)
 
 
@@ -60,7 +60,7 @@ def device_delete(pid: int, did: int, user=Depends(require_user)):
             raise HTTPException(404, "Gerät nicht gefunden")
         c.execute("DELETE FROM devices WHERE id=?", (did,))
         audit(c, "device.delete", user["id"], pid, dict(id=did, name=r["name"]))
-        touch(c, pid)
+        touch(c, pid, user)
     return dict(ok=True)
 
 
@@ -109,7 +109,7 @@ def location_create(pid: int, body: dict = Body(...), user=Depends(require_user)
         profile_access(c, user, pid, "edit")
         name, parent = _location_body(c, pid, body)
         c.execute("INSERT INTO locations(profile_id, parent_id, name) VALUES(?,?,?)", (pid, parent, name))
-        touch(c, pid)
+        touch(c, pid, user)
         return dict(locations=_locations(c, pid))
 
 
@@ -120,7 +120,7 @@ def location_update(pid: int, lid: int, body: dict = Body(...), user=Depends(req
         name, parent = _location_body(c, pid, body, lid)
         if not c.execute("UPDATE locations SET name=?, parent_id=? WHERE id=? AND profile_id=?", (name, parent, lid, pid)).rowcount:
             raise HTTPException(404, "Standort nicht gefunden")
-        touch(c, pid)
+        touch(c, pid, user)
         return dict(locations=_locations(c, pid))
 
 
@@ -135,7 +135,7 @@ def location_delete(pid: int, lid: int, user=Depends(require_user)):
         c.execute("UPDATE locations SET parent_id=? WHERE parent_id=?", (r["parent_id"], lid))
         c.execute("UPDATE devices SET location_id=? WHERE location_id=?", (r["parent_id"], lid))
         c.execute("DELETE FROM locations WHERE id=?", (lid,))
-        touch(c, pid)
+        touch(c, pid, user)
         return dict(locations=_locations(c, pid))
 
 
@@ -173,7 +173,7 @@ def vlan_create(pid: int, body: dict = Body(...), user=Depends(require_user)):
     with db() as c:
         profile_access(c, user, pid, "edit")
         _vlan_save(c, pid, body)
-        touch(c, pid)
+        touch(c, pid, user)
         return dict(vlans=_vlans(c, pid))
 
 
@@ -182,7 +182,7 @@ def vlan_update(pid: int, vid_id: int, body: dict = Body(...), user=Depends(requ
     with db() as c:
         profile_access(c, user, pid, "edit")
         _vlan_save(c, pid, body, vid_id)
-        touch(c, pid)
+        touch(c, pid, user)
         return dict(vlans=_vlans(c, pid))
 
 
@@ -192,7 +192,7 @@ def vlan_delete(pid: int, vid_id: int, user=Depends(require_user)):
         profile_access(c, user, pid, "edit")
         if not c.execute("DELETE FROM vlans WHERE id=? AND profile_id=?", (vid_id, pid)).rowcount:
             raise HTTPException(404, "VLAN nicht gefunden")
-        touch(c, pid)
+        touch(c, pid, user)
         return dict(vlans=_vlans(c, pid))
 
 
@@ -215,7 +215,7 @@ def subnet_create(pid: int, body: dict = Body(...), user=Depends(require_user)):
                      VALUES(?,?,?,?,?,?,?,?,?)""", (pid, s["vlan_id"], s["cidr"], s["name"], s["gateway"], s["dns"], s["dhcp_start"],
                                                     s["dhcp_end"], s["description"]))
         ipam.reclassify(c, pid)
-        touch(c, pid)
+        touch(c, pid, user)
         return dict(subnets=ipam.list_subnets(c, pid), conflicts=ipam.conflicts(c, pid))
 
 
@@ -239,7 +239,7 @@ def subnet_update(pid: int, sid: int, body: dict = Body(...), user=Depends(requi
                                                              s["dhcp_end"], s["description"], sid, pid)).rowcount:
             raise HTTPException(404, "Subnetz nicht gefunden")
         ipam.reclassify(c, pid)
-        touch(c, pid)
+        touch(c, pid, user)
         return dict(subnets=ipam.list_subnets(c, pid), conflicts=ipam.conflicts(c, pid))
 
 
@@ -266,7 +266,7 @@ def subnet_delete(pid: int, sid: int, user=Depends(require_user)):
         if not c.execute("DELETE FROM subnets WHERE id=? AND profile_id=?", (sid, pid)).rowcount:
             raise HTTPException(404, "Subnetz nicht gefunden")
         ipam.reclassify(c, pid)
-        touch(c, pid)
+        touch(c, pid, user)
         return dict(subnets=ipam.list_subnets(c, pid), conflicts=ipam.conflicts(c, pid))
 
 

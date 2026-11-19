@@ -107,7 +107,14 @@ def run(job_id, log=print):
         d = c.execute("SELECT data FROM devices WHERE id=?", (p["device_id"],)).fetchone()
         if d:
             data = json.loads(d["data"] or "{}")
+            before = (data.get("services_scan") or {}).get("ports")
             data["services_scan"] = res
+            if before is not None and sorted(before) != res["ports"]:  # offene Ports haben sich geändert
+                from .. import changes
+                pid = c.execute("SELECT profile_id FROM devices WHERE id=?", (p["device_id"],)).fetchone()[0]
+                opened, closed = sorted(set(res["ports"]) - set(before)), sorted(set(before) - set(res["ports"]))
+                changes.record(c, pid, p["device_id"], "changed", "ports", ", ".join(map(str, sorted(before))) or "–",
+                               ", ".join(map(str, res["ports"])) or "–", "nmap", None, dict(opened=opened, closed=closed))
             c.execute("UPDATE devices SET data=? WHERE id=?", (json.dumps(data, ensure_ascii=False), p["device_id"]))
     log(f"Dienste-Scan Gerät {p['device_id']}: {len(res['ports'])} offene Ports in {res['duration']} s")
     return dict(device_id=p["device_id"], open=len(res["ports"]), duration=res["duration"])

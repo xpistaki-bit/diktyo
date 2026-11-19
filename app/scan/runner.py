@@ -163,6 +163,8 @@ def run(job_id, log=print):
     prog(96, "Ergebnisse speichern", True)
     with db() as c:
         stats = merge(c, p["id"], job_id, hosts, probed={ip for ip in probe} if mode != "passive" else set())
+        from .. import changes
+        changes.sync(c, p["id"], "scan")
     stats.update(mode=mode, targets=targets, subnets_created=created, duration=round(time.time() - t0, 1), nmap=bool(nm),
                  os_detection=bool(nm) and netinfo.has_raw(), excluded=len(exclude))
     return stats

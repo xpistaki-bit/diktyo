@@ -90,6 +90,7 @@ def export_data(c):
         interfaces=q("SELECT * FROM interfaces"), links=q("SELECT * FROM links"),
         vlans=q("SELECT * FROM vlans"), subnets=q("SELECT * FROM subnets"), ip_addresses=q("SELECT * FROM ip_addresses"),
         port_vlans=q("SELECT * FROM port_vlans"), topo_positions=q("SELECT * FROM topo_positions"),
+        changes=q("SELECT * FROM changes"),
         device_models=[m for m in models if m["custom"]],
         ident_rules=q("SELECT * FROM ident_rules WHERE custom=1"),
         integrations=[dict(r, secret=_move_secret(r["secret"], f), state="{}") for r in q("SELECT * FROM integrations")],
@@ -290,6 +291,15 @@ def _import_profiles(c, exp, umap, rename, fernet=None):
         if x["interface_id"] in imap and x["vlan_id"] in vmap:
             c.execute("INSERT OR IGNORE INTO port_vlans(interface_id, vlan_id, tagged) VALUES(?,?,?)",
                       (imap[x["interface_id"]], vmap[x["vlan_id"]], x["tagged"]))
+    for x in exp.get("changes", []):  # Änderungsverlauf mitnehmen
+        if x["profile_id"] in pmap:
+            c.execute("INSERT INTO changes(profile_id, device_id, ts, kind, field, old, new, source, user_id, detail) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                      (pmap[x["profile_id"]], dmap.get(x["device_id"]), x["ts"], x["kind"], x["field"], x["old"], x["new"], x["source"],
+                       umap.get(x["user_id"]), x["detail"]))
+    for new_pid in pmap.values():  # erster Abgleich nach dem Import still (sonst stünde jedes Gerät als „neu“ im Verlauf)
+        st = json.loads(c.execute("SELECT settings FROM profiles WHERE id=?", (new_pid,)).fetchone()["settings"] or "{}")
+        if st.pop("history_since", None) is not None:
+            c.execute("UPDATE profiles SET settings=? WHERE id=?", (json.dumps(st, ensure_ascii=False), new_pid))
     return dict(profiles=len(pmap), devices=len(dmap)), list(pmap.values())
 
 

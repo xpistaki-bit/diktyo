@@ -64,6 +64,8 @@ def poll(iid, log=print):
         if not row:
             return None
         summary = APPLY[row["driver"]](c, row, res)
+        from . import changes
+        changes.sync(c, row["profile_id"], row["driver"])
         if summary.get("device_id"):
             runner._set_online(c, summary["device_id"], 1, now(), row["driver"])
         metrics.put(c, row["profile_id"], {f"i{iid}:{k}": v for k, v in values.items()})

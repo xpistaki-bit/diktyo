@@ -227,7 +227,7 @@ def profile_create(body: dict = Body(...), user=Depends(require_user)):
         pid = cur.lastrowid
         c.execute("INSERT INTO profile_members(profile_id, user_id, role) VALUES(?,?,'owner')", (pid, user["id"]))
         audit(c, "profile.create", user["id"], pid, dict(name=name))
-        touch(c, pid)
+        touch(c, pid, user)
         p, role = profile_access(c, user, pid)
         return dict(profile=profile_out(p, role, True), members=members_of(c, pid))
 
@@ -251,7 +251,7 @@ def profile_update(pid: int, body: dict = Body(...), user=Depends(require_user))
         desc = text(body, "description", 2000) if "description" in body else p["description"]
         c.execute("UPDATE profiles SET name=?, description=?, updated=? WHERE id=?", (name, desc, now(), pid))
         audit(c, "profile.update", user["id"], pid, dict(name=name))
-        touch(c, pid)
+        touch(c, pid, user)
         p, role = profile_access(c, user, pid)
         return dict(profile=profile_out(p, role, True), members=members_of(c, pid))
 
@@ -282,7 +282,7 @@ def member_add(pid: int, body: dict = Body(...), user=Depends(require_user)):
         if old and old["role"] == "owner" and owner_count(c, pid) == 0:
             raise HTTPException(400, "Ein Profil braucht mindestens einen Besitzer")
         audit(c, "profile.share", user["id"], pid, dict(email=u["email"], role=role))
-        touch(c, pid)
+        touch(c, pid, user)
         return dict(members=members_of(c, pid))
 
 
@@ -298,7 +298,7 @@ def member_update(pid: int, uid: int, body: dict = Body(...), user=Depends(requi
         if owner_count(c, pid) == 0:
             raise HTTPException(400, "Ein Profil braucht mindestens einen Besitzer")
         audit(c, "profile.role", user["id"], pid, dict(user=uid, role=role))
-        touch(c, pid)
+        touch(c, pid, user)
         return dict(members=members_of(c, pid))
 
 
@@ -312,7 +312,7 @@ def member_remove(pid: int, uid: int, user=Depends(require_user)):
         if owner_count(c, pid) == 0:
             raise HTTPException(400, "Ein Profil braucht mindestens einen Besitzer")
         audit(c, "profile.unshare", user["id"], pid, dict(user=uid))
-        touch(c, pid)
+        touch(c, pid, user)
         return dict(members=members_of(c, pid))
 
 
@@ -508,7 +508,7 @@ async def user_err(request, exc):
 def index():
     # Versionsnummer an CSS/JS hängen: nach einem Update lädt der Browser die neuen Dateien statt der zwischengespeicherten.
     html = (BASE / "static" / "index.html").read_text(encoding="utf-8")
-    for f in ("style.css", "i18n.js", "app.js", "inventory.js", "scan.js", "integrations.js", "topology.js", "catalog.js"):
+    for f in ("style.css", "i18n.js", "app.js", "inventory.js", "scan.js", "integrations.js", "topology.js", "history.js", "catalog.js"):
         html = html.replace(f'"/{f}"', f'"/{f}?v={VERSION}"')
     return Response(html, media_type="text/html; charset=utf-8", headers={"Cache-Control": "no-cache"})
 

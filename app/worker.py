@@ -90,7 +90,7 @@ def beat_loop():
 
 def poller():
     """Eigener Thread: Integrationen und Ping-Überwachung laufen weiter, auch während ein langer Scan läuft."""
-    last_mon, last_prune = {}, 0
+    last_mon, last_prune, last_sync = {}, 0, {}
     while not _stop:
         t = time.time()
         try:
@@ -107,6 +107,18 @@ def poller():
                 actions.run_due_undos(log)
             except Exception as ex:  # Rückschaltungen dürfen den Hintergrunddienst nicht anhalten
                 log(f"Zurückschalten: {type(ex).__name__}: {ex}")
+            if t - last_sync.get("t", 0) >= 300:  # Änderungsverlauf: Abgleich alle 5 Minuten, Aufräumen täglich
+                last_sync["t"] = t
+                try:
+                    from . import changes
+                    with db() as c:
+                        for p in profiles:
+                            changes.sync(c, p["id"], "")
+                        if t - last_sync.get("prune", 0) >= 86400:
+                            last_sync["prune"] = t
+                            changes.prune(c)
+                except Exception as ex:
+                    log(f"Änderungsverlauf: {type(ex).__name__}: {ex}")
             try:
                 from . import quarantine, schedules
                 schedules.run_due(log)

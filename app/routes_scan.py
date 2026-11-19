@@ -81,7 +81,7 @@ def scan_put(pid: int, body: dict = Body(...), user=Depends(require_user)):
         settings["scan"] = s
         c.execute("UPDATE profiles SET settings=? WHERE id=?", (json.dumps(settings, ensure_ascii=False), pid))
         audit(c, "scan.settings", user["id"], pid, s)
-        touch(c, pid)
+        touch(c, pid, user)
     return scan_get(pid, user)
 
 
@@ -152,7 +152,7 @@ def inbox_action(pid: int, body: dict = Body(...), user=Depends(require_user)):
         else:
             n = c.execute(f"UPDATE devices SET status=?, updated=? WHERE {q}", (status, now(), *ids, pid)).rowcount
         audit(c, f"inbox.{action}", user["id"], pid, dict(ids=ids))
-        touch(c, pid)
+        touch(c, pid, user)
     return dict(ok=True, changed=n)
 
 

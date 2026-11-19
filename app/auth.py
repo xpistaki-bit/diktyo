@@ -79,11 +79,14 @@ def profile_access(c, user, pid, need="view"):
     return p, role
 
 
-def touch(c, pid=None):
-    """Merkt sich eine Änderung (für die automatische Sicherung und die Änderungszeit des Profils)."""
+def touch(c, pid=None, user=None):
+    """Merkt sich eine Änderung (für die automatische Sicherung und die Änderungszeit des Profils) und trägt
+    Geräteänderungen in den Änderungsverlauf ein."""
     set_setting(c, "last_change", time.time())
     if pid:
         c.execute("UPDATE profiles SET updated=? WHERE id=?", (now(), pid))
+        from . import changes
+        changes.sync(c, pid, "user", (user or {}).get("id"))
 
 
 def text(body, key, maxlen=200):

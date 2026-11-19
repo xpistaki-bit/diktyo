@@ -316,6 +316,27 @@ MIGRATIONS = [
         message TEXT NOT NULL DEFAULT '');
     CREATE INDEX quarantine_profile ON quarantine(profile_id, status);
     """,
+    # 10: Änderungsverlauf (Schnappschüsse je Gerät ohne Fremdschlüssel, damit Löschungen erkennbar bleiben)
+    """
+    CREATE TABLE changes(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        device_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+        ts TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        field TEXT NOT NULL DEFAULT '',
+        old TEXT NOT NULL DEFAULT '',
+        new TEXT NOT NULL DEFAULT '',
+        source TEXT NOT NULL DEFAULT '',
+        user_id INTEGER,
+        detail TEXT NOT NULL DEFAULT '{}');
+    CREATE INDEX changes_profile ON changes(profile_id, ts);
+    CREATE INDEX changes_device ON changes(device_id, ts);
+    CREATE TABLE device_snapshots(
+        device_id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        data TEXT NOT NULL);
+    """,
 ]
 
 

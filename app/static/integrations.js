@@ -109,6 +109,7 @@ function rangeButtons(cur) {
 }
 
 async function tabIntegrations(ctx) {
+  await meta(ctx.pid);  // Auswahllisten für den Gerätedialog („Gerät öffnen“)
   const P = `/api/profiles/${ctx.pid}`;
   const r = await api('GET', `${P}/integrations`);
   const drv = Object.fromEntries(r.drivers.map(d => [d.key, d]));

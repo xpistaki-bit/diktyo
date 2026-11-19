@@ -83,7 +83,7 @@ def create(pid: int, body: dict = Body(...), user=Depends(require_user)):
                            VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""", (pid, v["driver"], v["name"], v["host"], v["port"], v["username"], v["secret"],
                                                                v["options"], v["interval_s"], v["enabled"], v["device_id"], now()))
         audit(c, "integration.create", user["id"], pid, dict(driver=v["driver"], host=v["host"]))
-        touch(c, pid)
+        touch(c, pid, user)
         return _out(c.execute("SELECT * FROM integrations WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
@@ -106,7 +106,7 @@ def update(pid: int, iid: int, body: dict = Body(...), user=Depends(require_user
         st = json.loads(old["state"] or "{}")
         if st.pop("ssh_hostkey", None) is not None or st.pop("token", None) is not None:  # nach dem Speichern neu anmelden / Schlüssel neu lernen
             c.execute("UPDATE integrations SET state=? WHERE id=?", (json.dumps(st, ensure_ascii=False), iid))
-        touch(c, pid)
+        touch(c, pid, user)
         return _out(_get(c, pid, iid))
 
 
@@ -117,7 +117,7 @@ def delete(pid: int, iid: int, user=Depends(require_user)):
         _get(c, pid, iid)
         c.execute("DELETE FROM integrations WHERE id=?", (iid,))
         c.execute("DELETE FROM series WHERE profile_id=? AND key LIKE ?", (pid, f"i{iid}:%"))
-        touch(c, pid)
+        touch(c, pid, user)
     return dict(ok=True)
 
 
@@ -195,7 +195,7 @@ def monitor_put(pid: int, body: dict = Body(...), user=Depends(require_user)):
             m["interval_s"] = int(body["interval_s"])
         st["monitor"] = m
         c.execute("UPDATE profiles SET settings=? WHERE id=?", (json.dumps(st, ensure_ascii=False), pid))
-        touch(c, pid)
+        touch(c, pid, user)
         return m
 
 

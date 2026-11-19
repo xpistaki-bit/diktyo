@@ -375,3 +375,17 @@ button.warn-btn:hover:not(:disabled){background:rgba(255,184,77,.12)}
 .days{flex-wrap:wrap;gap:4px 12px}
 tr.off-row td{opacity:.55}
 .inrow.quar{border-left:3px solid var(--warn,#ffb84d)}
+
+/* ---- Änderungsverlauf ---- */
+.hsum{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.hs{border:1px solid var(--line);border-radius:8px;padding:6px 12px;background:rgba(2,8,20,.5);display:flex;gap:8px;align-items:baseline}
+.hs b{font:600 18px var(--mono);color:var(--ink)} .hs span{font-size:12px;color:var(--dim)}
+.hs.info b{color:var(--cyan)} .hs.warn b{color:var(--warn,#ffb84d)} .hs.zero{opacity:.45}
+.chips{display:flex;flex-wrap:wrap;gap:4px 12px}
+.hist-day h4{margin:12px 0 4px} .hist-day:first-child h4{margin-top:0}
+ul.hist{list-style:none;margin:0;padding:0}
+ul.hist li{display:grid;grid-template-columns:52px 22px 1fr;gap:6px;align-items:baseline;padding:4px 0;border-bottom:1px solid rgba(120,160,200,.08)}
+ul.hist .hi{text-align:center;color:var(--dim)}
+ul.hist li.hc-status.hk-offline .hi{color:var(--err)} ul.hist li.hc-status.hk-online .hi{color:var(--ok)}
+ul.hist li.hc-change.hk-created .hi{color:var(--cyan)} ul.hist li.hc-quarantine .hi{color:var(--warn,#ffb84d)}
+.hist-dev{max-height:260px;overflow:auto}
