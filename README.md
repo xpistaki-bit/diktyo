@@ -6,7 +6,7 @@ to be a slim, self-hosted alternative to NetBox for private users. It runs as a 
 file, either in a Proxmox LXC or in a Docker container, and is managed in the browser. The interface is available
 in German and English.
 
-> **Status: v0.15 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.16 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -233,7 +233,11 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
   speed, traffic and PoE, clients from DHCP/ARP with the port or Wi-Fi they use (bridge hosts, registration table),
   MNDP/LLDP neighbours and WAN traffic; configuration backup via SSH `/export`; actions port off/on, PoE restart,
   Wi-Fi on/off, Wake-on-LAN, restart.
-- Omada, UniFi and MikroTik were built from the vendors' API documentation and tested against simulated controllers, not yet
+- **OPNsense** (official REST API with key/secret): interfaces with status and traffic, clients from DHCP leases and
+  ARP, WAN status/traffic, firmware updates, `config.xml` backup; internet block per device via a firewall alias.
+- **Docker** (Engine API, ideally through a socket proxy): containers as virtual devices on the Docker host with image,
+  state, networks and published ports; start/stop/restart as actions.
+- Omada, UniFi, MikroTik, OPNsense and Docker were built from the vendors' API documentation and tested against simulated controllers, not yet
   against real hardware – feedback welcome.
 - Connections set by an integration never replace connections entered by hand.
 - **Online monitoring:** all confirmed devices with an IP address are pinged every 30 s, 1 min or 5 min (per

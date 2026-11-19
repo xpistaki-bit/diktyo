@@ -61,6 +61,20 @@ Object.assign(DRIVER_STEPS, {
     'Optional eine Site eintragen, sonst liest díktyo alle Sites. Der WAN-Traffic des Gateways erscheint in der Topologie an der Internet-Leitung.',
   ],
 });
+DRIVER_HELP.opnsense = 'díktyo liest Schnittstellen, ARP, DHCP-Leases, WAN und Firmware; schalten nur über „Aktionen“ mit Bestätigung.';
+DRIVER_STEPS.opnsense = [
+  'In OPNsense unter <b>System → Zugang → Benutzer</b> einen eigenen Benutzer anlegen (z. B. „diktyo“) und ihm unter <b>Effektive Berechtigungen</b> diese Seiten erlauben: <i>Status: Interfaces</i>, <i>Diagnostics: ARP Table</i>, <i>Services: DHCP: Kea(v4)</i> bzw. <i>Dnsmasq</i>/<i>ISC</i>, <i>System: Firmware</i>, <i>Lobby: Dashboard</i>.',
+  'Beim Benutzer unter <b>API-Schlüssel</b> auf „+“ klicken – OPNsense lädt eine Datei mit <b>key</b> und <b>secret</b> herunter; beides hier eintragen.',
+  'Optional <b>Internetsperre</b>: unter <b>Firewall → Aliase</b> einen Alias vom Typ „Host(s)“ anlegen (z. B. <span class="mono">diktyo_block</span>), dazu eine LAN-Regel „Block, Quelle = Alias, Ziel = any“ ganz oben. Den Alias-Namen hier eintragen; der Benutzer braucht dann zusätzlich <i>Firewall: Alias: Edit</i>.',
+  'Konfigurations-Backup lädt die config.xml – dafür das Recht <i>Diagnostics: Configuration History</i> bzw. <i>Backup &amp; Restore</i>.',
+];
+DRIVER_HELP.docker = 'Container erscheinen als virtuelle Geräte am Docker-Host; Starten/Stoppen über „Aktionen“.';
+DRIVER_STEPS.docker = [
+  'Den Docker-Socket <b>nicht</b> direkt freigeben, sondern einen Socket-Proxy auf dem Docker-Host starten, der nur das Nötige erlaubt (docker-compose.yml):<pre>services:\n  socket-proxy:\n    image: tecnativa/docker-socket-proxy\n    restart: unless-stopped\n    environment:\n      CONTAINERS: 1\n      INFO: 1\n      VERSION: 1\n      NETWORKS: 1\n    volumes:\n      - /var/run/docker.sock:/var/run/docker.sock:ro\n    ports:\n      - "2375:2375"</pre>',
+  'Für <b>Aktionen</b> (Container starten/stoppen) zusätzlich <span class="mono">POST: 1</span>, <span class="mono">ALLOW_START: 1</span>, <span class="mono">ALLOW_STOP: 1</span>, <span class="mono">ALLOW_RESTARTS: 1</span>.',
+  'Port 2375 nur im Heimnetz erreichbar lassen (nicht im Router freigeben). Hier die IP des Docker-Hosts und Port 2375 eintragen.',
+  'Viele Container? „nur Container mit eigener IP im Heimnetz“ legt nur die an, die per macvlan/ipvlan oder Host-Netz direkt im Netz hängen.',
+];
 DRIVER_HELP.mikrotik = 'díktyo liest Ports, Clients (DHCP, ARP, Bridge, WLAN), Nachbarn und WAN; schalten nur über „Aktionen“ mit Bestätigung.';
 DRIVER_STEPS.mikrotik = [
   'RouterOS 7 nötig (System → Packages zeigt die Version). Die REST-API läuft über den Dienst <b>www-ssl</b> (HTTPS) – ab 7.9 alternativ <b>www</b> (HTTP, nur im eigenen Netz).',
@@ -132,7 +146,8 @@ async function tabIntegrations(ctx) {
         ${ctx.canEdit ? `<div class="row"><button class="pri" data-add="fritzbox">${t('+ FRITZ!Box')}</button><button class="pri" data-add="snmp">${t('+ Switch (SNMP)')}</button>
           <button class="pri" data-add="asuswrt">${t('+ ASUS (AiMesh)')}</button><button class="pri" data-add="proxmox">${t('+ Proxmox')}</button><button class="pri" data-add="homeassistant">${t('+ Home Assistant')}</button>
           <button class="pri" data-add="omada">${t('+ Omada')}</button><button class="pri" data-add="unifi">${t('+ UniFi')}</button>
-          <button class="pri" data-add="mikrotik">${t('+ MikroTik')}</button></div>` : ''}</div>
+          <button class="pri" data-add="mikrotik">${t('+ MikroTik')}</button><button class="pri" data-add="opnsense">${t('+ OPNsense')}</button>
+          <button class="pri" data-add="docker">${t('+ Docker')}</button></div>` : ''}</div>
     </div>
     <div id="ints" class="stack" style="margin-top:16px">${r.integrations.map(i => `<div class="panel integ" data-id="${i.id}">
         <div class="row between"><div class="row"><span class="dot ${st(i)}"></span><b>${h(i.name)}</b><span class="muted mono small">${h(i.host)}</span>
@@ -144,7 +159,7 @@ async function tabIntegrations(ctx) {
         ${i.can_backup ? `<p class="small cfgline"><b>${t('Konfiguration')}:</b> ${i.cfg_ok ? t('zuletzt gesichert {d}', { d: h(ago(i.cfg_ok)) }) : t('noch nicht gesichert')}
           ${i.cfg_result?.status === 'error' ? ` · <span class="${i.cfg_result.second_factor ? 'warnc' : 'errtxt'}">${h(t(i.cfg_result.message))}</span>` : i.cfg_result?.status === 'unchanged' ? ` · <span class="muted">${t('unverändert')}</span>` : ''}
           ${ctx.canEdit ? `<button class="sm" data-cfg>${t('Konfiguration sichern')}</button>` : ''}</p>` : ''}
-        ${i.driver === 'fritzbox' ? fritzCard(i) : i.driver === 'snmp' ? snmpCard(i) : i.driver === 'asuswrt' ? asusCard(i) : i.driver === 'proxmox' ? pveCard(i) : ['omada', 'unifi'].includes(i.driver) ? ctrlCard(i) : i.driver === 'mikrotik' ? mtCard(i) : haCard(i)}
+        ${i.driver === 'fritzbox' ? fritzCard(i) : i.driver === 'snmp' ? snmpCard(i) : i.driver === 'asuswrt' ? asusCard(i) : i.driver === 'proxmox' ? pveCard(i) : ['omada', 'unifi'].includes(i.driver) ? ctrlCard(i) : ['mikrotik', 'opnsense'].includes(i.driver) ? mtCard(i) : i.driver === 'docker' ? dockerCard(i) : haCard(i)}
       </div>`).join('') || `<div class="panel empty-box">${t('Noch keine Integration. Füge deine FRITZ!Box hinzu – das geht auch ohne Passwort.')}</div>`}</div>
     <h2>${t('Letzte Ereignisse')}</h2><div id="events"></div>`;
   api('GET', `${P}/events?limit=15`).then(({ events }) => {
@@ -464,11 +479,18 @@ async function recentActions(ctx, el) {
   $$('[data-cu]', el).forEach(b => b.onclick = async () => { await api('DELETE', `/api/profiles/${ctx.pid}/actions/${b.dataset.cu}/undo`); recentActions(ctx, el); });
 }
 
+function dockerCard(i) {
+  const r = i.result || {}, info = r.info || {}, cts = r.containers || [];
+  return `<div class="kv">${info.version ? `<span>Docker: <b>${h(info.version)}</b></span>` : ''}${info.os ? `<span>${h(info.os)}</span>` : ''}
+      <span>${t('Container')}: <b>${cts.filter(x => x.state === 'running').length} ${t('laufen')} / ${cts.length}</b></span></div>
+    ${cts.length ? `<div class="kv">${cts.slice(0, 40).map(x => `<span title="${h(x.image)} · ${h(x.status)}${x.ports.length ? ' · ' + h(x.ports.join(', ')) : ''}"><span class="dot ${x.state === 'running' ? 'on' : 'off'}"></span> ${h(x.name)}</span>`).join('')}</div>` : ''}`;
+}
+
 function mtCard(i) {
   const r = i.result || {}, info = r.info || {}, w = r.wan || {};
-  return `<div class="kv">${info.model ? `<span>${t('Modell')}: <b>${h(info.model)}</b></span>` : ''}${info.version ? `<span>RouterOS: <b>${h(info.version)}</b></span>` : ''}
+  return `<div class="kv">${info.model ? `<span>${t('Modell')}: <b>${h(info.model)}</b></span>` : ''}${info.version ? `<span>${i.driver === 'opnsense' ? 'Version' : 'RouterOS'}: <b>${h(info.version)}</b></span>` : ''}
       ${info.uptime ? `<span>${t('läuft seit')}: <b>${h(info.uptime)}</b></span>` : ''}${info.cpu != null ? `<span>CPU: <b>${h(info.cpu)} %</b></span>` : ''}
-      ${r.clients != null ? `<span>${t('Clients')}: <b>${r.online} ${t('online')} / ${r.clients}</b> (${t('{n} per WLAN', { n: r.wlan })})</span>` : ''}</div>
+      ${r.clients != null ? `<span>${t('Clients')}: <b>${r.online} ${t('online')} / ${r.clients}</b>${r.wifi?.length ? ` (${t('{n} per WLAN', { n: r.wlan })})` : ''}</span>` : ''}</div>
     ${r.wifi?.length ? `<div class="kv">${r.wifi.map(x => `<span><span class="dot ${x.enabled ? 'on' : 'off'}"></span> WLAN <b>${h(x.ssid || x.iface)}</b> ${x.band ? `<small class="muted">${h(x.band)}</small>` : ''}</span>`).join('')}</div>` : ''}
     ${w.rx_bps != null ? `<div class="wan-now"><span>↓ <b class="mono">${fmtBps(w.rx_bps)}</b></span><span>↑ <b class="mono">${fmtBps(w.tx_bps)}</b></span><small class="muted">WAN (${h(w.iface)})</small></div>` : ''}
     ${snmpCard({ ...i, result: { ...r, info: {} } })}`;
@@ -539,6 +561,8 @@ async function integrationDialog(ctx, i, drv) {
           $('#testres', f).textContent = '✓ ' + (drv.key === 'fritzbox' ? `${x.model} · FRITZ!OS ${x.firmware} · ${t('{n} Geräte', { n: x.hosts })} · ${x.auth ? t('Anmeldung ok, Mesh-Topologie verfügbar') : t('ohne Anmeldung (Mesh-Topologie nicht verfügbar)')}`
             : drv.key === 'snmp' ? `${x.name} · ${x.descr}` : drv.key === 'asuswrt' ? `${x.model} · Firmware ${x.firmware} · ${t('{n} Clients', { n: x.clients })} · ${t('{n} Mesh-Knoten', { n: x.nodes })}`
             : drv.key === 'proxmox' ? `Proxmox VE ${x.version} · ${t('{n} VMs und Container', { n: x.guests })}`
+            : drv.key === 'opnsense' ? `${x.name || 'OPNsense'} · OPNsense ${x.version} · ${t('{n} Schnittstellen', { n: x.ports })} · ${t('{n} Clients', { n: x.clients })}`
+            : drv.key === 'docker' ? `Docker ${x.version} · ${h(x.os)} · ${t('{n} von {m} Containern laufen', { n: x.running, m: x.containers })}`
             : drv.key === 'mikrotik' ? `${x.model} · RouterOS ${x.version} · ${t('{n} Ports', { n: x.ports })} · ${t('{n} Clients', { n: x.clients })}${x.wifi ? ' · ' + t('{n} WLAN', { n: x.wifi }) : ''}`
             : ['omada', 'unifi'].includes(drv.key) ? [x.version ? `UniFi Network ${x.version}` : '', `${t('Sites')}: ${x.sites}`, t('{n} Geräte', { n: x.devices }), t('{n} Clients', { n: x.clients })].filter(Boolean).join(' · ')
             : [x.devices != null ? t('{n} HA-Geräte mit MAC, {m} Bereiche', { n: x.devices, m: x.areas }) : '', x.mqtt ? t('MQTT-Anmeldung ok') : ''].filter(Boolean).join(' · '));

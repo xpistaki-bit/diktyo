@@ -96,7 +96,9 @@ def _slim(driver, res):
                     running=sum(1 for g in res.get("guests", []) if g["running"]))
     if driver == "homeassistant":
         return dict(info=res.get("info"))
-    if driver == "mikrotik":
+    if driver == "docker":
+        return dict(info=res.get("info"), containers=[{k: x[k] for k in ("name", "image", "state", "status", "ports", "ips")} for x in res.get("containers", [])])
+    if driver in ("mikrotik", "opnsense"):
         return dict(info=res.get("info"), wan=res.get("wan"), ports=res.get("ports"), wifi=res.get("wifi"), wifi_menu=res.get("wifi_menu"),
                     clients=len(res.get("clients", [])), online=sum(1 for x in res.get("clients", []) if x["online"]),
                     wlan=sum(1 for x in res.get("clients", []) if x["medium"] == "wlan"), fdb_size=res.get("fdb_size"))
@@ -270,7 +272,7 @@ def apply_snmp(c, row, res):
 
 def live_ports(c, did):
     """Port-Status aus der letzten SNMP-Abfrage eines Geräts bzw. vom Controller (UniFi) -> {port_no: {...}}"""
-    r = c.execute("SELECT state FROM integrations WHERE device_id=? AND driver IN ('snmp','mikrotik') ORDER BY id LIMIT 1", (did,)).fetchone()
+    r = c.execute("SELECT state FROM integrations WHERE device_id=? AND driver IN ('snmp','mikrotik','opnsense') ORDER BY id LIMIT 1", (did,)).fetchone()
     if r:
         st = json.loads(r["state"] or "{}")
         return {p["port_no"]: p for p in (st.get("result") or {}).get("ports") or []}
@@ -604,9 +606,12 @@ def apply_controller(c, row, res):
 
 # ------------------------------------------------------------ MikroTik
 def apply_mikrotik(c, row, res):
+    """Router mit Ports, Clients und Nachbarn (MikroTik, OPNsense)."""
     pid, info = row["profile_id"], res.get("info") or {}
+    src = row["driver"]
+    vendor = info.get("vendor") or "MikroTik"
     oui.ensure(lambda *a: None)
-    own = _own_device(c, row, info.get("name") or info.get("model") or "MikroTik", info.get("model", ""), "", "router", "MikroTik")
+    own = _own_device(c, row, info.get("name") or info.get("model") or vendor, info.get("model", ""), "", "firewall" if src == "opnsense" else "router", vendor)
     if res.get("ports") and not c.execute("SELECT 1 FROM interfaces WHERE device_id=? AND role='port'", (own,)).fetchone():
         data = json.loads(c.execute("SELECT data FROM devices WHERE id=?", (own,)).fetchone()["data"] or "{}")
         data["ports"] = ctl.port_groups([dict(p, max_speed=ctl.speed_text(p.get("speed") or 0)) for p in res["ports"]])
@@ -623,7 +628,7 @@ def apply_mikrotik(c, row, res):
                  mdns=None, ssdp=None, http=None, ports=[], services={}, os="")
         h["ident"] = ident.identify(rules, index, h)
         hosts.append(h)
-    stats = runner.merge(c, pid, None, hosts, probed=offline, source="mikrotik", record=False)
+    stats = runner.merge(c, pid, None, hosts, probed=offline, source=src, record=False)
     by_mac = _device_by_mac(c, pid)
     links = 0
     wan_if = (res.get("wan") or {}).get("iface")
@@ -633,9 +638,9 @@ def apply_mikrotik(c, row, res):
         if not d or d["id"] == own:
             continue
         if p["iface"] == wan_if:
-            if set_auto_uplink(c, pid, own, d["id"], "lan", local_port_id=port_id.get(p["port_no"]), source="mikrotik"):
+            if set_auto_uplink(c, pid, own, d["id"], "lan", local_port_id=port_id.get(p["port_no"]), source=src):
                 links += 1
-        elif set_auto_uplink(c, pid, d["id"], own, "lan", port_id=port_id.get(p["port_no"]), source="mikrotik"):
+        elif set_auto_uplink(c, pid, d["id"], own, "lan", port_id=port_id.get(p["port_no"]), source=src):
             links += 1
     for x in res.get("clients", []):
         d = by_mac.get(x["mac"])
@@ -646,10 +651,44 @@ def apply_mikrotik(c, row, res):
         pid_port = port_id.get(x["port"]) if x["port"] else None
         if pid_port and len(next((p["macs"] for p in res["ports"] if p["port_no"] == x["port"]), [])) > 1:
             continue  # mehrere Geräte am Port: dahinter steckt ein Switch/AP – SNMP bzw. Nachbarn klären das
-        if set_auto_uplink(c, pid, d["id"], own, x["medium"], port_id=pid_port, source="mikrotik"):
+        if set_auto_uplink(c, pid, d["id"], own, x["medium"], port_id=pid_port, source=src):
             links += 1
     return dict(device_id=own, clients=len(res.get("clients", [])), new=stats["new"], links=links, ports=len(res.get("ports", [])))
 
 
+# ------------------------------------------------------------ Docker
+def apply_docker(c, row, res):
+    """Docker-Host als Gerät der Integration, Container als virtuelle Geräte daran."""
+    pid, info = row["profile_id"], res.get("info") or {}
+    host = _own_device(c, row, info.get("name") or row["host"], "", "", "server", "")
+    new, links, seen = 0, 0, set()
+    for ct in res.get("containers", []):
+        meta = dict(docker=dict(integration=row["id"], id=ct["id"], name=ct["name"], image=ct["image"], ports=ct["ports"], network=ct["network"],
+                                compose=ct["compose"], status=ct["status"]))
+        r = c.execute("""SELECT id FROM devices WHERE profile_id=? AND json_extract(data,'$.docker.integration')=? AND json_extract(data,'$.docker.name')=?""",
+                      (pid, row["id"], ct["name"])).fetchone()
+        did = r["id"] if r else (_find_device(c, pid, ct["mac"], (ct["ips"] or [""])[0]) if ct["mac"] or ct["ips"] else None)
+        if did == host:
+            did = None
+        if not did:
+            did = _new_device(c, pid, ct["name"], "container", ct["mac"], ct["ips"], "docker", ct["image"].split("@")[0][:120], "Docker", data=meta)
+            new += 1
+        else:
+            d = json.loads(c.execute("SELECT data FROM devices WHERE id=?", (did,)).fetchone()["data"] or "{}")
+            d.update(meta)
+            c.execute("UPDATE devices SET data=?, model=CASE WHEN model='' THEN ? ELSE model END WHERE id=?",
+                      (json.dumps(d, ensure_ascii=False), ct["image"].split("@")[0][:120], did))
+        seen.add(did)
+        runner._set_online(c, did, 1 if ct["running"] else 0, now(), "docker")
+        if set_auto_uplink(c, pid, did, host, "virtual", source="docker"):
+            links += 1
+    # verschwundene Container (gelöscht/neu angelegt unter anderem Namen): als offline markieren
+    for r in c.execute("SELECT id FROM devices WHERE profile_id=? AND json_extract(data,'$.docker.integration')=?", (pid, row["id"])).fetchall():
+        if r["id"] not in seen:
+            runner._set_online(c, r["id"], 0, now(), "docker")
+    return dict(device_id=host, containers=len(res.get("containers", [])), running=sum(1 for x in res.get("containers", []) if x["running"]),
+                new=new, links=links)
+
+
 APPLY = {"fritzbox": apply_fritz, "snmp": apply_snmp, "asuswrt": apply_asus, "proxmox": apply_proxmox, "homeassistant": apply_ha,
-         "omada": apply_controller, "unifi": apply_controller, "mikrotik": apply_mikrotik}
+         "omada": apply_controller, "unifi": apply_controller, "mikrotik": apply_mikrotik, "opnsense": apply_mikrotik, "docker": apply_docker}

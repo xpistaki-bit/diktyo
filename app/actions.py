@@ -232,6 +232,47 @@ def available(c, pid, did, port_no=None):
             out.append(_act("reboot", row["id"], {}, "MikroTik neu starten", "Alle Verbindungen über dieses Gerät sind etwa eine Minute weg.", danger=True))
         elif mac and _uplink(c, did)[0] == row["device_id"]:
             out.append(_act("wol", row["id"], dict(mac=mac), "Aufwecken (Wake-on-LAN)", f"Weckruf an {mac} über den MikroTik"))
+    # OPNsense: Internetsperre über Alias für Geräte in seinen Netzen, Neustart
+    for row in _integrations(c, pid, "opnsense"):
+        st = _state(row).get("result") or {}
+        if row["device_id"] == did:
+            out.append(_act("reboot", row["id"], {}, "OPNsense neu starten", "Internet und alle Netze über die Firewall sind einige Minuten weg.", danger=True))
+            continue
+        nets = []
+        for p in st.get("ports") or []:
+            try:
+                if p.get("addr4") and p.get("iface") != "wan":
+                    nets.append(ipaddress.ip_network(p["addr4"], strict=False))
+            except ValueError:
+                pass
+        if ips and d["type"] not in INFRA and any(ipaddress.ip_address(ips[0]) in n for n in nets):
+            alias = json.loads(row["options"] or "{}").get("block_alias")
+            why = "" if alias else "In der OPNsense-Integration ist kein Alias für die Internetsperre eingetragen."
+            why = why or _blocked_internet(c, pid, d, ips[0], own_ips)
+            out.append(_act("internet", row["id"], dict(ip=ips[0], block=True), "Internetzugang sperren (OPNsense)",
+                            f"OPNsense trägt {ips[0]} in den Alias „{alias or '?'}“ ein; die Block-Regel dafür legst du einmal selbst an.", blocked=why))
+            out.append(_act("internet", row["id"], dict(ip=ips[0], block=False), "Internetzugang freigeben (OPNsense)", f"für {ips[0]}", blocked=why if not alias else ""))
+    # Docker: Container schalten (am Container und am Docker-Host)
+    from .drivers import docker as _docker
+    for row in _integrations(c, pid, "docker"):
+        dk = data.get("docker") or {}
+        rows = []
+        if dk.get("integration") == row["id"]:
+            rows = [(d, dk)]
+        elif row["device_id"] == did:
+            for g in c.execute("""SELECT * FROM devices WHERE profile_id=? AND json_extract(data,'$.docker.integration')=? ORDER BY name COLLATE NOCASE""",
+                               (pid, row["id"])):
+                rows.append((g, json.loads(g["data"])["docker"]))
+        for g, gk in rows:
+            prot = _docker.protected(dict(id=gk.get("id", ""), image=gk.get("image", ""), name=gk.get("name", "")))
+            base = dict(id=gk.get("id", ""), name=gk.get("name", ""))
+            pre = f"„{gk.get('name')}“ " if g["id"] != did else ""
+            if g["online"] != 1:
+                out.append(_act("container", row["id"], dict(base, op="start"), f"{pre}starten".strip().capitalize() if not pre else f"{pre}starten", gk.get("image", "")))
+            else:
+                out.append(_act("container", row["id"], dict(base, op="stop"), f"{pre}stoppen" if pre else "Stoppen", gk.get("image", ""), danger=True, blocked=prot))
+                if g["id"] == did:
+                    out.append(_act("container", row["id"], dict(base, op="restart"), "Neu starten", gk.get("image", ""), danger=True, blocked=prot))
     # Switch-Ports (SNMP) und MikroTik-Ports
     for row in _integrations(c, pid, "snmp") + _integrations(c, pid, "mikrotik"):
         if row["device_id"] == did and port_no:

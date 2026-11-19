@@ -132,7 +132,7 @@ def _internet(c, pid, devs, root_routers):
     """Internet-Knoten: verbunden mit dem Gerät der FRITZ!Box-Integration bzw. dem Gateway von UniFi (mit WAN-Status und Traffic),
     sonst mit den Routern/Modems ohne Uplink (Status unbekannt)."""
     import json
-    for r in c.execute("""SELECT * FROM integrations WHERE profile_id=? AND driver IN ('fritzbox','unifi','omada','mikrotik') AND enabled=1
+    for r in c.execute("""SELECT * FROM integrations WHERE profile_id=? AND driver IN ('fritzbox','unifi','omada','mikrotik','opnsense') AND enabled=1
                           ORDER BY driver<>'fritzbox', id""", (pid,)):
         st = json.loads(r["state"] or "{}")
         wan = (st.get("result") or {}).get("wan") or {}

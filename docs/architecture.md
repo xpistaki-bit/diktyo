@@ -86,6 +86,7 @@ Phase 2:
 | P2.12 | schedules for actions, quarantine for new devices | done (0.13.0) |
 | P3.1 | change history (device snapshots with source, timeline, summary, CSV) | done (0.14.0) |
 | P2.13 | response time and availability per device, firmware hints | done (0.15.0) |
+| P2.14 | OPNsense and Docker integrations | done (0.16.0), not yet tested on real hardware |
  Phase 3: change history between scans, cable and patch-panel documentation,
 Prometheus endpoint, REST API with tokens.
 

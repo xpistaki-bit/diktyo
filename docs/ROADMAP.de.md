@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.15.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.16.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt
@@ -24,12 +24,13 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Automatisierung | Zeitpläne für Aktionen (Zeitfenster, nur an Übergängen), Quarantäne für neue Geräte | 0.13 |
 | Verlauf | Änderungsverlauf je Gerät und Profil mit Quelle, Zeitleiste, Kurzfassung „seit gestern“, CSV | 0.14 |
 | Erreichbarkeit | Antwortzeit je Gerät, Verfügbarkeit 24 h/7/30 Tage mit Ausfällen; Firmware-Hinweise aus sechs Integrationen | 0.15 |
+| Integrationen | OPNsense (REST-API: Schnittstellen, Clients, WAN, Firmware, Backup, Internetsperre per Alias), Docker (Container als virtuelle Geräte, Starten/Stoppen) | 0.16 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan
 
 | # | Inhalt | Anmerkung |
 |---|---|---|
-| P2.4 | Weitere Integrationen: Netgear (Smart Switches/Router), devolo (Powerline), Docker-API | Docker zuerst: Container als virtuelle Geräte am Host, analog zu Proxmox |
+| P2.4 | Weitere Integrationen: Netgear (Smart Switches/Router), devolo (Powerline) | Docker erledigt in 0.16 |
 | P2.8 | Passive DHCP-Erkennung (Fingerprinting aus DHCP-Anfragen) | braucht einen Lauscher im Netz bzw. DHCP-Logs vom Router |
 | ~~Phase 3~~ | ~~Änderungsverlauf zwischen Scans~~ | erledigt in 0.14 |
 | Phase 3 | Kabel- und Patchpanel-Dokumentation | Patchfelder, Dosen, Kabelnummern zwischen Port und Gerät |
@@ -57,15 +58,23 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
-| OPNsense / pfSense (API): Schnittstellen, DHCP, ARP, Firewall-Aliase, WAN | ★★★ | M |
+| ~~OPNsense~~ – erledigt in 0.16 | ★★★ | M |
+| pfSense: wartet auf Netgates offizielle REST-API (das Community-Paket „pfrest“ ist im Wartungsmodus und endet nach pfSense 26.10) | ★★ | M |
 | OpenWrt (ubus/rpcd): Clients, WLAN, Ports, Aktionen | ★★ | M |
-| Docker / Portainer: Container als virtuelle Geräte | ★★ | S |
+| ~~Docker~~ – erledigt in 0.16 (Portainer optional später) | ★★ | S |
 | Pi-hole / AdGuard Home: Hostnamen, Blockstatistik je Gerät | ★★ | S |
 | Synology / QNAP / TrueNAS / Unraid: Status, Laufwerke, Dienste | ★★ | M |
 | Shelly / Tasmota direkt: Leistung, Schalten, Firmware | ★ | S |
 | Netgear-Switches (SNMP-Profile), devolo Powerline | ★ | M |
 | Aktionen für UniFi (Port-Power-Cycle, Neustart) und Omada (PoE, Neustart) | ★★ | S |
 | ASUS: Aktionen (Gastnetz, Neustart) und lesbarer Konfig-Vergleich (CFG entschlüsseln) | ★★ | M |
+
+### Wünsche aus dem Test (neu)
+
+| Idee | Nutzen | Aufwand |
+|---|---|---|
+| **Datendurchsatz je Gerät in der Topologie**, ein-/ausschaltbar: aktueller Traffic an den Verbindungslinien (aus Switch-Ports, MikroTik/OPNsense-Schnittstellen, WAN) | ★★★ | M |
+| **Übersichtsseite (Dashboard)**: Status aller Geräte auf einen Blick – Verfügbarkeit, Antwortzeit, offene Probleme, Firmware – dazu die Diagramme wie bei Switch- und FRITZ!Box-Integration (WAN, wichtige Ports) | ★★★ | M |
 
 ### Monitoring
 
@@ -137,5 +146,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 
 ## 6. Vorschlag für die nächsten Schritte
 
-1. Rückmeldungen der Tester (UniFi, MikroTik) einarbeiten.
-2. **OPNsense/pfSense** und **Docker** als nächste Integrationen.
+1. Rückmeldungen der Tester (UniFi, MikroTik, OPNsense, Docker) einarbeiten.
+2. **Übersichtsseite (Dashboard)** mit Status, Verfügbarkeit, Antwortzeit und den wichtigsten Diagrammen.
+3. **Datendurchsatz in der Topologie** (ein-/ausschaltbar).
+4. Weitere Integrationen nach Bedarf (Pi-hole/AdGuard, NAS-Systeme, OpenWrt).

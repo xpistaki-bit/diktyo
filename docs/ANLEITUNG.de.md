@@ -192,6 +192,29 @@ sich zwischen zwei Ständen geändert hat.
 
 **Hinweis:** gegen eine nachgebildete RouterOS-API getestet, noch nicht an echter Hardware – Rückmeldungen willkommen.
 
+### OPNsense
+
+1. *System → Zugang → Benutzer*: eigenen Benutzer anlegen und unter *Effektive Berechtigungen* erlauben: *Status:
+   Interfaces*, *Diagnostics: ARP Table*, *Services: DHCP: Kea(v4)* (bzw. Dnsmasq/ISC), *System: Firmware*.
+2. Beim Benutzer unter *API-Schlüssel* „+“ – die heruntergeladene Datei enthält **key** und **secret**.
+3. Optional **Internetsperre**: *Firewall → Aliase* → Alias vom Typ „Host(s)“ (z. B. `diktyo_block`) und eine LAN-Regel
+   „Block, Quelle = Alias“ ganz oben; den Alias-Namen in der Integration eintragen (Recht *Firewall: Alias: Edit*).
+4. Konfigurations-Backup lädt die `config.xml` (Recht *Diagnostics: Configuration History* bzw. *Backup & Restore*).
+
+díktyo liest Schnittstellen (Status, Adressen, Traffic), Clients aus DHCP-Leases und ARP, WAN-Status und -Traffic
+(Internet-Leitung in der Topologie) und den Firmware-Stand.
+
+### Docker
+
+Den Docker-Socket nie direkt freigeben, sondern auf dem Docker-Host einen **Socket-Proxy** starten, der nur das Nötige
+erlaubt – die `docker-compose.yml` dafür steht im Einrichtungsdialog (lesen: `CONTAINERS`, `INFO`, `VERSION`,
+`NETWORKS`; für Aktionen zusätzlich `POST`, `ALLOW_START`, `ALLOW_STOP`, `ALLOW_RESTARTS`). Port 2375 nur im Heimnetz
+erreichbar lassen. Container erscheinen als virtuelle Geräte am Docker-Host (Image als Modell, laufend = online);
+Starten, Stoppen und Neustarten über *Aktionen*. díktyo stoppt weder sich selbst noch den Socket-Proxy.
+
+**Hinweis:** OPNsense und Docker sind nach der Dokumentation gebaut und gegen nachgebildete APIs getestet, noch nicht
+an echter Hardware.
+
 ## 5. Überwachung und Ereignisse
 
 - *Integrationen → Online-Überwachung:* alle bestätigten Geräte werden alle 30 s, 1 min oder 5 min gepingt.
@@ -271,6 +294,8 @@ Topologie-Seitenleiste und in der Frontplatte beim angeklickten Port:
 | Gerät an einem Switch-Port | Port ab-/einschalten, PoE neu starten | SNMP mit **Schreibrechten** (Zyxel: Benutzer in einer Gruppe mit Schreibrechten, z. B. „admin“, bzw. Community mit read-write) |
 | VM / LXC | starten, herunterfahren, neu starten | Proxmox-Token mit `VM.PowerMgmt` (siehe unten) |
 | MikroTik | Port ab-/einschalten, PoE neu starten, WLAN ein/aus, Wake-on-LAN, Neustart | Benutzergruppe mit write, reboot, test |
+| OPNsense | Internetzugang je Gerät (über den Alias), Neustart | Alias + Block-Regel, Recht *Firewall: Alias: Edit* |
+| Docker | Container starten, stoppen, neu starten | Socket-Proxy mit POST und ALLOW_* |
 
 - Vor jeder Aktion kommt eine **Vorschau mit Bestätigung**. Bei WLAN, Internetsperre und Switch-Port lässt sich
   **automatisch zurückschalten** (nach 15 min, 1 h, 2 h oder morgen um 6:00) – praktisch etwa für eine Internetpause.
