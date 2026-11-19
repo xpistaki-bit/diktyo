@@ -15,7 +15,8 @@ def catalog_list(user=Depends(require_user)):
     with db() as c:
         rows = c.execute("SELECT * FROM device_models ORDER BY manufacturer COLLATE NOCASE, model COLLATE NOCASE").fetchall()
         used = {r["model_id"]: r["n"] for r in c.execute("SELECT model_id, COUNT(*) AS n FROM devices WHERE model_id IS NOT NULL GROUP BY model_id")}
-        return dict(models=[dict(catalog.row(r), used=used.get(r["id"], 0)) for r in rows])
+        from . import ai
+        return dict(models=[dict(catalog.row(r), used=used.get(r["id"], 0)) for r in rows], ai=ai.configured(c))
 
 
 def _body(body):
@@ -71,6 +72,23 @@ def catalog_from_sysinfo(body: dict = Body(...), admin=Depends(require_admin)):
     info = {k: v for k, v in res["info"].items() if k not in ("serial", "uuid")}  # gerätebezogen, gehört nicht in den Katalog
     return dict(suggestion=s, lookup=res["lookup"], lookup_status=res["lookup_status"], info=info, existing=catalog.row(r) if r else None,
                 ignored=[k for k in ("serial", "uuid") if res["info"].get(k)])
+
+
+@router.post("/ai-lookup")
+def catalog_ai_lookup(body: dict = Body(...), admin=Depends(require_admin)):
+    """Katalogeintrag per Claude (Websuche) recherchieren. Gesendet werden nur Hersteller, Modell und Eckdaten."""
+    from . import ai
+    allowed = ("manufacturer", "model", "family", "type", "sku", "chassis", "nics")  # nie Seriennummer/UUID
+    hint = {k: body[k] for k in allowed if body.get(k)}
+    hint["nics"] = [str(x)[:120] for x in hint.get("nics") or []][:8]
+    with db() as c:
+        try:
+            res = ai.lookup(c, hint, "en" if body.get("lang") == "en" else "de")
+        except ai.AIError as ex:
+            raise HTTPException(400, str(ex))
+        audit(c, "catalog.ai_lookup", admin["id"], detail=dict(manufacturer=hint.get("manufacturer"), model=hint.get("model"),
+                                                               cost=res["usage"]["cost"]))
+    return res
 
 
 @router.delete("/{mid}")

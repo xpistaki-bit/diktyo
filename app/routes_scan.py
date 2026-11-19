@@ -175,6 +175,38 @@ def detection_put(body: dict = Body(...), admin=Depends(require_admin)):
     return detection_get(admin)
 
 
+@router.get("/api/settings/ai")
+def ai_get(admin=Depends(require_admin)):
+    from . import ai
+    with db() as c:
+        s = ai.settings(c)
+    return dict(key=security.MASK if s["key"] else "", model=s["model"], models=[dict(id=k, name=v[0], price_in=v[1], price_out=v[2]) for k, v in ai.MODELS.items()])
+
+
+@router.put("/api/settings/ai")
+def ai_put(body: dict = Body(...), admin=Depends(require_admin)):
+    from . import ai
+    with db() as c:
+        ai.save(c, key=str(body.get("key") or ""), model=body.get("model"))
+        audit(c, "settings.ai", admin["id"])
+    return ai_get(admin)
+
+
+@router.post("/api/settings/ai/test")
+def ai_test(body: dict = Body(default={}), admin=Depends(require_admin)):
+    from . import ai
+    with db() as c:
+        s = ai.settings(c)
+    key = str(body.get("key") or "").strip()
+    key = security.decrypt(s["key"]) if (not key or key == security.MASK) and s["key"] else key
+    if not key:
+        raise HTTPException(400, "Kein Claude-API-Schlüssel hinterlegt (Einstellungen → KI)")
+    try:
+        return ai.test(key, body.get("model") if body.get("model") in ai.MODELS else s["model"])
+    except ai.AIError as ex:
+        raise HTTPException(400, str(ex))
+
+
 @router.post("/api/settings/oui/update")
 def oui_update(admin=Depends(require_admin)):
     try:

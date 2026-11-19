@@ -11,7 +11,8 @@ const catType = k => t(TYPE_DE[k] || k);
 
 async function viewCatalog() {
   crumbs([[t('Katalog')]]);
-  const { models } = await api('GET', '/api/catalog');
+  const { models, ai } = await api('GET', '/api/catalog');
+  viewCatalog.ai = ai;
   const admin = STATE.user.is_admin;
   const f = viewCatalog.f;
   const mans = [...new Set(models.map(m => m.manufacturer))].sort(cmp);
@@ -67,9 +68,11 @@ async function sysinfoDialog() {
   const ok = await dialog(t('Katalogeintrag aus Systeminfo'), `
     <p class="muted small">${t('Ausgabe einfügen, z. B. von <span class="mono">dmidecode -t system</span> (Linux/Proxmox), <span class="mono">lspci</span> für die Netzwerkkarten, <span class="mono">hostnamectl</span> oder unter Windows <span class="mono">Get-CimInstance Win32_ComputerSystem | fl</span>. Mehrere Ausgaben dürfen untereinander stehen.')}</p>
     <textarea name="text" rows="11" class="mono" spellcheck="false" placeholder="System Information&#10;        Manufacturer: Dell Inc.&#10;        Product Name: OptiPlex 7040"></textarea>
-    <label class="chk"><input type="checkbox" name="lookup" checked> ${t('Im Internet nachschlagen (Wikipedia) – gesendet werden nur Hersteller und Modell, nie Seriennummer oder UUID')}</label>`, {
+    <label class="chk"><input type="checkbox" name="lookup" checked> ${t('Im Internet nachschlagen (Wikipedia) – gesendet werden nur Hersteller und Modell, nie Seriennummer oder UUID')}</label>
+    ${viewCatalog.ai ? `<label class="chk"><input type="checkbox" name="ai" checked> ${t('Mit KI recherchieren (Claude mit Websuche: Ports, WLAN, Eckdaten – kostet wenige Cent)')}</label>`
+      : `<p class="muted small">${t('Tipp: Mit einem Claude-API-Schlüssel (Einstellungen → KI-Recherche) recherchiert díktyo auch Ports und WLAN aus Datenblättern.')}</p>`}`, {
     ok: t('Auswerten'), wide: true,
-    onOk: async f => { const v = fd(f); res = await api('POST', '/api/catalog/from-sysinfo', { text: v.text, lookup: !!v.lookup, lang: LANG }); return true; },
+    onOk: async f => { const v = fd(f); res = await api('POST', '/api/catalog/from-sysinfo', { text: v.text, lookup: !!v.lookup, lang: LANG }); res.ai = !!v.ai; return true; },
   });
   if (!ok || !res) return;
   if (res.existing) {
@@ -86,7 +89,28 @@ async function sysinfoDialog() {
     ${res.ignored.length ? `<br><span class="muted">${t('Seriennummer und UUID gehören zum einzelnen Gerät und werden nicht in den Katalog übernommen.')}</span>` : ''}
     ${i.virtual ? `<br><span class="warnc">${t('Das ist eine virtuelle Maschine – meist besser direkt als Gerät vom Typ „VM“ anlegen.')}</span>` : ''}
     <br><span class="muted">${t('Bitte prüfen und ergänzen (Ports, WLAN), dann speichern.')}</span></div>`;
-  return catalogDialog(s, intro);
+  return catalogDialog({ ...s, _hint: i, _autoAI: res.ai }, intro);
+}
+
+/* KI-Recherche: Felder im offenen Katalogdialog ausfüllen */
+async function aiFill(f, m) {
+  const v = fd(f), btn = $('[data-ai]', f), box = $('#aibox', f);
+  if (!v.manufacturer || !v.model) { $('.dlg-err', f).textContent = t('Hersteller und Modell eintragen'); return; }
+  btn.disabled = true; box.innerHTML = `<div class="hint-box small">${t('Claude recherchiert Datenblätter … (20–60 s)')}</div>`;
+  try {
+    const hint = { ...(m._hint || {}), manufacturer: v.manufacturer, model: v.model, type: v.type, lang: LANG };
+    const r = await api('POST', '/api/catalog/ai-lookup', hint);
+    const e = r.entry;
+    $('[name=type]', f).value = e.type; $('[name=wifi]', f).value = e.wifi; $('[name=managed]', f).checked = e.managed;
+    if (e.note) $('[name=note]', f).value = e.note;
+    if (e.ports.length) { $('#pe', f).innerHTML = portEditorHtml(e.ports, ''); bindPortEditor($('#pe', f)); }
+    m.source = e.source;
+    const conf = { high: t('Herstellerdatenblatt gefunden'), medium: t('teilweise belegt'), low: t('unsicher – bitte genau prüfen') }[r.confidence] || r.confidence;
+    box.innerHTML = `<div class="hint-box small"><b>${t('KI-Vorschlag')}</b> (${h(conf)}) – ${t('bitte prüfen, dann speichern.')}
+      ${r.sources.length ? `<br>${t('Quellen')}: ${r.sources.map((u, n) => `<a href="${h(u)}" target="_blank" rel="noopener">[${n + 1}] ${h(new URL(u).hostname)}</a>`).join(' ')}` : ''}
+      <br><span class="muted">${h(r.usage.model)} · ${t('{n} Websuchen', { n: r.usage.searches })} · ${t('ca. {c} $', { c: r.usage.cost.toFixed(3) })}</span></div>`;
+  } catch (e) { box.innerHTML = `<div class="hint-box small"><span class="errtxt">${h(e.message)}</span></div>`; }
+  btn.disabled = false;
 }
 
 async function catalogDialog(m, intro = '') {
@@ -101,6 +125,8 @@ async function catalogDialog(m, intro = '') {
       <div><label>${t('WLAN')}</label><input name="wifi" maxlength="80" value="${h(m.wifi || '')}" placeholder="${t('z. B. Wi-Fi 6 (2,4/5 GHz)')}"></div>
       <div><label>&nbsp;</label><label class="chk"><input type="checkbox" name="managed" ${m.managed ? 'checked' : ''}> ${t('verwaltbar (managed)')}</label></div>
     </div>
+    ${viewCatalog.ai ? `<div class="row" style="margin-top:8px"><button type="button" class="sm" data-ai title="${t('Ports, WLAN und Eckdaten per Claude mit Websuche recherchieren (nur Hersteller und Modell werden gesendet)')}">✦ ${t('Mit KI ergänzen')}</button></div>` : ''}
+    <div id="aibox"></div>
     <h4>${t('Ports')}</h4><div id="pe">${portEditorHtml(m.ports, '')}</div>
     <label>${t('Hinweis')}</label><input name="note" maxlength="500" value="${h(m.note || '')}">
     <label class="chk"><input type="checkbox" name="verified" ${m.verified ? 'checked' : ''}> ${t('gegen Datenblatt geprüft')}</label>
@@ -108,6 +134,8 @@ async function catalogDialog(m, intro = '') {
     wide: true,
     onOpen: (f, close) => {
       bindPortEditor($('#pe', f));
+      const aib = $('[data-ai]', f);
+      if (aib) { aib.onclick = () => aiFill(f, m); if (m._autoAI) aiFill(f, m); }
       const d = $('[data-del]', f);
       if (d) d.onclick = async () => {
         close(null);

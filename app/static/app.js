@@ -364,6 +364,8 @@ async function viewSettings() {
     try { const r = await api('POST', '/api/settings/smtp/test'); toast(t('Testmail an {e} gesendet', { e: r.to })); } catch (e) { toast(e.message, true); }
   };
   await renderDetection($('#detection'));
+  const aiBox = document.createElement('div'); aiBox.id = 'aibox'; $('#detection').after(aiBox);
+  await renderAI(aiBox);
   await renderBackup($('#backup'));
 }
 
@@ -387,6 +389,27 @@ async function renderDetection(el) {
     ev.target.disabled = true;
     try { const x = await api('POST', '/api/settings/oui/update'); toast(t('{n} Einträge geladen', { n: x.entries.toLocaleString() })); renderDetection(el); }
     catch (e) { toast(e.message, true); ev.target.disabled = false; }
+  };
+}
+
+/* KI (Claude API) für die Katalog-Recherche */
+async function renderAI(el) {
+  const r = await api('GET', '/api/settings/ai');
+  el.innerHTML = `<h2>${t('KI-Recherche (Claude API)')}</h2><form class="panel stack" id="aif">
+    <p class="muted small" style="margin:0">${t('Optional. Im Katalog recherchiert Claude mit der Websuche Datenblätter (Ports, WLAN, Eckdaten) und schlägt einen Eintrag mit Quellen vor. Gesendet werden nur Hersteller, Modell und erkannte Eckdaten – nie Seriennummern, IP-Adressen oder Daten aus deinem Netz. Die Kosten trägt dein Anthropic-Konto (meist wenige Cent je Recherche).')}</p>
+    <div class="grid2">
+      <div><label>${t('API-Schlüssel')}</label><input name="key" type="password" autocomplete="off" value="${h(r.key)}" placeholder="sk-ant-…">
+        <small class="muted">${t('Aus der Claude Console (platform.claude.com → API Keys). Wird verschlüsselt gespeichert.')}</small></div>
+      <div><label>${t('Modell')}</label><select name="model">${r.models.map(m => `<option value="${m.id}" ${m.id === r.model ? 'selected' : ''}>${h(m.name)} – $${m.price_in}/$${m.price_out} ${t('je 1 Mio. Token')}</option>`).join('')}</select>
+        <small class="muted">${t('Standard: Claude Opus 5.5 (beste Recherche). Dazu kommen 1 Cent je Websuche (höchstens 5 je Recherche).')}</small></div>
+    </div>
+    <div class="row"><button class="pri">${t('Speichern')}</button><button type="button" class="sm" data-aitest>${t('Schlüssel testen')}</button><span class="small" id="aires"></span></div></form>`;
+  $('#aif', el).onsubmit = async ev => { ev.preventDefault(); try { await api('PUT', '/api/settings/ai', fd(ev.target)); toast(t('gespeichert')); renderAI(el); } catch (e) { toast(e.message, true); } };
+  $('[data-aitest]', el).onclick = async ev => {
+    ev.target.disabled = true; const out = $('#aires', el); out.className = 'small muted'; out.textContent = t('prüfe …');
+    try { const x = await api('POST', '/api/settings/ai/test', fd($('#aif', el))); out.className = 'small okc'; out.textContent = '✓ ' + t('Schlüssel ok ({m})', { m: x.model }); }
+    catch (e) { out.className = 'small errtxt'; out.textContent = '✗ ' + e.message; }
+    ev.target.disabled = false;
   };
 }
 

@@ -68,6 +68,11 @@ díktyo dann beim DNS des Subnetzes ab (Gateway bzw. DNS-Angabe im IPAM), die MA
   oder Windows `Get-CimInstance Win32_ComputerSystem | fl` einfügen – díktyo erkennt Hersteller, Modell, Typ und Ports,
   schlägt auf Wunsch eine Beschreibung bei Wikipedia nach (nur Hersteller und Modell werden gesendet) und öffnet den
   vorausgefüllten Eintrag zum Prüfen. Seriennummer und UUID werden nicht übernommen.
+- **KI-Recherche (optional):** Mit einem Claude-API-Schlüssel (*Einstellungen → KI-Recherche*, Schlüssel aus
+  platform.claude.com) recherchiert díktyo per Websuche Datenblätter und füllt Typ, Ports, WLAN und Eckdaten aus –
+  im Katalogdialog über *Mit KI ergänzen* oder direkt bei *Aus Systeminfo*. Angezeigt werden Quellen, eine Einschätzung
+  der Sicherheit und die ungefähren Kosten (meist 5–20 Cent mit Claude Opus 5.5; günstigere Modelle wählbar).
+  Gesendet werden nur Hersteller, Modell und erkannte Eckdaten. Vor dem Speichern immer prüfen.
 
 ### Dienste prüfen (nmap)
 

@@ -261,6 +261,11 @@ by updates) and import a CSV (separator `;` or `,`, German or English column nam
 model), optionally looks up a short description on Wikipedia (only manufacturer and model are sent) and opens the
 prefilled catalog dialog for review. Serial number and UUID are never stored in the catalog or sent anywhere.
 
+**AI research (optional):** with a Claude API key (Settings → AI research) díktyo researches data sheets via the
+Claude API with web search and fills in type, ports, Wi-Fi and key data ("Complete with AI" in the catalog dialog, or
+directly from system info). The suggestion shows its sources, a confidence rating and the approximate cost; only
+manufacturer, model and detected key data are sent. Default model Claude Opus 5.5, selectable.
+
 ## Output
 
 **Output** creates a PDF in a light print layout. Choose the sections: topology graphic, device list, IP plan per subnet, VLAN

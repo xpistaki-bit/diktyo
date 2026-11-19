@@ -66,7 +66,10 @@ def _settings_for_export(c, f):
     bk = dict(get_setting(c, "backup", {}) or {})
     bk.pop("passphrase", None)
     bk["targets"] = [dict(t, password=move(t["password"])) if t.get("password") else dict(t) for t in bk.get("targets", [])]
-    return dict(registration_open=get_setting(c, "registration_open", False), smtp=smtp, backup=bk)
+    aiset = dict(get_setting(c, "ai", {}) or {})
+    if aiset.get("key"):
+        aiset["key"] = move(aiset["key"])
+    return dict(registration_open=get_setting(c, "registration_open", False), smtp=smtp, backup=bk, ai=aiset)
 
 
 # ------------------------------------------------------------ Export
@@ -333,4 +336,9 @@ def restore_all(c, exp, passphrase=""):
     set_setting(c, "registration_open", bool(st.get("registration_open")))
     set_setting(c, "smtp", smtp)
     set_setting(c, "backup", bk)
+    aiset = dict(st.get("ai") or {})
+    if aiset.get("key"):
+        aiset["key"] = back(aiset["key"], "Claude API")
+    if aiset:
+        set_setting(c, "ai", aiset)
     return dict(res, users=len(umap), secrets_dropped=sorted(set(dropped)))
