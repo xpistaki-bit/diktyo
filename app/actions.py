@@ -92,12 +92,65 @@ def _blocked_internet(c, pid, d, ip, own_ips):
     return ""
 
 
+def _uplink(c, did):
+    """-> (Gerät darüber, Port-Nr. am Gerät darüber oder None)"""
+    r = c.execute("""SELECT bi.device_id, bi.port_no, bi.role FROM links l JOIN interfaces ai ON ai.id=l.a_if JOIN interfaces bi ON bi.id=l.b_if
+                     WHERE ai.device_id=? AND l.uplink=1 LIMIT 1""", (did,)).fetchone()
+    return (r["device_id"], r["port_no"] if r["role"] == "port" else None) if r else (None, None)
+
+
+def _path_targets(c, pid, sw_did):
+    """Geräte, über die díktyo seine Verbindung hat: díktyo selbst, sein Gateway und ein Router mit Adressen in díktyos Netz
+    und im Netz des Switches (NAT-Router dazwischen, z. B. ein ASUS hinter der FRITZ!Box)."""
+    from .scan import netinfo
+    local = []
+    for i in netinfo.interfaces():
+        try:
+            local.append(ipaddress.ip_network(i["cidr"]))
+        except ValueError:
+            pass
+    own_ips = {i["ip"] for i in netinfo.interfaces()}
+    gw = netinfo.default_gateway()
+    host = c.execute("SELECT host FROM integrations WHERE device_id=? AND driver='snmp' LIMIT 1", (sw_did,)).fetchone()
+    try:
+        sw_net = ipaddress.ip_network(f"{host['host']}/24", strict=False) if host else None
+    except ValueError:
+        sw_net = None
+    by_dev = {}
+    for r in c.execute("SELECT device_id, address FROM ip_addresses WHERE profile_id=? AND device_id IS NOT NULL", (pid,)):
+        by_dev.setdefault(r["device_id"], []).append(r["address"])
+    out = set()
+    for did, addrs in by_dev.items():
+        ips = []
+        for a in addrs:
+            try:
+                ips.append(ipaddress.ip_address(a))
+            except ValueError:
+                pass
+        if set(addrs) & own_ips or (gw and gw in addrs):
+            out.add(did)
+        elif sw_net and any(ip in sw_net for ip in ips) and any(ip in n for ip in ips for n in local):
+            out.add(did)
+    return out
+
+
 def _protected_ports(c, pid, sw_did, st):
     """Ports des Switches, über die díktyo oder ein Router erreichbar ist (abschalten würde die Verwaltung aussperren)."""
+    keep = set()
+    for t in _path_targets(c, pid, sw_did):  # Weg von díktyo/Gateway/NAT-Router nach oben bis zu diesem Switch
+        x, seen = t, set()
+        while x and x not in seen:
+            seen.add(x)
+            parent, port = _uplink(c, x)
+            if parent == sw_did:
+                if port:
+                    keep.add(port)
+                break
+            x = parent
     own_ips, own_macs = _own_addresses()
     routers = {r["mac"] for r in c.execute("""SELECT i.mac FROM interfaces i JOIN devices d ON d.id=i.device_id
                                               WHERE d.profile_id=? AND d.type IN ('router','firewall','modem') AND i.mac<>''""", (pid,))}
-    keep = set()
+    # (Wege oben bereits eingetragen)
     for p in (st.get("result") or {}).get("ports") or []:
         macs = {m.upper() for m in p.get("macs") or []}
         if macs & (routers | own_macs):
@@ -138,7 +191,7 @@ def available(c, pid, did, port_no=None):
     mac = next((r["mac"] for r in c.execute("SELECT mac FROM interfaces WHERE device_id=? AND mac<>'' AND role<>'port' ORDER BY id", (did,))), "")
     own_ips, _ = _own_addresses()
     out = []
-    if port_no:  # Frontplatte: nur die Aktionen dieses Switch-Ports
+    if port_no:  # Frontplatte bzw. Port-Auswahl: nur die Aktionen dieses Switch-Ports
         for row in _integrations(c, pid, "snmp"):
             if row["device_id"] == did:
                 return _port_actions(c, pid, row, port_no)
@@ -172,8 +225,25 @@ def available(c, pid, did, port_no=None):
                                 WHERE ai.device_id=? AND l.uplink=1 AND bi.device_id=? AND bi.role='port'""", (did, row["device_id"])).fetchone()
             if link and link["port_no"]:
                 out += _port_actions(c, pid, row, link["port_no"])
-    # Proxmox
+    # Proxmox-Host: seine Gäste schalten
     px = data.get("proxmox") or {}
+    if px.get("node") and not px.get("vmid"):
+        rows = _integrations(c, pid, "proxmox")
+        if rows:
+            for g in c.execute("""SELECT d.id, d.name, d.online, d.data FROM devices d WHERE d.profile_id=? AND json_extract(d.data,'$.proxmox.node')=?
+                                  AND json_extract(d.data,'$.proxmox.vmid') IS NOT NULL ORDER BY d.name COLLATE NOCASE""", (pid, px["node"])):
+                gp = json.loads(g["data"])["proxmox"]
+                if gp.get("kind") not in ("qemu", "lxc"):
+                    continue
+                gips = _ipv4([r["address"] for r in c.execute("SELECT address FROM ip_addresses WHERE device_id=?", (g["id"],))])
+                base = dict(node=gp["node"], kind=gp["kind"], vmid=gp["vmid"])
+                tag = f"{gp['kind'].upper()} {gp['vmid']}"
+                if g["online"] != 1:
+                    out.append(_act("vm", rows[0]["id"], dict(base, op="start"), f"„{g['name']}“ starten", tag))
+                else:
+                    out.append(_act("vm", rows[0]["id"], dict(base, op="shutdown"), f"„{g['name']}“ herunterfahren", tag, danger=True,
+                                    blocked="díktyo läuft in dieser VM bzw. diesem Container." if set(gips) & own_ips else ""))
+    # Proxmox-Gast
     if px.get("vmid") and px.get("kind") in ("qemu", "lxc"):
         for row in _integrations(c, pid, "proxmox"):
             base = dict(node=px["node"], kind=px["kind"], vmid=px["vmid"])
@@ -314,3 +384,12 @@ def recent(c, pid, limit=20):
 
 def cancel_undo(c, pid, aid):
     return c.execute("UPDATE actions SET undo_at=NULL WHERE id=? AND profile_id=? AND undone IS NULL", (aid, pid)).rowcount
+
+
+def switch_ports(c, pid, did):
+    """Ports eines per SNMP angebundenen Switches für die Port-Auswahl im Gerätedialog (sonst None)."""
+    for row in _integrations(c, pid, "snmp"):
+        if row["device_id"] == did:
+            ports = (_state(row).get("result") or {}).get("ports") or []
+            return [dict(port_no=p["port_no"], name=p.get("name") or "", oper=p.get("oper"), admin=p.get("admin", "up"), poe=p.get("poe")) for p in ports]
+    return None

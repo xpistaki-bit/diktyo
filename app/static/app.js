@@ -422,7 +422,9 @@ async function renderBackup(el) {
       ${tg.type === 'local' ? `<label>${t('Pfad im Container')}</label><input data-f="path" value="${h(tg.path || '')}" placeholder="/mnt/sicherung">`
       : tg.type === 'webdav' ? `<label>${t('Adresse')}</label><input data-f="url" value="${h(tg.url || '')}" placeholder="https://cloud.example.com/remote.php/dav/files/NAME/diktyo">
         <div class="grid2"><div><label>${t('Benutzername')}</label><input data-f="user" value="${h(tg.user || '')}"></div><div><label>${t('Passwort')}</label><input data-f="password" type="password" autocomplete="new-password" value="${h(tg.password || '')}"></div></div>`
-      : `<label>${t('rclone-Ziel')}</label><input data-f="remote" value="${h(tg.remote || '')}" placeholder="gdrive:diktyo">`}</div>`;
+      : `<label>${t('rclone-Ziel')}</label><input data-f="remote" value="${h(tg.remote || '')}" placeholder="gdrive:diktyo">
+        <small class="muted">${t('Form „Name:Ordner“, z. B. gdrive:diktyo. Der Name ist eine in rclone eingerichtete Verbindung.')} <span data-remotes></span></small>
+        <div class="row" style="margin-top:6px"><button type="button" class="sm" data-gdrive>${t('Google Drive verbinden')}</button></div>`}</div>`;
   el.innerHTML = `<form class="panel stack" id="bk">
     <p class="muted" style="margin:0">${t('Jede Sicherung ist eine ZIP-Datei mit allen Konten, Profilen, Geräten und Einstellungen sowie einem PDF und CSV je Profil.')}</p>
     <div id="targets" class="stack">${s.targets.map(row).join('') || `<p class="muted" id="notargets">${t('Noch kein Sicherungsziel.')}</p>`}</div>
@@ -439,7 +441,35 @@ async function renderBackup(el) {
     ${last ? `<div class="last"><b>${t('Letzte Sicherung')}:</b> ${fmtDate(last.time)} · ${(last.size / 1024).toFixed(0)} KB
       <ul>${last.results.map(r => `<li class="${r.ok ? 'ok' : 'err'}">${r.ok ? '✓' : '✗'} ${h(r.target)} – ${h(r.detail)}</li>`).join('')}</ul></div>` : ''}
   </form>`;
-  const bindRm = () => $$('[data-rmt]', el).forEach(b => b.onclick = () => b.closest('.target').remove());
+  const bindRm = () => {
+    $$('[data-rmt]', el).forEach(b => b.onclick = () => b.closest('.target').remove());
+    $$('[data-gdrive]', el).forEach(b => b.onclick = () => gdriveDialog(b.closest('.target')));
+    rcloneInfo();
+  };
+  async function rcloneInfo() {
+    if (!$('[data-remotes]', el)) return;
+    try {
+      const r = await api('GET', '/api/backup/rclone');
+      $$('[data-remotes]', el).forEach(s => s.textContent = r.remotes == null ? t('rclone ist nicht installiert.')
+        : r.remotes.length ? t('Eingerichtet: {n}', { n: r.remotes.map(x => `${x.name} (${x.type})`).join(', ') }) : t('Noch keine Verbindung eingerichtet.'));
+    } catch { }
+  }
+  async function gdriveDialog(target) {
+    const res = await dialog(t('Google Drive verbinden'), `<ol class="steps">
+        <li>${t('Auf deinem PC (mit Browser) rclone installieren: <b>rclone.org/downloads</b> – unter Windows reicht die entpackte rclone.exe.')}</li>
+        <li>${t('Dort in der Eingabeaufforderung bzw. im Terminal ausführen:')}<pre>rclone authorize "drive"</pre></li>
+        <li>${t('Im Browser mit dem Google-Konto anmelden, in dem die Sicherungen landen sollen, und zustimmen.')}</li>
+        <li>${t('rclone zeigt danach eine Zeile <b>{"access_token": …}</b> – die komplette Zeile kopieren und hier einfügen.')}</li></ol>
+      <div class="grid2"><div><label>${t('Name der Verbindung')}</label><input name="name" value="gdrive" maxlength="32"></div></div>
+      <label>${t('Token aus rclone authorize')}</label><textarea name="token" rows="4" class="mono" placeholder='{"access_token":"ya29…","token_type":"Bearer","refresh_token":"1//…","expiry":"…"}'></textarea>
+      <p class="muted small">${t('díktyo erhält nur Zugriff auf Dateien, die es selbst in Google Drive anlegt (nicht auf deine übrigen Dateien). Das Token liegt in der rclone-Konfiguration im Datenverzeichnis von díktyo.')}</p>`,
+      { ok: t('Verbinden'), wide: true, onOk: f => api('POST', '/api/backup/rclone/drive', fd(f)) });
+    if (!res) return;
+    const inp = $('[data-f=remote]', target);
+    if (inp && (!inp.value || !inp.value.startsWith(res.name + ':'))) inp.value = res.remote;
+    toast(t('Google Drive verbunden – Ziel {r}. Jetzt speichern.', { r: res.remote }));
+    rcloneInfo();
+  }
   bindRm();
   $('#addt', el).onclick = () => { const n = $('#notargets', el); if (n) n.remove(); $('#targets', el).insertAdjacentHTML('beforeend', row({ type: $('#newt', el).value })); bindRm(); };
   const collect = () => ({

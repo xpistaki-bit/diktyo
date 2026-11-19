@@ -26,6 +26,22 @@ def _out(c):
                 last=get_setting(c, "backup_last"))
 
 
+@router.get("/api/backup/rclone")
+def rclone_get(admin=Depends(require_admin)):
+    return dict(remotes=backup.rclone_remotes(), config=str(backup.RCLONE_CONF))
+
+
+@router.post("/api/backup/rclone/drive")
+def rclone_drive(body: dict = Body(...), admin=Depends(require_admin)):
+    try:
+        res = backup.rclone_drive(str(body.get("name") or "gdrive").strip(), str(body.get("token") or ""))
+    except backup.BackupError as ex:
+        raise HTTPException(400, str(ex))
+    with db() as c:
+        audit(c, "backup.rclone_drive", admin["id"], detail=dict(name=res["name"]))
+    return res
+
+
 @router.get("/api/backup")
 def backup_get(admin=Depends(require_admin)):
     with db() as c:

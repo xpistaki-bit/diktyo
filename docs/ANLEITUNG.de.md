@@ -232,6 +232,8 @@ Topologie-Seitenleiste und in der Frontplatte beim angeklickten Port:
   Gelingt das automatische Zurückschalten deshalb nicht, meldet díktyo das unter *Letzte Aktionen* und – falls
   eingerichtet – per Home Assistant.
 - Alle Aktionen stehen unter *Integrationen → Letzte Aktionen*; geplantes Zurückschalten lässt sich dort abbrechen.
+- Am **Switch** selbst: im Gerätedialog unter *Aktionen* den Port wählen (oder in der Frontplatte auf den Port klicken).
+- Am **Proxmox-Host**: Liste seiner VMs und Container zum Starten bzw. Herunterfahren.
 
 Proxmox-Rechte für VMs schalten (einmal auf einem Knoten):
 
@@ -244,6 +246,11 @@ pveum acl modify / --tokens 'diktyo@pve!diktyo' --roles DiktyoPower
 
 - *Ausgabe:* PDF (Topologie-Grafik, Geräteliste, IP-Plan, VLANs, Portbelegung, WLAN-Übersicht, Notizen – wählbar) und CSV.
 - *Einstellungen → Sicherung:* Ziele Ordner/NAS, WebDAV oder rclone, automatisch alle 12 h, täglich oder wöchentlich.
+- **Google Drive (rclone):** Ziel „rclone“ hinzufügen → *Google Drive verbinden*. Auf deinem PC mit Browser
+  `rclone authorize "drive"` ausführen (rclone von rclone.org; unter Windows reicht die rclone.exe), mit dem
+  gewünschten Google-Konto anmelden, die ausgegebene Zeile `{"access_token": …}` in den Dialog kopieren. díktyo legt
+  die Verbindung an (Zugriff nur auf selbst angelegte Dateien) und trägt als Ziel z. B. `gdrive:diktyo` ein –
+  `gdrive` ist der Name der Verbindung, `diktyo` der Ordner in Google Drive. Danach speichern und *Jetzt sichern*.
   Mit einer **Backup-Passphrase** kommen Zugangsdaten und die neuesten Gerätekonfigurationen verschlüsselt mit in die
   Sicherung – Passphrase gut aufheben.
 - **Wiederherstellen:** In einer neuen, leeren Installation bietet die Ersteinrichtung „Aus einer Sicherung

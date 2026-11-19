@@ -148,3 +148,44 @@ def test_snmp_v2c_set_on_wire():
     threading.Thread(target=agent, daemon=True).start()
     snmplib.Client("127.0.0.1", "rw", port=sock.getsockname()[1]).set_int("1.3.6.1.2.1.2.2.1.7.105", 2)
     assert got["tag"] == snmplib.SET and got["community"] == b"rw" and got["vbs"] == [("1.3.6.1.2.1.2.2.1.7.105", snmplib.INT, 2)]
+
+
+def test_lockout_protection_via_nat_router(monkeypatch):
+    """díktyo im ASUS-Netz (192.168.50.x), ASUS hängt an Switch-Port 2: Port 2 darf nicht abgeschaltet werden."""
+    from app.scan import netinfo
+    monkeypatch.setattr(netinfo, "interfaces", lambda: [dict(ifname="eth0", ip="192.168.50.223", prefix=24, cidr="192.168.50.0/24")])
+    monkeypatch.setattr(netinfo, "default_gateway", lambda: "192.168.50.1")
+    monkeypatch.setattr(actions, "_own_addresses", lambda: ({"192.168.50.223"}, {"DE:AD:00:00:00:01"}))
+    cl = login()
+    pid, P, d = _setup(cl, "Aktionen-NAT")
+    asus = cl.post(f"{P}/devices", json={"name": "ASUS EBM68", "type": "mesh", "status": "confirmed",
+                                          "ips": [{"address": "192.168.50.1"}, {"address": "192.168.178.3"}]}, headers=H).json()["id"]
+    with db() as c:
+        p2 = c.execute("SELECT id FROM interfaces WHERE device_id=? AND role='port' AND port_no=2", (d["sw"],)).fetchone()["id"]
+        integrations.set_auto_uplink(c, pid, asus, d["sw"], "lan", port_id=p2)
+    a = {x["label"]: x for x in cl.get(f"{P}/devices/{asus}/actions").json()["actions"]}
+    assert "aussperren" in a["Switch-Port 2 abschalten"]["blocked"]
+    # Fernseher an Port 5 bleibt schaltbar; Port-Auswahl am Switch liefert alle Ports
+    tv = {x["label"]: x for x in cl.get(f"{P}/devices/{d['tv']}/actions").json()["actions"]}
+    assert not tv["Switch-Port 5 abschalten"]["blocked"]
+    r = cl.get(f"{P}/devices/{d['sw']}/actions").json()
+    assert [p["port_no"] for p in r["ports"]] == list(range(1, 9)) and r["ports"][4]["poe"] is True
+
+
+def test_proxmox_host_lists_guests(monkeypatch):
+    monkeypatch.setattr(actions, "_own_addresses", lambda: ({"192.168.50.223"}, set()))
+    cl = login()
+    pid, P, d = _setup(cl, "Aktionen-PVE")
+    mk = lambda **kw: cl.post(f"{P}/devices", json={"status": "confirmed", **kw}, headers=H).json()["id"]  # noqa: E731
+    host = mk(name="pve", type="hypervisor")
+    vm = mk(name="HomeAssistant", type="vm", ips=[{"address": "192.168.50.9"}])
+    me = mk(name="diktyo", type="container", ips=[{"address": "192.168.50.223"}])
+    with db() as c:
+        for did, meta in ((host, {"node": "pve"}), (vm, {"node": "pve", "vmid": 100, "kind": "qemu"}), (me, {"node": "pve", "vmid": 103, "kind": "lxc"})):
+            c.execute("UPDATE devices SET data=?, online=1 WHERE id=?", (json.dumps({"proxmox": meta}), did))
+        c.execute("INSERT INTO integrations(profile_id, driver, name, host, secret, options, device_id, created) VALUES(?,?,?,?,?,?,?,?)",
+                  (pid, "proxmox", "Proxmox", "192.0.2.12", "", "{}", host, now()))
+    acts = {x["label"]: x for x in cl.get(f"{P}/devices/{host}/actions").json()["actions"]}
+    assert not acts["„HomeAssistant“ herunterfahren"]["blocked"] and "díktyo läuft" in acts["„diktyo“ herunterfahren"]["blocked"]
+    vm_acts = {x["label"] for x in cl.get(f"{P}/devices/{vm}/actions").json()["actions"]}
+    assert vm_acts == {"Herunterfahren", "Neu starten"}

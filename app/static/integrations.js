@@ -281,8 +281,14 @@ async function actionsBox(ctx, did, el, port = 0) {
   if (!ctx.isOwner) { el.innerHTML = ''; return; }
   let r;
   try { r = await api('GET', `/api/profiles/${ctx.pid}/devices/${did}/actions${port ? `?port=${port}` : ''}`); } catch { el.innerHTML = ''; return; }
-  if (!r.actions.length) { el.innerHTML = ''; return; }
-  el.innerHTML = `<h4>${t('Aktionen')}</h4><div class="act-list">${r.actions.map((a, n) => `<button type="button" class="sm ${a.danger ? 'warn-btn' : ''}" data-act="${n}"
+  if (r.ports?.length && !port) {  // Switch: Port wählen, dann seine Aktionen
+    el.innerHTML = `<h4>${t('Aktionen')}</h4><div class="row"><label style="margin:0">${t('Switch-Port')}</label>
+      <select data-psel style="width:auto"><option value="">${t('– Port wählen –')}</option>${r.ports.map(p => `<option value="${p.port_no}">${p.port_no}${p.name && p.name !== String(p.port_no) ? ' · ' + h(p.name) : ''} – ${p.admin === 'down' ? t('abgeschaltet') : p.oper === 'up' ? t('Link') : t('kein Link')}${p.poe ? ' · PoE' : ''}</option>`).join('')}</select></div><div data-pact></div>`;
+    $('[data-psel]', el).onchange = ev => { const sub = $('[data-pact]', el); if (ev.target.value) actionsBox(ctx, did, sub, +ev.target.value); else sub.innerHTML = ''; };
+    return;
+  }
+  if (!r.actions.length) { el.innerHTML = port ? `<p class="muted small">${t('Für diesen Port gibt es keine Aktionen.')}</p>` : ''; return; }
+  el.innerHTML = `${port ? '' : `<h4>${t('Aktionen')}</h4>`}<div class="act-list">${r.actions.map((a, n) => `<button type="button" class="sm ${a.danger ? 'warn-btn' : ''}" data-act="${n}"
       ${a.blocked ? `disabled title="${h(t(a.blocked))}"` : `title="${h(t(a.detail))}"`}>${h(t(a.label))}</button>`).join('')}</div>
     ${r.actions.some(a => a.blocked) ? `<p class="muted small">${r.actions.filter(a => a.blocked).map(a => `${h(t(a.label))}: ${h(t(a.blocked))}`).join('<br>')}</p>` : ''}`;
   $$('[data-act]', el).forEach(b => b.onclick = async () => { if (await runAction(ctx, did, r.actions[+b.dataset.act], port)) actionsBox(ctx, did, el, port); });

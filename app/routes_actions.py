@@ -14,7 +14,8 @@ def device_actions(pid: int, did: int, port: int = 0, user=Depends(require_user)
         _, role = profile_access(c, user, pid)
         if role != "owner":
             return dict(actions=[], allowed=False)
-        return dict(actions=actions.available(c, pid, did, port or None), allowed=True)
+        return dict(actions=actions.available(c, pid, did, port or None), allowed=True,
+                    ports=None if port else actions.switch_ports(c, pid, did))
 
 
 @router.post("/devices/{did}/actions")

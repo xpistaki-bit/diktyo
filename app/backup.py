@@ -19,7 +19,7 @@ import httpx
 from cryptography.fernet import Fernet, InvalidToken
 
 from . import export, security
-from .db import get_setting, now, set_setting
+from .db import DATA, get_setting, now, set_setting
 from .version import VERSION
 
 FORMAT = "diktyo-backup"
@@ -169,9 +169,9 @@ def run(c, targets):
                 with tempfile.TemporaryDirectory() as td:
                     p = pathlib.Path(td) / fname
                     p.write_bytes(data)
-                    cp = subprocess.run(["rclone", "copy", str(p), t["remote"]], capture_output=True, text=True, timeout=600)
+                    cp = subprocess.run(["rclone", "--config", str(RCLONE_CONF), "copy", str(p), t["remote"]], capture_output=True, text=True, timeout=600)
                     if cp.returncode:
-                        raise RuntimeError(cp.stderr.strip()[-400:] or "rclone-Fehler")
+                        raise RuntimeError(rclone_error(cp.stderr, t["remote"]))
                 results.append(dict(target=f"rclone {t['remote']}", ok=True, detail=fname))
             else:
                 raise RuntimeError("unbekannter Zieltyp")
@@ -342,3 +342,60 @@ def restore_all(c, exp, passphrase=""):
     if aiset:
         set_setting(c, "ai", aiset)
     return dict(res, users=len(umap), secrets_dropped=sorted(set(dropped)))
+
+
+# ------------------------------------------------------------ rclone (Google Drive, OneDrive, S3 …)
+RCLONE_CONF = DATA / ".config" / "rclone" / "rclone.conf"
+
+
+def rclone_error(stderr, remote=""):
+    msg = (stderr or "").strip()
+    if "didn't find section in config file" in msg or "not found - using defaults" in msg and "Failed to create file system" in msg:
+        name = remote.split(":")[0]
+        return (f"Das rclone-Ziel „{name}“ ist noch nicht eingerichtet. Unter dem Ziel „Google Drive verbinden“ wählen "
+                f"(oder im Container: rclone --config {RCLONE_CONF} config).")
+    if "invalid_grant" in msg or "token expired" in msg.lower():
+        return "Die Anmeldung bei Google ist abgelaufen oder wurde widerrufen – „Google Drive verbinden“ erneut ausführen."
+    return msg[-400:] or "rclone-Fehler"
+
+
+def rclone_remotes():
+    import shutil
+    import subprocess
+    if not shutil.which("rclone"):
+        return None
+    cp = subprocess.run(["rclone", "--config", str(RCLONE_CONF), "listremotes", "--long"], capture_output=True, text=True, timeout=20)
+    out = []
+    for line in cp.stdout.splitlines():
+        if ":" in line:
+            name, _, typ = line.partition(":")
+            out.append(dict(name=name.strip(), type=typ.strip()))
+    return out
+
+
+def rclone_drive(name, token_text):
+    """Google-Drive-Remote mit einem Token aus „rclone authorize "drive"“ anlegen (Zugriff nur auf von rclone angelegte Dateien)."""
+    import json as _json
+    import re
+    import shutil
+    import subprocess
+    if not shutil.which("rclone"):
+        raise BackupError("rclone ist nicht installiert")
+    if not re.fullmatch(r"[A-Za-z0-9_\-]{1,32}", name or ""):
+        raise BackupError("Name nur aus Buchstaben, Ziffern, - und _")
+    m = re.search(r"\{.*\}", token_text or "", re.S)
+    try:
+        tok = _json.loads(m.group(0)) if m else None
+    except ValueError:
+        tok = None
+    if not tok or not tok.get("access_token"):
+        raise BackupError("Kein gültiges Token – die ganze Zeile {\"access_token\": …} aus „rclone authorize“ einfügen")
+    RCLONE_CONF.parent.mkdir(parents=True, exist_ok=True)
+    cp = subprocess.run(["rclone", "--config", str(RCLONE_CONF), "config", "create", name, "drive", "scope=drive.file",
+                         f"token={_json.dumps(tok)}", "--non-interactive"], capture_output=True, text=True, timeout=60)
+    if cp.returncode:
+        raise BackupError(f"rclone: {(cp.stderr or cp.stdout).strip()[-300:]}")
+    t = subprocess.run(["rclone", "--config", str(RCLONE_CONF), "lsd", f"{name}:"], capture_output=True, text=True, timeout=60)
+    if t.returncode:
+        raise BackupError(f"Verbindung angelegt, aber Google Drive antwortet nicht: {rclone_error(t.stderr, name)}")
+    return dict(name=name, remote=f"{name}:diktyo")
