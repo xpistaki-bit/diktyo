@@ -22,9 +22,23 @@ def pick_neighbour(macs, by_mac):
     return None
 
 
+def secrets_of(row):
+    """Gespeicherte Geheimnisse -> dict. Ältere Einträge enthalten nur ein Passwort als Text."""
+    if not row["secret"]:
+        return {}
+    raw = security.decrypt(row["secret"])
+    try:
+        d = json.loads(raw)
+        if isinstance(d, dict):
+            return d
+    except ValueError:
+        pass
+    return {"password": raw}
+
+
 def conf_of(row):
-    return dict(host=row["host"], port=row["port"], username=row["username"],
-                password=security.decrypt(row["secret"]) if row["secret"] else "", options=json.loads(row["options"] or "{}"))
+    opts = json.loads(row["options"] or "{}")
+    return {**opts, **secrets_of(row), "host": row["host"], "port": row["port"], "username": row["username"]}
 
 
 def poll(iid, log=print):

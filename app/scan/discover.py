@@ -3,6 +3,7 @@ danach stehen die MAC-Adressen in /proc/net/arp. Nur die Betriebssystem-Erkennun
 import asyncio
 import ipaddress
 import json
+import random
 import re
 import shutil
 import socket
@@ -103,6 +104,63 @@ def reverse_dns(ips, timeout=2.0):
             except Exception:
                 pass
     return out
+
+
+def dns_ptr(ip, server, timeout=1.5):
+    """Rückwärtsauflösung bei einem bestimmten DNS-Server (z. B. der FRITZ!Box für Geräte in ihrem Netz)."""
+    try:
+        qname = ".".join(reversed(ip.split("."))) + ".in-addr.arpa"
+        tid = random.randint(0, 65535)
+        q = struct.pack(">HHHHHH", tid, 0x0100, 1, 0, 0, 0) + b"".join(bytes([len(p)]) + p.encode() for p in qname.split(".")) + b"\0" \
+            + struct.pack(">HH", 12, 1)
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(timeout)
+        try:
+            s.sendto(q, (server, 53))
+            data, _ = s.recvfrom(2048)
+        finally:
+            s.close()
+        rid, flags, qd, an = struct.unpack(">HHHH", data[:8])
+        if rid != tid or flags & 0x000F or not an:
+            return ""
+        i = 12
+        for _ in range(qd):  # Frage überspringen
+            while data[i]:
+                i += data[i] + 1
+            i += 5
+        for _ in range(an):
+            i = _skip_name(data, i)
+            rtype, _, _, rdlen = struct.unpack(">HHIH", data[i:i + 10])
+            i += 10
+            if rtype == 12:
+                return _read_name(data, i).rstrip(".")
+            i += rdlen
+    except (OSError, struct.error, IndexError, ValueError):
+        pass
+    return ""
+
+
+def _skip_name(data, i):
+    while True:
+        n = data[i]
+        if n & 0xC0 == 0xC0:
+            return i + 2
+        if n == 0:
+            return i + 1
+        i += n + 1
+
+
+def _read_name(data, i, depth=0):
+    parts = []
+    while depth < 10:
+        n = data[i]
+        if n & 0xC0 == 0xC0:
+            return ".".join(parts + [_read_name(data, ((n & 0x3F) << 8) | data[i + 1], depth + 1)])
+        if n == 0:
+            break
+        parts.append(data[i + 1:i + 1 + n].decode("utf-8", "replace"))
+        i += n + 1
+    return ".".join(parts)
 
 
 def _nb_name(name):

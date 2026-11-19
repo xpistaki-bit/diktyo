@@ -2,7 +2,7 @@
 /* Integrationen (FRITZ!Box, SNMP-Switch), Ping-Überwachung, Diagramme. Nutzt die Hilfen aus app.js, inventory.js, scan.js. */
 const DRIVER_HELP = {
   fritzbox: 'Ohne Anmeldung liest díktyo die Geräteliste und den WAN-Traffic. Mit einem FRITZ!Box-Benutzer (System → FRITZ!Box-Benutzer, Recht „FRITZ!Box Einstellungen“) kommen die Mesh-Topologie (welches Gerät an welchem LAN-Port bzw. WLAN hängt) und die WLAN-Daten dazu. In der FRITZ!Box muss unter Heimnetz → Netzwerk → Netzwerkeinstellungen „Zugriff für Anwendungen zulassen“ eingeschaltet sein.',
-  snmp: 'Am Switch SNMP v2c einschalten und eine Community vergeben (Zyxel: Management → Access Control → SNMP; dort ggf. die Adresse von díktyo als erlaubten Manager eintragen). díktyo liest nur: Port-Status, Traffic, gelernte MAC-Adressen und LLDP-Nachbarn.',
+  snmp: 'Am Switch SNMP einschalten: v2c mit einer Community oder v3 mit Benutzer (SHA/AES, Gruppe „read-only“). Zyxel: Management → Access Control → SNMP; unter Service Access muss SNMP erlaubt sein, und falls Trusted Hosts gesetzt sind, die Absenderadresse von díktyo (hinter einem Router dessen WAN-Adresse). díktyo liest nur: Port-Status, Traffic, gelernte MAC-Adressen und LLDP-Nachbarn.',
 };
 const RANGES = [[7200, '2 h'], [86400, '24 h'], [172800, '2 Tage'], [604800, '7 Tage']];
 const fmtBps = v => {
@@ -135,8 +135,11 @@ async function integrationDialog(ctx, i, drv) {
   const P = `/api/profiles/${ctx.pid}`;
   const { devices } = await api('GET', `${P}/devices`);
   i = i || { driver: drv.key, interval_s: drv.interval, enabled: true, port: drv.fields.find(f => f.key === 'port')?.default };
-  const val = f => i[f.key] ?? (i.id ? '' : f.default ?? '');
-  const fields = drv.fields.map(f => `<div><label>${t(f.label)}</label><input name="${f.key}" type="${f.type === 'password' ? 'password' : f.type === 'number' ? 'number' : 'text'}" autocomplete="off" value="${h(val(f))}" ${f.required ? 'required' : ''}></div>`).join('');
+  const val = f => f.secret ? (i.secrets?.[f.key] || (i.id ? '' : f.default ?? '')) : (i[f.key] ?? i.options?.[f.key] ?? (i.id && f.type !== 'select' ? '' : f.default ?? ''));
+  const show = f => f.show ? Object.entries(f.show).map(([k, v]) => `data-show-k="${k}" data-show-v="${h(v)}"`).join(' ') : '';
+  const fields = drv.fields.map(f => `<div ${show(f)}><label>${t(f.label)}</label>${f.type === 'select'
+    ? `<select name="${f.key}">${f.options.map(([k, n]) => `<option value="${h(k)}" ${k === val(f) ? 'selected' : ''}>${h(t(n))}</option>`).join('')}</select>`
+    : `<input name="${f.key}" type="${f.type === 'password' ? 'password' : f.type === 'number' ? 'number' : 'text'}" autocomplete="off" value="${h(val(f))}" ${f.required ? 'required' : ''}>`}</div>`).join('');
   const res = await dialog(i.id ? i.name : t(drv.name), `
     <p class="muted small" style="margin-top:0">${t(DRIVER_HELP[drv.key])}</p>
     <div class="grid2"><div><label>${t('Name')}</label><input name="name" value="${h(i.name || t(drv.name))}"></div>${fields}
@@ -146,6 +149,9 @@ async function integrationDialog(ctx, i, drv) {
     <div class="row" style="margin-top:12px"><button type="button" class="sm" data-test>${t('Verbindung testen')}</button><span class="small" id="testres"></span></div>`, {
     wide: true,
     onOpen: f => {
+      const vis = () => $$('[data-show-k]', f).forEach(el => { const sel = $(`[name=${el.dataset.showK}]`, f); el.style.display = !sel || sel.value === el.dataset.showV ? '' : 'none'; });
+      $$('select', f).forEach(sel => sel.addEventListener('change', vis));
+      vis();
       $('[data-test]', f).onclick = async ev => {
         ev.target.disabled = true; $('#testres', f).textContent = t('prüfe …'); $('#testres', f).className = 'small muted';
         try {

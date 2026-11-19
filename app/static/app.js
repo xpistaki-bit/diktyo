@@ -84,7 +84,7 @@ async function route() {
   try {
     if (p[0] === 'reset' && p[1]) return viewReset(p[1]);
     if (!STATE.user) { crumbs([]); return STATE.first_run ? (p[0] === 'wiederherstellen' ? viewRestore() : viewSetup()) : viewLogin(p[0] === 'registrieren' ? 'register' : p[0] === 'vergessen' ? 'forgot' : 'login'); }
-    if (p[0] === 'p' && p[1]) await viewProfile(+p[1], p[2] || 'geraete');
+    if (p[0] === 'p' && p[1]) await viewProfile(+p[1], p[2] || 'geraete', p[3]);
     else if (p[0] === 'katalog') await (p[1] === 'regeln' ? viewRules() : viewCatalog());
     else if (p[0] === 'einstellungen') await viewSettings();
     else await viewProfiles();
@@ -221,8 +221,8 @@ function profileDialog(title, p, ok, save) {
     { ok, onOk: f => save(fd(f)) });
 }
 
-const TABS = [['geraete', 'Geräte'], ['posteingang', 'Posteingang'], ['netzscan', 'Netzscan'], ['integrationen', 'Integrationen'], ['ipam', 'IPAM'], ['standorte', 'Standorte'], ['ausgabe', 'Ausgabe'], ['freigabe', 'Freigabe']];
-async function viewProfile(pid, tab) {
+const TABS = [['geraete', 'Geräte'], ['topologie', 'Topologie'], ['posteingang', 'Posteingang'], ['netzscan', 'Netzscan'], ['integrationen', 'Integrationen'], ['ipam', 'IPAM'], ['standorte', 'Standorte'], ['ausgabe', 'Ausgabe'], ['freigabe', 'Freigabe']];
+async function viewProfile(pid, tab, sub) {
   if (!TABS.some(x => x[0] === tab)) tab = 'geraete';
   let r;
   try { r = await api('GET', `/api/profiles/${pid}`); } catch (e) {
@@ -249,7 +249,7 @@ async function viewProfile(pid, tab) {
     if (!await confirmDlg(t('Profil löschen'), t('Profil „{n}“ mit allen Daten endgültig löschen?', { n: h(p.name) }), t('Löschen'))) return;
     await api('DELETE', `/api/profiles/${pid}`); toast(t('Profil gelöscht')); location.hash = '#/';
   };
-  const ctx = { pid, p, members: r.members, canEdit, isOwner, el: $('#tab'), reload: () => viewProfile(pid, tab) };
+  const ctx = { pid, p, members: r.members, canEdit, isOwner, sub, el: $('#tab'), reload: () => viewProfile(pid, tab, sub) };
   if (tab === 'freigabe') renderSharing(ctx); else await window.INV[tab](ctx);
 }
 

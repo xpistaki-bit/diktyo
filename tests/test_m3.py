@@ -209,7 +209,7 @@ def test_integration_api_and_monitor():
     i2 = cl.put(f"{P}/integrations/{i['id']}", json={"host": "127.0.0.2", "password": "••••••"}, headers=H).json()
     assert i2["host"] == "127.0.0.2" and i2["password"] == "••••••"
     with db() as c:
-        assert integrations.security.decrypt(c.execute("SELECT secret FROM integrations WHERE id=?", (i["id"],)).fetchone()["secret"]) == "abc"
+        assert integrations.secrets_of(c.execute("SELECT * FROM integrations WHERE id=?", (i["id"],)).fetchone())["password"] == "abc"
     r = cl.post(f"{P}/integrations/test", json={"driver": "snmp", "host": "127.0.0.1", "port": 9, "password": "x"}, headers=H)
     assert r.status_code == 400 and "Keine Antwort" in r.json()["error"]
     assert cl.put(f"{P}/monitor", json={"interval_s": 30, "enabled": True}, headers=H).json() == {"enabled": True, "interval_s": 30}

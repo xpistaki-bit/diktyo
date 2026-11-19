@@ -170,7 +170,7 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
   sets the connections automatically) plus Wi-Fi networks. Create the user under System → FRITZ!Box Users with the
   permission "FRITZ!Box settings"; "Allow access for applications" must be on (Home Network → Network → Network
   Settings). New devices land in the inbox; known ones are updated and shown online/offline.
-- **Switch (SNMP v2c),** for example the Zyxel XGS1935: port status and speed, traffic per port (from the 64-bit
+- **Switch (SNMP v2c or v3** with SHA/SHA-256/MD5 authentication and AES-128 encryption), for example the Zyxel XGS1935: port status and speed, traffic per port (from the 64-bit
   counters), MAC addresses learned per port and LLDP neighbours. Devices whose MAC address appears alone on a port
   are connected to that port automatically; on a port with many addresses the switch, access point or router behind
   it is chosen. Enable SNMP on the switch (Zyxel: Management → Access Control → SNMP) and set a community.

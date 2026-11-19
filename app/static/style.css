@@ -262,3 +262,52 @@ td.errtxt{color:var(--err);font-size:12.5px}
 .pp.up{border-color:rgba(46,229,157,.6);color:var(--ok);background:rgba(46,229,157,.08)}
 .pp.down{color:var(--dim);border-color:var(--line)}
 .pp.sel{box-shadow:0 0 0 2px var(--cyan)}
+
+/* ---- M4: Topologie ---- */
+.topo-tools .topo-legend{display:inline-flex;gap:12px;align-items:center;font-size:12px;color:var(--mute)}
+.topo-legend svg{vertical-align:middle;margin-right:5px}
+.topo-legend i.lg{display:inline-block;width:14px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px;border:1px solid var(--line2)}
+i.lg.conn{background:rgba(0,229,255,.35);border-color:var(--cyan)} i.lg.up{border-color:var(--ok);background:rgba(46,229,157,.12)} i.lg.down{opacity:.5} i.lg.free{background:transparent}
+.topo-wrap{position:relative;display:flex;gap:14px;align-items:flex-start}
+.topo{flex:1;min-width:0;width:100%;height:min(72vh,820px);background:radial-gradient(ellipse at 30% 20%,rgba(45,123,255,.08),transparent 60%),rgba(2,8,20,.55);
+  border:1px solid var(--line);border-radius:8px;cursor:grab;touch-action:none;user-select:none}
+.topo.dragging{cursor:grabbing}
+.topo.face{height:auto;max-height:78vh;cursor:default}
+.topo-side{width:300px;flex:none;max-height:72vh;overflow:auto;padding:14px}
+.topo-side::before,.topo-side::after{display:none}
+.topo-wrap.detail .topo-side{display:block}
+.tn,.tg,.port,.card{cursor:pointer}
+.tn-box{fill:#0B1D38;stroke:var(--line2);stroke-width:1.2}
+.tn:hover .tn-box,.tn.sel .tn-box{stroke:var(--cyan);filter:drop-shadow(0 0 6px rgba(0,229,255,.45))}
+.tn.on .tn-box{stroke:rgba(46,229,157,.55)} .tn.off .tn-box{stroke:rgba(255,77,106,.55)}
+.tn.sel .tn-box{stroke:var(--cyan);stroke-width:2}
+.tn-dot{fill:var(--dim)} .tn.on .tn-dot,.tn-dot.on{fill:var(--ok)} .tn.off .tn-dot,.tn-dot.off{fill:var(--err)}
+.tn-name{fill:var(--ink);font:600 13px system-ui,sans-serif} .tn-name.sm{font-size:11.5px}
+.tn-sub{fill:var(--mute);font:11px var(--mono)} .tn-sub.sm{font-size:10px}
+.ico{fill:none;stroke:var(--cyan);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.tg-box{fill:rgba(11,29,56,.6);stroke-width:1.2;stroke-dasharray:5 4}
+.tg:hover .tg-box{fill:rgba(0,229,255,.08)}
+.tg-plus{fill:var(--cyan);font:700 20px var(--mono)} .tg-plus.small{font-size:16px;cursor:pointer}
+.elabel{fill:var(--mute);font:10px var(--mono)}
+.tsep{fill:var(--dim);font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.kvt2{display:grid;gap:5px;font-size:13px}
+.kvt2>div{display:grid;grid-template-columns:110px 1fr;gap:8px}
+.kvt2>div>span:first-child{color:var(--mute)}
+.chassis rect{fill:#0D2142;stroke:var(--line2);stroke-width:1.5}
+.ch-name{fill:var(--ink);font:700 14px system-ui,sans-serif} .ch-sub{fill:var(--mute);font:11px var(--mono)}
+.port rect{fill:#04101F;stroke:var(--dim);stroke-width:1.2}
+.port .notch{fill:#0D2142;stroke:none}
+.port.conn rect:first-child{fill:rgba(0,229,255,.28);stroke:var(--cyan)}
+.port.up rect:first-child{fill:rgba(46,229,157,.12);stroke:var(--ok)}
+.port.down rect:first-child{opacity:.45}
+.port.sel rect:first-child{stroke:#fff;stroke-width:2.2}
+.port:hover rect:first-child{stroke:var(--cyan)}
+.pnum{fill:var(--mute);font:10px var(--mono)} .poe-mark{fill:var(--warn);font-size:9px}
+.cline{fill:none;stroke:var(--cyan);stroke-width:1.2;opacity:.6} .cline.up{stroke:var(--blue);stroke-dasharray:4 3}
+.card rect{fill:#0B1D38;stroke:var(--line2)} .card.on rect{stroke:rgba(46,229,157,.6)} .card.off rect{stroke:rgba(255,77,106,.6)}
+.card rect.card-up{stroke:var(--blue)}
+.card:hover rect{stroke:var(--cyan)}
+.clist{list-style:none;padding:0;margin:4px 0 10px;font-size:13px}
+.clist li{padding:4px 2px;cursor:pointer;display:flex;gap:6px;align-items:center;border-bottom:1px solid rgba(0,229,255,.06)}
+.clist li:hover{color:var(--cyan)}
+@media (max-width:900px){.topo-wrap{flex-direction:column}.topo-side{width:100%;max-height:none}.topo{height:60vh}}

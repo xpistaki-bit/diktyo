@@ -74,6 +74,16 @@ def run_job(j):
             c.execute("UPDATE jobs SET status='error', message=?, finished=? WHERE id=?", (str(ex)[:500], now(), j["id"]))
 
 
+def beat_loop():
+    """Lebenszeichen aus einem eigenen Thread, damit der Dienst auch während eines langen Scans als laufend gilt."""
+    while not _stop:
+        try:
+            heartbeat()
+        except Exception as ex:
+            log("Lebenszeichen:", ex)
+        time.sleep(10)
+
+
 def poller():
     """Eigener Thread: Integrationen und Ping-Überwachung laufen weiter, auch während ein langer Scan läuft."""
     last_mon, last_prune = {}, 0
@@ -125,13 +135,11 @@ def main():
         log(f"{n} abgebrochene Aufträge markiert")
     log(f"Hintergrunddienst läuft (nmap: {'ja' if discover.nmap_available() else 'nein'}, "
         f"Betriebssystem-Erkennung: {'ja' if netinfo.has_raw() else 'nein, CAP_NET_RAW fehlt'})")
+    threading.Thread(target=beat_loop, daemon=True, name="beat").start()
     threading.Thread(target=poller, daemon=True, name="poller").start()
-    last_beat = last_sched = 0
+    last_sched = 0
     while not _stop:
         t = time.time()
-        if t - last_beat > 10:
-            heartbeat()
-            last_beat = t
         if t - last_sched > SCHEDULE_EVERY_S:
             try:
                 enqueue_scheduled()
@@ -148,7 +156,7 @@ def main():
 
 def worker_status(c):
     w = get_setting(c, "worker") or {}
-    return dict(running=bool(w) and time.time() - w.get("ts", 0) < 45, **{k: w.get(k) for k in ("raw", "nmap", "interfaces", "gateway")})
+    return dict(running=bool(w) and time.time() - w.get("ts", 0) < 60, **{k: w.get(k) for k in ("raw", "nmap", "interfaces", "gateway")})
 
 
 if __name__ == "__main__":

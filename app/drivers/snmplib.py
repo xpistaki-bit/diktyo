@@ -165,3 +165,198 @@ def mac(v):
     if isinstance(v, bytes) and len(v) == 6:
         return ":".join(f"{x:02X}" for x in v)
     return ""
+
+
+# ------------------------------------------------------------ SNMPv3 (USM, RFC 3414 / 3826 / 7860)
+import hashlib  # noqa: E402
+import hmac  # noqa: E402
+import os  # noqa: E402
+
+AUTH = {  # Name -> (Hash, Länge des Prüfcodes)
+    "MD5": (hashlib.md5, 12), "SHA": (hashlib.sha1, 12), "SHA-256": (hashlib.sha256, 24),
+}
+REPORTS = {
+    "1.3.6.1.6.3.15.1.1.1.0": "Sicherheitsstufe wird vom Gerät nicht unterstützt (z. B. ohne Verschlüsselung angefragt)",
+    "1.3.6.1.6.3.15.1.1.3.0": "Benutzer am Gerät unbekannt",
+    "1.3.6.1.6.3.15.1.1.5.0": "Authentifizierung fehlgeschlagen (Passwort oder Verfahren falsch)",
+    "1.3.6.1.6.3.15.1.1.6.0": "Entschlüsselung fehlgeschlagen (Privacy-Passwort oder Verfahren falsch)",
+}
+NOT_IN_TIME = "1.3.6.1.6.3.15.1.1.2.0"
+UNKNOWN_ENGINE = "1.3.6.1.6.3.15.1.1.4.0"
+
+
+def localize_key(password, engine_id, proto="SHA"):
+    """Passwort -> lokalisierter Schlüssel (RFC 3414 A.2)."""
+    hf = AUTH[proto][0]
+    pw = password.encode()
+    if not pw:
+        raise SNMPError("Passwort fehlt")
+    h = hf()
+    count, i = 0, 0
+    buf = (pw * (64 // len(pw) + 2))
+    while count < 1048576:
+        chunk = buf[i:i + 64]
+        if len(chunk) < 64:
+            i = 0
+            chunk = buf[:64]
+        h.update(chunk)
+        i = (i + 64) % len(pw)
+        count += 64
+    ku = h.digest()
+    return hf(ku + engine_id + ku).digest()
+
+
+def _aes_cfb(key, iv, data, encrypt):
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    c = Cipher(algorithms.AES(key), modes.CFB(iv))
+    op = c.encryptor() if encrypt else c.decryptor()
+    return op.update(data) + op.finalize()
+
+
+class ClientV3(Client):
+    """SNMPv3 mit Benutzer, Authentifizierung (MD5/SHA/SHA-256) und optional AES-128-Verschlüsselung."""
+
+    def __init__(self, host, user, auth_proto="SHA", auth_pass="", priv_proto="AES", priv_pass="", port=161, timeout=2.0, retries=1):
+        super().__init__(host, "", port, timeout, retries)
+        if auth_proto and auth_proto not in AUTH:
+            raise SNMPError(f"Unbekanntes Authentifizierungsverfahren: {auth_proto}")
+        self.user, self.auth_proto, self.auth_pass = user, auth_proto if auth_pass else "", auth_pass
+        self.priv_proto, self.priv_pass = (priv_proto if priv_pass and priv_proto else ""), priv_pass
+        if self.priv_proto and self.priv_proto != "AES":
+            raise SNMPError("Unterstützt wird die Verschlüsselung AES (AES-128)")
+        if self.priv_proto and not self.auth_proto:
+            raise SNMPError("Verschlüsselung setzt Authentifizierung voraus")
+        self.engine_id, self.boots, self.time, self.t0 = b"", 0, 0, 0
+        self.k_auth = self.k_priv = None
+
+    # --- Aufbau
+    def _flags(self, reportable=True):
+        return (0x01 if self.auth_proto else 0) | (0x02 if self.priv_proto else 0) | (0x04 if reportable else 0)
+
+    def _usm(self, auth_params, priv_params, engine_id=None, boots=None, etime=None, user=None):
+        e = self.engine_id if engine_id is None else engine_id
+        return _tlv(SEQ, _tlv(OCTETS, e) + _int(self.boots if boots is None else boots) + _int(self._etime() if etime is None else etime)
+                    + _tlv(OCTETS, (self.user if user is None else user).encode()) + _tlv(OCTETS, auth_params) + _tlv(OCTETS, priv_params))
+
+    def _etime(self):
+        import time as _t
+        return self.time + int(_t.time() - self.t0) if self.t0 else 0
+
+    def _build(self, pdu, msg_id, discovery=False):
+        scoped = _tlv(SEQ, _tlv(OCTETS, self.engine_id) + _tlv(OCTETS, b"") + pdu)
+        if discovery:
+            glob = _tlv(SEQ, _int(msg_id) + _int(65507) + _tlv(OCTETS, bytes([0x04])) + _int(3))
+            usm = _tlv(SEQ, _tlv(OCTETS, b"") + _int(0) + _int(0) + _tlv(OCTETS, b"") + _tlv(OCTETS, b"") + _tlv(OCTETS, b""))
+            return _tlv(SEQ, _int(3) + glob + _tlv(OCTETS, usm) + _tlv(SEQ, _tlv(OCTETS, b"") + _tlv(OCTETS, b"") + pdu))
+        glob = _tlv(SEQ, _int(msg_id) + _int(65507) + _tlv(OCTETS, bytes([self._flags()])) + _int(3))
+        priv_params, data = b"", scoped
+        boots, etime = self.boots, self._etime()
+        if self.priv_proto:
+            salt = os.urandom(8)
+            iv = boots.to_bytes(4, "big") + etime.to_bytes(4, "big") + salt
+            data, priv_params = _tlv(OCTETS, _aes_cfb(self.k_priv[:16], iv, scoped, True)), salt
+        alen = AUTH[self.auth_proto][1] if self.auth_proto else 0
+        msg = _tlv(SEQ, _int(3) + glob + _tlv(OCTETS, self._usm(b"\0" * alen, priv_params, boots=boots, etime=etime)) + data)
+        if self.auth_proto:
+            mac = hmac.new(self.k_auth, msg, AUTH[self.auth_proto][0]).digest()[:alen]
+            marker = _tlv(OCTETS, self.user.encode()) + _tlv(OCTETS, b"\0" * alen)  # Benutzer + Platzhalter des Prüfcodes
+            pos = msg.index(marker) + len(marker) - alen
+            msg = msg[:pos] + mac + msg[pos + alen:]
+        return msg
+
+    # --- Zerlegen
+    def _open(self, data):
+        _, msg, _ = _read(data, 0)
+        i = 0
+        _, _, i = _read(msg, i)                # Version
+        _, glob, i = _read(msg, i)             # msgGlobalData
+        j = 0
+        _, mid, j = _read(glob, j)
+        _, _, j = _read(glob, j)
+        _, flags, j = _read(glob, j)
+        _, usm_raw, i = _read(msg, i)
+        _, usm, _ = _read(usm_raw, 0)
+        k = 0
+        _, eid, k = _read(usm, k)
+        _, boots, k = _read(usm, k)
+        _, etime, k = _read(usm, k)
+        _, _, k = _read(usm, k)
+        _, _, k = _read(usm, k)
+        _, privp, k = _read(usm, k)
+        tag, body, _ = _read(msg, i)
+        boots, etime = int.from_bytes(boots, "big"), int.from_bytes(etime, "big")
+        if tag == OCTETS:                      # verschlüsselt
+            if not self.k_priv:
+                raise SNMPError("Antwort ist verschlüsselt, aber kein Privacy-Passwort angegeben")
+            iv = boots.to_bytes(4, "big") + etime.to_bytes(4, "big") + bytes(privp)
+            plain = _aes_cfb(self.k_priv[:16], iv, bytes(body), False)
+            _, body, _ = _read(plain, 0)
+        m = 0
+        _, _, m = _read(body, m)               # contextEngineID
+        _, _, m = _read(body, m)               # contextName
+        ptype, pdu, _ = _read(body, m)
+        n = 0
+        _, rid, n = _read(pdu, n)
+        _, err, n = _read(pdu, n)
+        _, _, n = _read(pdu, n)
+        _, vbl, _ = _read(pdu, n)
+        vbs, q = [], 0
+        while q < len(vbl):
+            _, vb, q = _read(vbl, q)
+            _, ob, r = _read(vb, 0)
+            vtag, vval, _ = _read(vb, r)
+            vbs.append((_decode_oid(ob), vtag, _value(vtag, vval)))
+        return dict(msg_id=int.from_bytes(mid, "big"), engine_id=bytes(eid), boots=boots, time=etime, ptype=ptype,
+                    rid=int.from_bytes(rid, "big", signed=True), err=int.from_bytes(err, "big", signed=True), vbs=vbs)
+
+    def _send(self, msg, match):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(self.timeout)
+        try:
+            for _ in range(self.retries + 1):
+                s.sendto(msg, (self.host, self.port))
+                try:
+                    while True:
+                        data, _ = s.recvfrom(65535)
+                        r = self._open(data)
+                        if r["msg_id"] == match:
+                            return r
+                except socket.timeout:
+                    continue
+            raise SNMPError("Keine Antwort (Adresse, Benutzer oder SNMP am Gerät prüfen)")
+        finally:
+            s.close()
+
+    def _discover(self):
+        import time as _t
+        mid = random.randint(1, 2 ** 31 - 1)
+        pdu = _tlv(GET, _int(mid) + _int(0) + _int(0) + _tlv(SEQ, b""))
+        r = self._send(self._build(pdu, mid, discovery=True), mid)
+        if not r["engine_id"]:
+            raise SNMPError("Gerät hat keine Engine-ID gemeldet")
+        self.engine_id, self.boots, self.time, self.t0 = r["engine_id"], r["boots"], r["time"], _t.time()
+        if self.auth_proto:
+            self.k_auth = localize_key(self.auth_pass, self.engine_id, self.auth_proto)
+        if self.priv_proto:
+            # AES-128 nutzt den mit dem Authentifizierungs-Hash lokalisierten Privacy-Schlüssel (die ersten 16 Byte)
+            self.k_priv = localize_key(self.priv_pass, self.engine_id, self.auth_proto)
+
+    def _request(self, pdu_type, oids, non_rep=0, max_rep=0, _retry=True):
+        import time as _t
+        if not self.engine_id:
+            self._discover()
+        rid = mid = random.randint(1, 2 ** 31 - 1)
+        vbs = b"".join(_tlv(SEQ, _oid(o) + _tlv(NULL, b"")) for o in oids)
+        pdu = _tlv(pdu_type, _int(rid) + _int(non_rep) + _int(max_rep) + _tlv(SEQ, vbs))
+        r = self._send(self._build(pdu, mid), mid)
+        if r["ptype"] == 0xA8:  # Report
+            oid = r["vbs"][0][0] if r["vbs"] else ""
+            if oid in (NOT_IN_TIME, UNKNOWN_ENGINE) and _retry:
+                self.boots, self.time, self.t0 = r["boots"], r["time"], _t.time()
+                if oid == UNKNOWN_ENGINE:
+                    self.engine_id = b""
+                return self._request(pdu_type, oids, non_rep, max_rep, _retry=False)
+            raise SNMPError(REPORTS.get(oid, f"SNMP-Report {oid}"))
+        if r["err"]:
+            raise SNMPError(f"SNMP-Fehler {r['err']}")
+        return r["vbs"]

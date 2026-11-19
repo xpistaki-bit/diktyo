@@ -94,6 +94,7 @@ def run(job_id, log=print):
         if s.get("fingerbank") and get_setting(c, "fingerbank_key"):
             fb_key = security.decrypt(get_setting(c, "fingerbank_key"))
         rules, index = ident.load_rules(c), ident.catalog_index(c)
+        subnet_rows = [dict(r) for r in c.execute("SELECT cidr, dns, gateway FROM subnets WHERE profile_id=?", (p["id"],))]
     prog = Progress(job_id)
     t0 = time.time()
     prog(2, "Herstellerliste prüfen", True)
@@ -128,6 +129,14 @@ def run(job_id, log=print):
 
     prog(60, "Namen auflösen", True)
     rdns = _safe(lambda: discover.reverse_dns(sorted(alive)), log, "DNS")
+    # Namen aus Netzen hinter einem Router: beim DNS des jeweiligen Subnetzes nachfragen (DNS-Angabe, sonst Gateway)
+    servers = [(ipaddress.ip_network(r["cidr"]), (r["dns"].split(",")[0].strip() or r["gateway"])) for r in subnet_rows if (r["dns"] or r["gateway"])]
+    for ip in sorted(alive - set(rdns) - set(own)):
+        srv = next((sv for net, sv in servers if ipaddress.ip_address(ip) in net), None)
+        if srv and srv != ip:
+            name = discover.dns_ptr(ip, srv)
+            if name:
+                rdns[ip] = name
     http, nb, nm = {}, {}, {}
     if mode != "passive":
         prog(65, "Weboberflächen lesen", True)

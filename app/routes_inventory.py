@@ -307,3 +307,40 @@ def meta(pid: int, request: Request, user=Depends(require_user)):
         profile_access(c, user, pid)
     return dict(types=[dict(key=k, name=catalog.type_name(k, lang)) for k in catalog.TYPES], media=list(catalog.MEDIA),
                 port_kinds=list(catalog.PORT_KINDS), sections=list(export.SECTIONS))
+
+
+# ------------------------------------------------------------ Topologie und Schnell-Ping
+@router.get("/topology")
+def topology_get(pid: int, expanded: str = "", user=Depends(require_user)):
+    from . import topology
+    with db() as c:
+        profile_access(c, user, pid)
+        return topology.build(c, pid, [x for x in expanded.split(",") if x])
+
+
+@router.post("/ping")
+def quick_ping(pid: int, body: dict = Body(default={}), user=Depends(require_user)):
+    """Pingt sofort die angegebenen (sonst alle bestätigten) Geräte und aktualisiert ihren Online-Status."""
+    import asyncio
+    import json as _json
+
+    from . import monitor
+    from .db import now
+    from .scan import runner
+    ids = {int(x) for x in body.get("device_ids") or []}
+    with db() as c:
+        profile_access(c, user, pid)
+        rows = c.execute("""SELECT d.id, d.data, a.address FROM devices d JOIN ip_addresses a ON a.device_id=d.id
+                            WHERE d.profile_id=? AND d.status='confirmed'""", (pid,)).fetchall()
+    targets = []
+    for r in rows:
+        if ids and r["id"] not in ids:
+            continue
+        ports = (_json.loads(r["data"] or "{}").get("seen") or {}).get("ports") or []
+        targets.append((r["id"], r["address"], ports[0] if ports else None))
+    res = asyncio.run(monitor._check(targets)) if targets else {}
+    ts = now()
+    with db() as c:
+        for did, ok in res.items():
+            runner._set_online(c, did, 1 if ok else 0, ts, "ping")
+    return dict(results={str(k): v for k, v in res.items()}, checked=len(res), online=sum(res.values()))

@@ -11,11 +11,17 @@ from .drivers import DRIVERS, ERRORS, schema
 router = APIRouter()
 
 
+CORE = ("host", "port", "username")
+
+
 def _out(r):
     st = json.loads(r["state"] or "{}")
+    sec = integrations.secrets_of(r)
     return dict(id=r["id"], driver=r["driver"], name=r["name"], host=r["host"], port=r["port"], username=r["username"],
-                password=security.MASK if r["secret"] else "", device_id=r["device_id"], interval_s=r["interval_s"], enabled=bool(r["enabled"]),
-                last_poll=r["last_poll"], last_ok=r["last_ok"], last_error=r["last_error"], summary=st.get("summary"), result=st.get("result"))
+                options=json.loads(r["options"] or "{}"), secrets={k: security.MASK for k, v in sec.items() if v},
+                password=security.MASK if sec.get("password") else "", device_id=r["device_id"], interval_s=r["interval_s"],
+                enabled=bool(r["enabled"]), last_poll=r["last_poll"], last_ok=r["last_ok"], last_error=r["last_error"],
+                summary=st.get("summary"), result=st.get("result"))
 
 
 def _body(body, old=None):
@@ -29,15 +35,29 @@ def _body(body, old=None):
         interval = max(15, min(int(body.get("interval_s") or DRIVERS[drv].DEFAULT_INTERVAL), 3600))
     except ValueError:
         interval = DRIVERS[drv].DEFAULT_INTERVAL
-    pw = body.get("password") or ""
-    if pw == security.MASK and old:
-        secret = old["secret"]
-    else:
-        secret = security.encrypt(pw) if pw else ""
+    old_sec = integrations.secrets_of(old) if old else {}
+    secrets, options = {}, {}
+    for f in DRIVERS[drv].FIELDS:
+        k = f["key"]
+        if k in CORE:
+            continue
+        v = body.get(k)
+        if f.get("secret"):
+            v = str(v or "")
+            if v == security.MASK:
+                v = old_sec.get(k, "")
+            if v:
+                secrets[k] = v
+        elif f.get("type") == "select":
+            allowed = [o[0] for o in f.get("options", [])]
+            options[k] = v if v in allowed else f.get("default")
+        elif v not in (None, ""):
+            options[k] = str(v).strip()[:120]
     port = body.get("port")
     return dict(driver=drv, name=text(body, "name", 80) or DRIVERS[drv].NAME, host=host, port=int(port) if str(port or "").isdigit() else None,
-                username=text(body, "username", 80), secret=secret, interval_s=interval, enabled=1 if body.get("enabled", True) else 0,
-                device_id=int(body["device_id"]) if body.get("device_id") else None)
+                username=text(body, "username", 80), secret=security.encrypt(json.dumps(secrets)) if secrets else "",
+                options=json.dumps(options), interval_s=interval, enabled=1 if body.get("enabled", True) else 0,
+                device_id=int(body["device_id"]) if body.get("device_id") else None, _secrets=secrets, _options=options)
 
 
 @router.get("/api/profiles/{pid}/integrations")
@@ -56,9 +76,9 @@ def create(pid: int, body: dict = Body(...), user=Depends(require_user)):
         v = _body(body)
         if v["device_id"] and not c.execute("SELECT 1 FROM devices WHERE id=? AND profile_id=?", (v["device_id"], pid)).fetchone():
             raise HTTPException(400, "Gerät gehört nicht zu diesem Profil")
-        cur = c.execute("""INSERT INTO integrations(profile_id, driver, name, host, port, username, secret, interval_s, enabled, device_id, created)
-                           VALUES(?,?,?,?,?,?,?,?,?,?,?)""", (pid, v["driver"], v["name"], v["host"], v["port"], v["username"], v["secret"],
-                                                            v["interval_s"], v["enabled"], v["device_id"], now()))
+        cur = c.execute("""INSERT INTO integrations(profile_id, driver, name, host, port, username, secret, options, interval_s, enabled, device_id, created)
+                           VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""", (pid, v["driver"], v["name"], v["host"], v["port"], v["username"], v["secret"],
+                                                               v["options"], v["interval_s"], v["enabled"], v["device_id"], now()))
         audit(c, "integration.create", user["id"], pid, dict(driver=v["driver"], host=v["host"]))
         touch(c, pid)
         return _out(c.execute("SELECT * FROM integrations WHERE id=?", (cur.lastrowid,)).fetchone())
@@ -77,8 +97,9 @@ def update(pid: int, iid: int, body: dict = Body(...), user=Depends(require_user
         profile_access(c, user, pid, "edit")
         old = _get(c, pid, iid)
         v = _body(body, old)
-        c.execute("""UPDATE integrations SET name=?, host=?, port=?, username=?, secret=?, interval_s=?, enabled=?, device_id=?, last_poll=NULL
-                     WHERE id=?""", (v["name"], v["host"], v["port"], v["username"], v["secret"], v["interval_s"], v["enabled"], v["device_id"], iid))
+        c.execute("""UPDATE integrations SET name=?, host=?, port=?, username=?, secret=?, options=?, interval_s=?, enabled=?, device_id=?, last_poll=NULL
+                     WHERE id=?""", (v["name"], v["host"], v["port"], v["username"], v["secret"], v["options"], v["interval_s"], v["enabled"],
+                                    v["device_id"], iid))
         touch(c, pid)
         return _out(_get(c, pid, iid))
 
@@ -101,7 +122,7 @@ def test(pid: int, body: dict = Body(...), user=Depends(require_user)):
         profile_access(c, user, pid, "edit")
         old = _get(c, pid, int(body["id"])) if body.get("id") else None
         v = _body(body, old)
-    conf = dict(host=v["host"], port=v["port"], username=v["username"], password=security.decrypt(v["secret"]) if v["secret"] else "")
+    conf = {**v["_options"], **v["_secrets"], "host": v["host"], "port": v["port"], "username": v["username"]}
     try:
         return dict(ok=True, result=DRIVERS[v["driver"]].test(conf))
     except ERRORS as ex:

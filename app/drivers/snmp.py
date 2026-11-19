@@ -9,10 +9,17 @@ from . import snmplib
 
 NAME = "Switch (SNMP)"
 DEFAULT_INTERVAL = 60
+V3 = dict(version="v3")
 FIELDS = [
     dict(key="host", label="Adresse", type="text", default="", required=True),
-    dict(key="password", label="Community", type="password", default="public", secret=True),
     dict(key="port", label="Port", type="number", default=161),
+    dict(key="version", label="SNMP-Version", type="select", default="v2c", options=[["v2c", "v2c (Community)"], ["v3", "v3 (Benutzer)"]]),
+    dict(key="password", label="Community", type="password", default="public", secret=True, show=dict(version="v2c")),
+    dict(key="username", label="Benutzer", type="text", default="", show=V3),
+    dict(key="auth_proto", label="Authentifizierung", type="select", default="SHA", options=[["SHA", "SHA (SHA-1)"], ["SHA-256", "SHA-256"], ["MD5", "MD5"]], show=V3),
+    dict(key="auth_pass", label="Auth-Passwort", type="password", default="", secret=True, show=V3),
+    dict(key="priv_proto", label="Verschlüsselung (Privacy)", type="select", default="AES", options=[["AES", "AES-128"], ["none", "keine"]], show=V3),
+    dict(key="priv_pass", label="Privacy-Passwort", type="password", default="", secret=True, show=V3),
 ]
 SYS = {"descr": "1.3.6.1.2.1.1.1.0", "object_id": "1.3.6.1.2.1.1.2.0", "uptime": "1.3.6.1.2.1.1.3.0", "name": "1.3.6.1.2.1.1.5.0",
        "location": "1.3.6.1.2.1.1.6.0"}
@@ -31,7 +38,17 @@ class DriverError(Exception):
 
 
 def _client(conf):
-    return snmplib.Client(conf["host"], conf.get("password") or "public", int(conf.get("port") or 161), timeout=2.0, retries=1)
+    port = int(conf.get("port") or 161)
+    if conf.get("version") == "v3":
+        if not conf.get("username"):
+            raise DriverError("Für SNMPv3 einen Benutzer angeben")
+        try:
+            return snmplib.ClientV3(conf["host"], conf["username"], conf.get("auth_proto") or "SHA", conf.get("auth_pass") or "",
+                                    "" if conf.get("priv_proto") == "none" else conf.get("priv_proto") or "AES", conf.get("priv_pass") or "",
+                                    port, timeout=2.5, retries=1)
+        except snmplib.SNMPError as ex:
+            raise DriverError(str(ex))
+    return snmplib.Client(conf["host"], conf.get("password") or "public", port, timeout=2.0, retries=1)
 
 
 def _idx(oid, base):

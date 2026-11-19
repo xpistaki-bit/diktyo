@@ -79,7 +79,7 @@ async function tabScan(ctx) {
   for (const c of chosen) if (!nets.some(n => n.cidr === c)) nets.push({ cidr: c, label: t('eigene Angabe') });
   const dis = ctx.canEdit ? '' : 'disabled';
   ctx.el.innerHTML = `
-    ${!w.running ? `<div class="panel warnbox">${t('Der Hintergrunddienst läuft nicht. Scans werden erst ausgeführt, wenn er läuft (LXC: systemctl status diktyo-worker).')}</div>` : ''}
+    ${!w.running ? `<div class="panel warnbox">${t('Der Hintergrunddienst (diktyo-worker) meldet sich seit über einer Minute nicht. Er führt Scans, Integrationen und die Online-Überwachung aus; solange er nicht läuft, bleiben Scans in der Warteschlange. Im LXC prüfen mit: systemctl status diktyo-worker')}</div>` : ''}
     <div class="grid-out">
       <form class="panel" id="scanform"><h3>${t('Einstellungen')}</h3>
         <label>${t('Modus')}</label>
