@@ -4,6 +4,9 @@ díktyo dokumentiert dein Heimnetz: Geräte mit IP, MAC, Standort und Notizen, I
 eine grafische Topologie, Netzscan mit Geräteerkennung, Online-Überwachung und Integrationen für FRITZ!Box, Switches
 (SNMP), ASUS-Router mit AiMesh, MikroTik, TP-Link Omada, Ubiquiti UniFi, Proxmox VE und Home Assistant. Diese Anleitung führt durch Installation und Einrichtung.
 
+> **Neu hier?** Die bebilderte Kurzfassung [Erste Schritte](ERSTE-SCHRITTE.de.md) zeigt in 15 Minuten, wo du klickst:
+> installieren, scannen, Router verbinden, fertig.
+
 ## 1. Installation
 
 ### Proxmox (empfohlen)
@@ -256,9 +259,20 @@ an echter Hardware.
 - Doppelklick auf einen Switch oder Router öffnet die **Frontplatte** mit allen Ports. Klick auf einen Port zeigt das
   angeschlossene Gerät mit IP und MAC (mit SNMP auch Link, Traffic und LLDP).
 - *Schnell-Ping* prüft alle Geräte sofort.
-- **Durchsatz** (Knopf in der Werkzeugleiste) zeigt an kabelgebundenen Verbindungen den aktuellen Traffic ↓/↑ aus Sicht
-  des angeschlossenen Geräts; die Linie wird mit der Last dicker. Die Werte kommen von Switch- (SNMP), MikroTik- und
-  OPNsense-Ports – für WLAN-Geräte liefert keine Integration Werte je Gerät. Die Einstellung merkt sich der Browser.
+- **Durchsatz** (Knopf in der Werkzeugleiste) zeigt an jeder Verbindung den aktuellen Traffic ↓/↑ aus Sicht des
+  angeschlossenen Geräts; die Linie wird mit der Last dicker, der Wert steht kurz vor dem Gerät. Die Einstellung merkt
+  sich der Browser. Woher die Werte kommen:
+
+  | Verbindung | Quelle |
+  |---|---|
+  | Kabel | Ports von Switch (SNMP), MikroTik, OPNsense, UniFi-/Omada-Switches |
+  | je Gerät (auch WLAN) | Live-Rate aus Omada, UniFi, MikroTik (WLAN-Registrierungen, Kid Control), OPNsense (Top Talkers) |
+  | VMs und Container | Proxmox (Netzwerkzähler je Gast) |
+  | WLAN mit ASUS | Datenmenge der letzten 24 Stunden (Σ) aus dem Traffic Analyzer – ASUS liefert keine Live-Rate je Gerät |
+
+  Zusammengefasste Gruppen zeigen die Summe ihrer Mitglieder, die Maus über dem Wert nennt die Quelle. FRITZ!Box und
+  Docker geben keinen Traffic je Gerät heraus. Den aktuellen Wert zeigt auch der Gerätedialog, die Übersicht listet
+  unter **Gerade aktiv**, wer gerade Daten schiebt.
 - **Internet:** Links steht die Weltkugel, verbunden mit dem Router. Mit FRITZ!Box-Integration zeigt sie, ob die
   Internetverbindung steht (grün animiert bzw. rot), und an der Leitung den aktuellen Traffic ↓/↑ – alle 30 s aktuell.
 - **Verschieben:** Geräte und Gruppen lassen sich mit der Maus an eine beliebige Stelle ziehen (in alle Richtungen). díktyo merkt sich die

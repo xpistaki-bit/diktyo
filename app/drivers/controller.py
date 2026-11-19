@@ -36,3 +36,34 @@ def speed_text(mbps):
     if not mbps:
         return ""
     return f"{mbps // 1000}G" if mbps >= 1000 and mbps % 1000 == 0 else (f"{mbps / 1000:g}G" if mbps >= 1000 else f"{mbps}M")
+
+
+def counter_rates(items, prev, now, key="mac"):
+    """Live-Raten je Client aus kumulativen Byte-Zählern.
+
+    items: Einträge mit _down/_up (Bytes aus Sicht des Clients, steigen bis zum Neustart). Setzt down_bps/up_bps, sobald ein
+    vorheriger Wert da ist, und entfernt die Zähler aus dem Ergebnis. Gibt die neuen Zähler {key: [down, up, ts]} zurück."""
+    out = {}
+    for x in items:
+        d, u = x.pop("_down", None), x.pop("_up", None)
+        k = x.get(key)
+        if d is None or u is None or not k:
+            continue
+        try:
+            d, u = int(d), int(u)
+        except (TypeError, ValueError):
+            continue
+        p = prev.get(str(k))
+        if p and now > p[2] and d >= p[0] and u >= p[1] and now - p[2] < 3600:
+            dt = now - p[2]
+            x["down_bps"], x["up_bps"] = round((d - p[0]) * 8 / dt), round((u - p[1]) * 8 / dt)
+        out[str(k)] = [d, u, now]
+    return out
+
+
+def parse_rate(v):
+    """'1.5Mbps' / '800kbps' / '1200' -> bit/s (int) oder None."""
+    m = re.fullmatch(r"\s*([\d.]+)\s*([kMG]?)(?:bps|bit/s)?\s*", str(v or ""))
+    if not m:
+        return None
+    return round(float(m.group(1)) * {"": 1, "k": 1e3, "M": 1e6, "G": 1e9}[m.group(2)])

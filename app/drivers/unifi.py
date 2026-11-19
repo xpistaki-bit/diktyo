@@ -9,7 +9,9 @@ automatisch erkannt. Nicht gegen echte Hardware getestet – aufgebaut nach der 
 """
 import httpx
 
-from .controller import DriverError, mac, speed_text
+import time
+
+from .controller import DriverError, counter_rates, mac, speed_text
 
 NAME = "Ubiquiti UniFi"
 DEFAULT_INTERVAL = 60
@@ -143,7 +145,31 @@ def _collect(conf, state, details=True):
                             pass
                 devs = full
             out.append((s, devs, api.pages(f"/sites/{sid}/clients"), stats))
+        if details and not state.get("no_sta"):
+            state["sta"] = _sta(cl, state, [s.get("internalReference") or "default" for s in sites])
         return out
+
+
+def _sta(cl, state, refs):
+    """Byte-Zähler je Client aus der klassischen Network-API (stat/sta). Die Integration API kennt keine Raten je Client.
+    Antwortet die Konsole darauf nicht (z. B. API-Schlüssel dort nicht zugelassen), wird es nicht wieder versucht."""
+    base = "/proxy/network" if state.get("prefix", PREFIXES[0]) == PREFIXES[0] else ""
+    out = {}
+    for ref in refs:
+        try:
+            r = cl.get(f"{base}/api/s/{ref}/stat/sta")
+            rows = r.json().get("data") if r.status_code == 200 else None
+        except (httpx.HTTPError, ValueError):
+            rows = None
+        if rows is None:
+            state["no_sta"] = True
+            return {}
+        for x in rows:
+            m = mac(x.get("mac"))
+            if m and x.get("tx_bytes") is not None:
+                # Sicht des Access Points: tx = zum Client (Download des Clients)
+                out[m] = (x.get("tx_bytes"), x.get("rx_bytes"))
+    return out
 
 
 def test(conf):
@@ -160,6 +186,11 @@ def poll(conf, state):
     state = dict(state)
     sites = _collect(conf, state)
     devices, clients, wan = normalize(sites)
+    sta = state.pop("sta", None) or {}
+    for x in clients:
+        if x["mac"] in sta:
+            x["_down"], x["_up"] = sta[x["mac"]]
+    state["client_counters"] = counter_rates(clients, state.get("client_counters") or {}, time.time())
     res = dict(info=dict(controller="UniFi", sites=[s.get("name", "") for s, *_ in sites]), devices=devices, clients=clients)
     values = {}
     if wan:

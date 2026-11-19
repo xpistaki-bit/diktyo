@@ -52,6 +52,17 @@ def build(c, pid):
             top_today.append(dict(device_id=did, name=name, mac=x["mac"], rx=x["rx"], tx=x["tx"]))
         if top_today:
             break
+    # gerade aktiv: Live-Raten je Gerät aus den Integrationen
+    from . import clienttraffic
+    live, _ = clienttraffic.collect(c, pid)
+    per = {}
+    for m, x in live.items():
+        did, name = by_mac.get(m, (None, m))
+        k = did or m
+        p = per.setdefault(k, dict(device_id=did, name=name, mac=m, down=0, up=0, source=x["source"]))
+        p["down"] += x["down"]
+        p["up"] += x["up"]
+    top_now = sorted((x for x in per.values() if x["down"] + x["up"] > 0), key=lambda x: -(x["down"] + x["up"]))[:8]
     # Aktionen/Zeitpläne der letzten 24 Stunden, die nicht geklappt haben
     since = (dt.datetime.now().astimezone() - dt.timedelta(hours=24)).isoformat(timespec="seconds")
     failed = [dict(ts=r["created"], label=r["label"], message=r["message"]) for r in c.execute(
@@ -75,6 +86,6 @@ def build(c, pid):
         counts=dict(devices=len(confirmed), online=sum(1 for d in confirmed if d["online"] == 1), offline=len(offline),
                     inbox=sum(1 for d in devs if d["status"] == "discovered"), firmware=len(fw_up), quarantine=quarantine,
                     availability=round(sum(avail) / len(avail), 2) if avail else None),
-        wan=wan, top_today=top_today, offline=offline[:12], firmware=fw_up[:12], broken=broken, failed=failed[:10], ports=ports[:4], infra=infra[:12],
+        wan=wan, top_today=top_today, top_now=top_now, offline=offline[:12], firmware=fw_up[:12], broken=broken, failed=failed[:10], ports=ports[:4], infra=infra[:12],
         rtt=rtt_keys, recent=[x for x in changes.timeline(c, pid, limit=12) if x["cat"] in ("change", "action", "quarantine")][:8],
         summary=changes.summary(c, pid))

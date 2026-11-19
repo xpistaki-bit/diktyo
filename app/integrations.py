@@ -85,8 +85,31 @@ def _fail(iid, msg):
     return None
 
 
+def client_rates(res):
+    """Live-Raten je MAC aus clients/guests: {MAC: [down_bps, up_bps]} (Sicht des Clients)."""
+    out = {}
+    for x in res.get("clients") or []:
+        if isinstance(x, dict) and x.get("down_bps") is not None and x.get("mac"):
+            out[x["mac"].upper()] = [x["down_bps"], x.get("up_bps") or 0]
+    for g in res.get("guests") or []:
+        if isinstance(g, dict) and g.get("down_bps") is not None:
+            for n in g.get("nets") or []:
+                if n.get("mac"):
+                    out[n["mac"].upper()] = [g["down_bps"], g.get("up_bps") or 0]
+                    break  # eine Netzwerkkarte reicht – die Zähler gelten für den ganzen Gast
+    return out
+
+
 def _slim(driver, res):
-    """Was die Oberfläche anzeigen soll (ohne die vollständige Hostliste)."""
+    """Was die Oberfläche anzeigen soll (ohne die vollständige Hostliste), plus Live-Raten je Client."""
+    out = _slim_view(driver, res)
+    rates = client_rates(res)
+    if rates:
+        out["rates"] = rates
+    return out
+
+
+def _slim_view(driver, res):
     if driver == "asuswrt":
         return dict(info=res.get("info"), traffic=res.get("traffic"), wan=res.get("wan"), analyzer=res.get("analyzer"),
                     nodes=[{k: n[k] for k in ("name", "model", "ip", "online", "wired_backhaul")} for n in res.get("nodes", [])],

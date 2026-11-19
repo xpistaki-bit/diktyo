@@ -54,7 +54,7 @@ def build(c, pid, expanded=(), status="confirmed", traffic=False):
                     gid = f"g{d['id']}:{m}"
                     on = sum(1 for x in g if x["online"] == 1)
                     gn = dict(id=gid, kind="group", medium=m, parent=d["id"], count=len(g), online_count=on, depth=depth + 1,
-                              names=[x["name"] for x in g][:40], x=(depth + 1) * COLW, y=row[0] * ROWH)
+                              names=[x["name"] for x in g][:40], member_ids=[x["id"] for x in g], x=(depth + 1) * COLW, y=row[0] * ROWH)
                     row[0] += 1
                     nodes.append(gn)
                     edges.append(dict(source=n["id"], target=gid, medium=m, label=""))
@@ -97,7 +97,9 @@ def build(c, pid, expanded=(), status="confirmed", traffic=False):
             edges.insert(0, dict(source="internet", target=n["id"], medium="wan", label="", connected=internet["connected"],
                                  rx_bps=internet["rx_bps"], tx_bps=internet["tx_bps"]))
     if traffic:
-        _add_traffic(c, edges)
+        _add_traffic(c, pid, edges, nodes)
+    for n in nodes:
+        n.pop("member_ids", None)
     for e in edges:
         e.pop("port_id", None)
         e.pop("local_port_id", None)
@@ -134,9 +136,13 @@ def save_positions(c, pid, positions):
                   "ON CONFLICT(profile_id, node) DO UPDATE SET x=excluded.x, y=excluded.y", (pid, node, x, y))
 
 
-def _add_traffic(c, edges):
-    """Aktueller Durchsatz an kabelgebundenen Verbindungen aus den Port-Daten (SNMP, MikroTik, OPNsense).
-    down_bps/up_bps aus Sicht des angeschlossenen Geräts: am Port des übergeordneten Geräts ist „out“ der Download."""
+def _add_traffic(c, pid, edges, nodes=()):
+    """Durchsatz an den Verbindungen, aus Sicht des angeschlossenen Geräts (down_bps/up_bps):
+    1. kabelgebunden aus den Port-Daten (SNMP, MikroTik, OPNsense, Controller) – am Port des übergeordneten Geräts ist „out“ der Download;
+    2. sonst die Live-Rate je Client aus den Integrationen (Omada, UniFi, MikroTik, OPNsense, Proxmox), traffic_src nennt die Quelle;
+    3. sonst bei WLAN die Datenmenge der letzten 24 Stunden (ASUS Traffic Analyzer) als today_bytes.
+    Zusammengefasste Gruppen (WLAN, virtuell) bekommen die Summe ihrer Mitglieder."""
+    from . import clienttraffic
     from .integrations import live_ports
     cache = {}
 
@@ -150,22 +156,22 @@ def _add_traffic(c, edges):
             cache[r["device_id"]] = live_ports(c, r["device_id"])
         return cache[r["device_id"]].get(r["port_no"]), r
 
-    import json as _json
-    today = {}
-    for r in c.execute("SELECT state FROM integrations WHERE driver='asuswrt' AND enabled=1"):
-        for x in ((_json.loads(r["state"] or "{}").get("result") or {}).get("analyzer") or {}).get("clients") or []:
-            today[x["mac"]] = x["rx"] + x["tx"]
+    live, today = clienttraffic.collect(c, pid)
+    members = {n["id"]: n.get("member_ids") or [] for n in nodes if n.get("kind") == "group"}
     mac_of = {}
+
+    def per_device(ids):
+        lv, td = [], []
+        for did in ids:
+            if did not in mac_of:
+                mac_of[did] = clienttraffic.macs_of(c, did)
+            a, b = clienttraffic.device(live, today, mac_of[did])
+            lv += [a] if a else []
+            td += [b] if b else []
+        return lv, td
+
     for e in edges:
         if e.get("medium") == "wan":
-            continue
-        if e.get("medium") in ("wlan", "mesh") and today and str(e["target"]).startswith("d"):
-            did = int(e["target"][1:])
-            if did not in mac_of:
-                mac_of[did] = {r["mac"] for r in c.execute("SELECT mac FROM interfaces WHERE device_id=? AND mac<>''", (did,))}
-            vol = sum(today.get(m, 0) for m in mac_of[did])
-            if vol:
-                e["today_bytes"] = vol
             continue
         lp, _ = port(e.get("port_id"))            # Port am übergeordneten Gerät
         if lp and lp.get("in_bps") is not None:
@@ -174,6 +180,17 @@ def _add_traffic(c, edges):
         lp, _ = port(e.get("local_port_id"))      # Uplink-Port am Gerät selbst (z. B. Switch hinter Switch)
         if lp and lp.get("in_bps") is not None:
             e["down_bps"], e["up_bps"] = lp.get("in_bps"), lp.get("out_bps")
+            continue
+        if not (live or today):
+            continue
+        tgt = str(e["target"])
+        ids = members.get(tgt) if tgt.startswith("g") else [int(tgt[1:])] if tgt.startswith("d") else []
+        lv, td = per_device(ids or [])
+        if lv:
+            e["down_bps"], e["up_bps"] = sum(x["down"] for x in lv), sum(x["up"] for x in lv)
+            e["traffic_src"] = lv[0]["source"]
+        elif td:
+            e["today_bytes"] = sum(x["rx"] + x["tx"] for x in td)
 
 
 def _internet(c, pid, devs, root_routers):

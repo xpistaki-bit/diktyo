@@ -23,7 +23,9 @@ async function tabOverview(ctx) {
       ...(c.quarantine ? [`<li class="warn"><span>⛔</span><a href="#/p/${ctx.pid}/integrationen">${t('{n} in Quarantäne', { n: c.quarantine })}</a></li>`] : []),
     ];
     const sm = r.summary;
-    $('#ov', ctx.el).innerHTML = `
+    // Neu aufbauen ohne Flackern: erst abseits fertig zeichnen (auch die Diagramme), dann in einem Schritt austauschen
+    const box = document.createElement('div');
+    box.innerHTML = `
       <div class="ov-tiles">
         ${tile(`${c.online}<small>/${c.devices}</small>`, t('Geräte online'), c.offline ? 'warn' : 'ok', c.offline ? t('{n} offline', { n: c.offline }) : t('alle erreichbar'), `#/p/${ctx.pid}/geraete`)}
         ${inet}
@@ -43,6 +45,9 @@ async function tabOverview(ctx) {
             <td>${x.device_id ? `<a href="#" data-dev="${x.device_id}">${h(x.name)}</a>` : `<span class="mono small">${h(x.mac)}</span>`}</td>
             <td class="mono small">↓ ${fmtBytes(x.rx)}</td><td class="mono small">↑ ${fmtBytes(x.tx)}</td><td class="mono small"><b>${fmtBytes(x.rx + x.tx)}</b></td></tr>`).join('')}</tbody></table></div>
           <p class="muted small">${t('Aus dem Traffic Analyzer des ASUS-Routers.')}</p></div>` : ''}
+        ${r.top_now?.length ? `<div class="panel"><h3>${t('Gerade aktiv')}</h3><div class="table-wrap"><table class="compact"><tbody>${r.top_now.map(x => `<tr>
+            <td>${x.device_id ? `<a href="#" data-dev="${x.device_id}">${h(x.name)}</a>` : `<span class="mono small">${h(x.mac)}</span>`}</td>
+            <td class="mono small">↓ ${fmtBps(x.down)}</td><td class="mono small">↑ ${fmtBps(x.up)}</td><td class="muted small">${h(x.source)}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
         <div class="panel"><h3>${t('Infrastruktur')}</h3>${r.infra.length ? `<div class="table-wrap"><table class="compact"><tbody>${r.infra.map(x => `<tr>
             <td><span class="dot ${x.online === 1 ? 'on' : x.online === 0 ? 'off' : ''}"></span> <a href="#" data-dev="${x.id}">${h(x.name)}</a>${x.fw_update ? ' <span class="badge fwup">⬆</span>' : ''}</td>
             <td class="mono small">${fmtPct(x.a24)}</td><td class="mono small">${fmtMs(x.rtt)}</td></tr>`).join('')}</tbody></table></div>` : `<p class="muted small">${t('Noch keine Router, Switches oder Access Points bestätigt.')}</p>`}</div>
@@ -50,16 +55,21 @@ async function tabOverview(ctx) {
           ${r.recent.length ? histList(r.recent) : `<p class="muted small">${t('Keine Änderungen in den letzten 7 Tagen.')}</p>`}</div>
       </div>
       <p class="muted small" id="ovstamp"></p>`;
-    $$('[data-dev]', ctx.el).forEach(a => a.onclick = ev => { ev.preventDefault(); deviceDialog(ctx, +a.dataset.dev); });
-    $$('[data-hdev]', ctx.el).forEach(a => a.onclick = ev => { ev.preventDefault(); deviceDialog(ctx, +a.dataset.hdev); });
+    $$('[data-dev]', box).forEach(a => a.onclick = ev => { ev.preventDefault(); deviceDialog(ctx, +a.dataset.dev); });
+    $$('[data-hdev]', box).forEach(a => a.onclick = ev => { ev.preventDefault(); deviceDialog(ctx, +a.dataset.hdev); });
     const charts = () => {
       const s = since();
-      if (w) drawChart($('[data-ch=wan]', ctx.el), ctx.pid, w.keys, [t('Download'), t('Upload')], s, { height: 130 }).catch(() => { });
-      if (r.rtt.length) drawChart($('[data-ch=rtt]', ctx.el), ctx.pid, r.rtt.map(x => x.key), r.rtt.map(x => x.name), s, { fmt: fmtMs, height: 130 }).catch(() => { });
-      r.ports.forEach((p, i) => drawChart($(`[data-ch=port${i}]`, ctx.el), ctx.pid, p.keys, [t('empfangen'), t('gesendet')], s, { height: 90 }).catch(() => { }));
+      return Promise.allSettled([
+        w && drawChart($('[data-ch=wan]', box), ctx.pid, w.keys, [t('Download'), t('Upload')], s, { height: 130 }),
+        r.rtt.length && drawChart($('[data-ch=rtt]', box), ctx.pid, r.rtt.map(x => x.key), r.rtt.map(x => x.name), s, { fmt: fmtMs, height: 130 }),
+        ...r.ports.map((p, i) => drawChart($(`[data-ch=port${i}]`, box), ctx.pid, p.keys, [t('empfangen'), t('gesendet')], s, { height: 90 })),
+      ]);
     };
-    $$('[data-range]', ctx.el).forEach(b => b.onclick = () => { tabOverview.since = +b.dataset.range; $$('[data-range]', ctx.el).forEach(x => x.classList.toggle('on', x === b)); charts(); });
-    charts();
+    $$('[data-range]', box).forEach(b => b.onclick = () => { tabOverview.since = +b.dataset.range; $$('[data-range]', box).forEach(x => x.classList.toggle('on', x === b)); charts(); });
+    await charts();
+    const ov = $('#ov', ctx.el);
+    if (!ov) return;
+    ov.replaceChildren(...box.childNodes);
     $('#ovstamp', ctx.el).textContent = t('Stand {d} · aktualisiert sich alle 30 Sekunden', { d: new Date().toLocaleTimeString(LANG === 'en' ? 'en-GB' : 'de-DE') });
   };
   await render();

@@ -129,7 +129,11 @@ def poll(conf, state):
                 except (PermissionError, httpx.HTTPError, DriverError):
                     pass  # Gast-Agent nicht aktiv oder keine Berechtigung (VM.GuestAgent.Audit)
             guests.append(dict(vmid=g["vmid"], name=g.get("name") or f'{kind}-{g["vmid"]}', node=g["node"], kind=kind,
-                               running=g.get("status") == "running", nets=nets, ips=[ip for ip in dict.fromkeys(ips) if _usable(ip)]))
+                               running=g.get("status") == "running", nets=nets, ips=[ip for ip in dict.fromkeys(ips) if _usable(ip)],
+                               _down=g.get("netin"), _up=g.get("netout")))
+    import time as _tm
+    from .controller import counter_rates
+    state = dict(state, guest_counters=counter_rates(guests, state.get("guest_counters") or {}, _tm.time(), key="vmid"))
     res = dict(info=dict(version=version, nodes=len(nodes)), nodes=nodes, guests=guests)
     # Paket-Updates je Knoten (höchstens alle 6 Stunden; braucht Sys.Audit bzw. Sys.Modify – ohne Recht einfach weglassen)
     import time as _t

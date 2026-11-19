@@ -97,7 +97,7 @@ async function tabTopology(ctx) {
   const VW = Math.max(900, data.width + PAD * 2), VH = Math.max(420, data.height + PAD * 2);
   ctx.el.innerHTML = `<div class="topo-box" id="tbox"><div class="toolbar topo-tools">
       <button class="pri sm" id="qping">${t('Schnell-Ping')}</button>
-      <button class="sm ${traffic() ? 'on' : ''}" id="tput" title="${t('Aktuellen Durchsatz an den Verbindungen anzeigen (aus Switch-, MikroTik- und OPNsense-Ports)')}">${t('Durchsatz')}</button>
+      <button class="sm ${traffic() ? 'on' : ''}" id="tput" title="${t('Aktuellen Durchsatz an den Verbindungen anzeigen (Switch-Ports, Router, Controller, Proxmox; WLAN mit ASUS als Tagesmenge)')}">${t('Durchsatz')}</button>
       <button class="sm" id="expall">${t('Alle Gruppen aufklappen')}</button><button class="sm" id="colall">${t('Alle zuklappen')}</button>
       ${ctx.canEdit && data.pinned ? `<button class="sm" id="relayout" title="${t('Alle von Hand verschobenen Geräte wieder automatisch anordnen')}">${t('Anordnung zurücksetzen')}</button>` : ''}
       <span class="grow"></span>
@@ -124,15 +124,14 @@ async function tabTopology(ctx) {
       }
       const [col, dash] = MSTYLE[e.medium] || MSTYLE.lan;
       if (e.today_bytes) {  // WLAN: kein Live-Wert je Gerät – Verbrauch der letzten 24 Stunden (Traffic Analyzer)
-        const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+        // Beschriftung kurz vor dem Zielgerät: dort hat jede Linie ihre eigene Zeile (in der Mitte überlagern sich Fächer)
         return `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" fill="none" stroke="${col}" stroke-width="1.6" stroke-dasharray="${dash}" opacity=".85"/>
-          <text x="${cx}" y="${cy + 17}" text-anchor="middle" class="tplabel day"><title>${t('Datenmenge der letzten 24 Stunden (Traffic Analyzer)')}</title>Σ ${esc(fmtBytes(e.today_bytes))}</text>`;
+          <text x="${x2 - 10}" y="${y2 + 16}" text-anchor="end" class="tplabel day"><title>${t('Datenmenge der letzten 24 Stunden (Traffic Analyzer)')}</title>Σ ${esc(fmtBytes(e.today_bytes))}</text>`;
       }
       if (e.down_bps != null || e.up_bps != null) {  // Durchsatz: Linienstärke nach Last, Werte an der Linie
         const tot = (e.down_bps || 0) + (e.up_bps || 0), wdt = tot > 0 ? Math.min(7, 1.6 + Math.log10(Math.max(1, tot / 1e5)) * 1.4) : 1.6;
-        const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
         return `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" fill="none" stroke="${col}" stroke-width="${wdt.toFixed(1)}" stroke-dasharray="${dash}" opacity=".9" class="${tot > 1e6 ? 'tp-busy' : ''}"/>
-          ${tot > 1000 ? `<text x="${cx}" y="${cy + 17}" text-anchor="middle" class="tplabel">↓${esc(fmtBpsShort(e.down_bps))} ↑${esc(fmtBpsShort(e.up_bps))}</text>` : ''}
+          ${tot > 1000 ? `<text x="${x2 - 10}" y="${y2 + 16}" text-anchor="end" class="tplabel">${e.traffic_src ? `<title>${esc(t('Live-Rate aus {s}', { s: e.traffic_src }))}</title>` : ''}↓${esc(fmtBpsShort(e.down_bps))} ↑${esc(fmtBpsShort(e.up_bps))}</text>` : ''}
           ${e.label ? `<text x="${x1 + 8}" y="${y1 - 5}" class="elabel">${esc(e.label)}</text>` : ''}${e.child_label ? `<text x="${x2 - 8}" y="${y2 - 5}" class="elabel" text-anchor="end">${esc(e.child_label)}</text>` : ''}`;
       }
       return `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" fill="none" stroke="${col}" stroke-width="1.6" stroke-dasharray="${dash}" opacity=".85"/>
@@ -338,7 +337,7 @@ async function topoDetail(ctx, did) {
       <rect width="${w}" height="${PH}" rx="3"/>${ps.sfp ? '' : `<rect x="${w / 2 - 7}" y="${ps.upper ? PH - 7 : 0}" width="14" height="7" class="notch"/>`}
       <text x="${w / 2}" y="${ps.upper ? -5 : PH + 13}" text-anchor="middle" class="pnum">${esc(p.name)}</text>${p.poe ? `<text x="${w - 4}" y="11" text-anchor="end" class="poe-mark">⚡</text>` : ''}
       <title>${esc(p.name)}${p.peer ? ' → ' + esc(p.peer.device_name) : ''}</title></g>`; }).join('')}
-    ${cards.map(c => { const pe = c.p.peer; return `<g class="card ${statusCls(null)}" data-dev="${pe.device_id}" data-port="${c.p.id}" transform="translate(${c.x},${c.y})">
+    ${cards.map(c => { const pe = c.p.peer; return `<g class="pcard ${statusCls(null)}" data-dev="${pe.device_id}" data-port="${c.p.id}" transform="translate(${c.x},${c.y})">
       <rect width="${CARD_W}" height="${CARD_H}" rx="6" class="${pe.direction === 'up' ? 'card-up' : ''}"/>${icon(pe.type || 'other', 8, 11, 20)}
       <text x="34" y="18" class="tn-name sm">${esc(pe.device_name.length > 14 ? pe.device_name.slice(0, 13) + '…' : pe.device_name)}</text>
       <text x="34" y="33" class="tn-sub sm">${pe.direction === 'up' ? '↑ ' + t('Uplink') : esc(pe.ip || '')}</text></g>`; }).join('')}`;
@@ -378,8 +377,8 @@ async function topoDetail(ctx, did) {
     if (lv) actionsBox(ctx, did, $('#portact', ctx.el), p.port_no);
   };
   $$('.port', ctx.el).forEach(g => g.addEventListener('click', () => info(+g.dataset.port)));
-  $$('.card', ctx.el).forEach(g => g.addEventListener('click', () => info(+g.dataset.port)));
-  $$('.card', ctx.el).forEach(g => g.addEventListener('dblclick', () => { location.hash = `#/p/${ctx.pid}/topologie/${g.dataset.dev}`; }));
+  $$('.pcard', ctx.el).forEach(g => g.addEventListener('click', () => info(+g.dataset.port)));
+  $$('.pcard', ctx.el).forEach(g => g.addEventListener('dblclick', () => { location.hash = `#/p/${ctx.pid}/topologie/${g.dataset.dev}`; }));
   $$('.clist li', ctx.el).forEach(li => li.onclick = () => deviceDialog(ctx, +li.dataset.dev));
   $('#pingall', ctx.el).onclick = async ev => {
     ev.target.disabled = true;

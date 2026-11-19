@@ -71,6 +71,7 @@ def collect(conf, state):
                    interfaces=_req(cl, "GET", "interfaces/overview/export", optional=True),
                    arp=_rows(_req(cl, "GET", "diagnostics/interface/search_arp?resolve=no", optional=True)),
                    leases=[])
+        out["top"] = _req(cl, "GET", "diagnostics/traffic/top/" + ",".join(state.get("lan_ifs") or ["lan"]), optional=True) or {}
         if out["interfaces"] is None:  # Pflicht – sonst stimmt etwas mit Rechten oder Version nicht
             raise DriverError("Schnittstellen nicht lesbar (Recht „Status: Interfaces“ nötig, OPNsense 23.7 oder neuer)")
         for path in LEASES:
@@ -145,6 +146,13 @@ def normalize(raw, state, now=None):
         if name and not c["name"]:
             c["name"] = name
     out_clients = [dict(c, medium="lan", port=None, band="", signal="") for c in clients.values()]
+    by_ip = {c["ip"]: c for c in out_clients}
+    for _if, v in (raw.get("top") or {}).items():
+        for t in (v.get("records") if isinstance(v, dict) else None) or []:
+            c = by_ip.get(t.get("address"))
+            if c and t.get("rate_bits_in") is not None:
+                # aus Sicht der Firewall-Schnittstelle: „in“ kommt vom Host (Upload), „out“ geht zum Host (Download)
+                c["down_bps"], c["up_bps"] = int(t.get("rate_bits_out") or 0), int(t.get("rate_bits_in") or 0)
     firmware = dict(installed=prod.get("product_version") or "", latest=(prod.get("product_latest") or "").replace("_", "."),
                     update=fw_raw.get("status") == "update" if fw_raw.get("status") in ("update", "none") else None,
                     info=f'https://github.com/opnsense/changelog' if fw_raw.get("status") == "update" else "")

@@ -304,9 +304,9 @@ i.lg.conn{background:rgba(0,229,255,.35);border-color:var(--cyan)} i.lg.up{borde
 .port:hover rect:first-child{stroke:var(--cyan)}
 .pnum{fill:var(--mute);font:10px var(--mono)} .poe-mark{fill:var(--warn);font-size:9px}
 .cline{fill:none;stroke:var(--cyan);stroke-width:1.2;opacity:.6} .cline.up{stroke:var(--blue);stroke-dasharray:4 3}
-.card rect{fill:#0B1D38;stroke:var(--line2)} .card.on rect{stroke:rgba(46,229,157,.6)} .card.off rect{stroke:rgba(255,77,106,.6)}
-.card rect.card-up{stroke:var(--blue)}
-.card:hover rect{stroke:var(--cyan)}
+.pcard{cursor:pointer} .pcard rect{fill:#0B1D38;stroke:var(--line2)} .pcard.on rect{stroke:rgba(46,229,157,.6)} .pcard.off rect{stroke:rgba(255,77,106,.6)}
+.pcard rect.card-up{stroke:var(--blue)}
+.pcard:hover rect{stroke:var(--cyan)}
 .clist{list-style:none;padding:0;margin:4px 0 10px;font-size:13px}
 .clist li{padding:4px 2px;cursor:pointer;display:flex;gap:6px;align-items:center;border-bottom:1px solid rgba(0,229,255,.06)}
 .clist li:hover{color:var(--cyan)}

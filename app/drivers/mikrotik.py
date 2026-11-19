@@ -13,7 +13,7 @@ import time
 
 import httpx
 
-from .controller import DriverError, mac as norm_mac
+from .controller import DriverError, counter_rates, parse_rate, mac as norm_mac
 
 NAME = "MikroTik (RouterOS)"
 DEFAULT_INTERVAL = 60
@@ -110,7 +110,8 @@ def collect(conf, state):
                    addresses=_get(cl, "ip/address", optional=True) or [], leases=_get(cl, "ip/dhcp-server/lease", optional=True) or [],
                    arp=_get(cl, "ip/arp", optional=True) or [], hosts=_get(cl, "interface/bridge/host", optional=True) or [],
                    neighbors=_get(cl, "ip/neighbor", optional=True) or [],
-                   wan_members=[m for m in (_get(cl, "interface/list/member", optional=True) or []) if m.get("list") == "WAN"])
+                   wan_members=[m for m in (_get(cl, "interface/list/member", optional=True) or []) if m.get("list") == "WAN"],
+                   kid=_get(cl, "ip/kid-control/device", optional=True) or [])
         out["wifi_menu"], out["wifi"], out["registrations"] = None, [], []
         for menu in WIFI_MENUS:
             ifs = _get(cl, menu, optional=True)
@@ -168,12 +169,21 @@ def normalize(raw, state, now=None):
         where[m] = iface
         if iface in by_iface:
             by_iface[iface]["macs"].append(m)
-    signal = {}
+    signal, wbytes = {}, {}
     for r in raw["registrations"]:
         m = norm_mac(r.get("mac-address"))
         if m:
             where[m] = r.get("interface", where.get(m, ""))
             signal[m] = r.get("signal") or r.get("signal-strength") or ""
+            b = str(r.get("bytes") or "").split(",")
+            if len(b) == 2 and all(v.strip().isdigit() for v in b):
+                wbytes[m] = (int(b[0]), int(b[1]))  # gesendet an den Client, empfangen vom Client
+    kid = {}
+    for k in raw.get("kid") or []:
+        m = norm_mac(k.get("mac-address"))
+        down, up = parse_rate(k.get("rate-down")), parse_rate(k.get("rate-up"))
+        if m and down is not None and up is not None:
+            kid[m] = (down, up)
     # Nachbarn (MNDP/LLDP/CDP) an Ports
     for n in raw["neighbors"]:
         iface = (n.get("interface") or "").split(",")[0]
@@ -201,7 +211,13 @@ def normalize(raw, state, now=None):
             medium, port, band = "lan", by_iface[iface]["port_no"], ""
         else:
             medium, port, band = "lan", None, ""
-        out_clients.append(dict(cl, medium=medium, port=port, band=band, iface=iface, signal=signal.get(m, "")))
+        e = dict(cl, medium=medium, port=port, band=band, iface=iface, signal=signal.get(m, ""))
+        if m in kid:
+            e["down_bps"], e["up_bps"] = kid[m]
+        elif m in wbytes:
+            e["_down"], e["_up"] = wbytes[m]
+        out_clients.append(e)
+    counters["clients"] = counter_rates(out_clients, prev.get("clients") or {}, now)
     # WAN: Interface-Liste „WAN“ (Standardkonfiguration), sonst ether1
     wan_ifaces = [m.get("interface") for m in raw["wan_members"]] or (["ether1"] if "ether1" in by_iface else [])
     wan = None

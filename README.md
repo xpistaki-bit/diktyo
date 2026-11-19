@@ -6,7 +6,12 @@ to be a slim, self-hosted alternative to NetBox for private users. It runs as a 
 file, either in a Proxmox LXC or in a Docker container, and is managed in the browser. The interface is available
 in German and English.
 
-> **Status: v0.17 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **New here? Start with the illustrated [Getting started](docs/GETTING-STARTED.md) guide** (German:
+> [Erste Schritte](docs/ERSTE-SCHRITTE.de.md)) – install, scan, connect your router, done in about 15 minutes.
+
+[![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
+
+> **Status: v0.18 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -152,8 +157,20 @@ without a connection are listed separately.
 Each profile opens with an **overview**: devices online/offline, internet with current traffic, infrastructure
 availability, firmware updates, inbox and changes since yesterday; a "needs attention" list (offline devices, updates,
 failing integrations and actions); charts for WAN traffic, infrastructure response times and the busiest ports; an
-infrastructure table and recent changes. It refreshes every 30 seconds. In the topology, **Throughput** shows the
-current traffic on wired connections (from switch, MikroTik and OPNsense ports), with line width following the load.
+infrastructure table and recent changes, the top consumers of the last 24 hours (ASUS) and the devices moving data
+right now. It refreshes every 30 seconds without flicker.
+
+In the topology, **Throughput** shows the current traffic on every connection, with line width following the load:
+
+| Connection | Source |
+|---|---|
+| wired | switch (SNMP), MikroTik and OPNsense ports, UniFi/Omada switch ports |
+| per device (also Wi-Fi) | live rate from Omada, UniFi, MikroTik (Wi-Fi registrations, Kid Control), OPNsense (top talkers) |
+| VMs and containers | Proxmox (network counters per guest) |
+| Wi-Fi with ASUS | data volume of the last 24 hours (Σ) from the Traffic Analyzer – ASUS has no live rate per client |
+
+Collapsed groups show the sum of their members; the device dialog shows the current rate as well. FRITZ!Box and
+Docker do not expose traffic per device.
 
 ## Reachability and firmware
 

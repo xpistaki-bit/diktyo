@@ -11,7 +11,7 @@ import time
 
 import httpx
 
-from .controller import DriverError, mac
+from .controller import DriverError, counter_rates, mac
 
 NAME = "TP-Link Omada"
 DEFAULT_INTERVAL = 60
@@ -118,7 +118,8 @@ def normalize(sites):
             clients.append(dict(mac=mac(x.get("mac")), ip=x.get("ip") or "", name=x.get("name") or x.get("hostName") or "",
                                 online=x.get("active", True) is not False, medium="wlan" if wl else "lan", parent_mac=parent,
                                 port=int(port) if not wl and str(port or "").isdigit() else None,
-                                band=RADIO.get(x.get("radioId"), "") if wl else "", ssid=x.get("ssid") or "", vendor=x.get("vendor") or ""))
+                                band=RADIO.get(x.get("radioId"), "") if wl else "", ssid=x.get("ssid") or "", vendor=x.get("vendor") or "",
+                                _down=x.get("trafficDown"), _up=x.get("trafficUp")))
     return devices, clients
 
 
@@ -142,5 +143,6 @@ def poll(conf, state):
     state = dict(state)
     sites = _collect(conf, state)
     devices, clients = normalize(sites)
+    state["client_counters"] = counter_rates(clients, state.get("client_counters") or {}, time.time())
     info = dict(controller="Omada", sites=[s.get("name", "") for s, _, _ in sites])
     return dict(info=info, devices=devices, clients=clients), {}, state
