@@ -76,7 +76,10 @@ Phase 2:
 | P2.2 | integrations TP-Link Omada (Open API) and Ubiquiti UniFi (Network Integration API) | done (0.8.0), not yet tested on real hardware |
 | P2.3 | write actions (named actions with preview, confirmation and automatic config backup first) | open |
 | P2.4 | more integrations: Netgear, devolo, Docker API | open |
-| P2.5 | nmap service detection on demand, passive DHCP fingerprinting | open |
+| P2.5 | nmap service detection on demand | done (0.9.0) |
+| P2.6 | topology: move nodes, positions stored per profile | done (0.9.0) |
+| P2.7 | FRITZ!Box second factor (TR-064 X_AVM-DE_Auth) for the config export; SNMP diagnosis | done (0.9.0) |
+| P2.8 | passive DHCP fingerprinting | open |
  Phase 3: change history between scans, cable and patch-panel documentation,
 Prometheus endpoint, REST API with tokens.
 

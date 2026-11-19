@@ -137,6 +137,42 @@ def test(pid: int, body: dict = Body(...), user=Depends(require_user)):
         raise HTTPException(400, f"{type(ex).__name__}: {ex}")
 
 
+@router.post("/api/profiles/{pid}/integrations/diagnose")
+def diagnose(pid: int, body: dict = Body(...), user=Depends(require_user)):
+    """Schrittweise Fehlersuche (bisher für SNMP): Netzweg, Erreichbarkeit, SNMP-Dienst, Anmeldung."""
+    import ipaddress
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        old = _get(c, pid, int(body["id"])) if body.get("id") else None
+        v = _body(body, old)
+        drv = DRIVERS[v["driver"]]
+        if not hasattr(drv, "diagnose"):
+            raise HTTPException(400, "Für diese Integration gibt es keine Diagnose")
+        # Router zwischen díktyo und Gerät: ein Gerät mit Adressen in díktyos Netz und im Netz des Ziels
+        hint = None
+        try:
+            from .scan import netinfo
+            tgt = ipaddress.ip_network(f'{v["host"]}/24', strict=False)
+            local = [ipaddress.ip_network(i["cidr"]) for i in netinfo.interfaces()]
+            by_dev = {}
+            for r in c.execute("""SELECT a.device_id, a.address, d.name, d.type FROM ip_addresses a JOIN devices d ON d.id=a.device_id
+                                  WHERE a.profile_id=? AND d.type IN ('router','mesh','firewall')""", (pid,)):
+                by_dev.setdefault(r["device_id"], []).append(r)
+            for rows in by_dev.values():
+                ips = [ipaddress.ip_address(r["address"]) for r in rows]
+                wan = next((ip for ip in ips if ip in tgt and str(ip) != v["host"]), None)
+                if wan and any(ip in n for ip in ips for n in local):
+                    hint = (str(wan), rows[0]["name"])
+                    break
+        except ValueError:
+            pass
+    conf = {**v["_options"], **v["_secrets"], "host": v["host"], "port": v["port"], "username": v["username"]}
+    try:
+        return drv.diagnose(conf, hint)
+    except ERRORS as ex:
+        raise HTTPException(400, str(ex))
+
+
 @router.post("/api/profiles/{pid}/integrations/{iid}/poll")
 def poll_now(pid: int, iid: int, user=Depends(require_user)):
     with db() as c:

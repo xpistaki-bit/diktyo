@@ -80,6 +80,111 @@ def backup(conf, state):
     return "running-config.txt", text.encode("utf-8"), True
 
 
+def _source_ip(host, port=161):
+    """Absenderadresse, die díktyo für den Weg zum Gerät benutzt (ohne etwas zu senden)."""
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect((host, port))
+        return s.getsockname()[0]
+    except OSError:
+        return ""
+    finally:
+        s.close()
+
+
+def _tcp_open(host, port, timeout=1.0):
+    import socket
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def _ping(host):
+    import subprocess
+    try:
+        return subprocess.run(["ping", "-c", "1", "-W", "1", host], capture_output=True, timeout=4).returncode == 0
+    except Exception:
+        return None
+
+
+def diagnose(conf, nat_hint=None):
+    """Schritt für Schritt prüfen, woran der SNMP-Zugriff scheitert. -> dict(steps=[...], summary)
+    nat_hint = (ip, name) eines Routers zwischen díktyo und Gerät (aus dem Bestand ermittelt), falls bekannt."""
+    import ipaddress
+    from ..scan import netinfo
+    host, port = conf["host"], int(conf.get("port") or 161)
+    steps = []
+
+    def step(ok, title, detail=""):
+        steps.append(dict(ok=ok, title=title, detail=detail))
+
+    # 1. Netzweg
+    src = _source_ip(host, port)
+    local = netinfo.interfaces()
+    try:
+        tgt = ipaddress.ip_address(host)
+        direct = next((i for i in local if tgt in ipaddress.ip_network(i["cidr"])), None)
+    except ValueError:
+        tgt, direct = None, None
+    if direct:
+        step(True, "Netzweg: direkt im selben Netz", f"díktyo erreicht {host} über {direct['ifname']} ({direct['ip']}). Der Switch sieht als Absender {direct['ip']}.")
+        sender = direct["ip"]
+    else:
+        gw = netinfo.default_gateway()
+        nat = f"{nat_hint[0]} ({nat_hint[1]})" if nat_hint else "die WAN-Adresse des Routers dazwischen"
+        step(None, "Netzweg: über einen Router", f"{host} liegt nicht in einem Netz von díktyo (eigene Adresse {src or '?'}), der Weg führt über {gw or 'das Gateway'}. "
+             f"Macht der Router NAT, sieht der Switch als Absender nicht {src or 'díktyo'}, sondern {nat}. Genau diese Adresse muss am Switch erlaubt sein.")
+        sender = nat_hint[0] if nat_hint else ""
+    # 2. Erreichbarkeit
+    ping = _ping(host)
+    mgmt = [p for p in (443, 80, 22, 23) if _tcp_open(host, p)]
+    if ping or mgmt:
+        step(True, "Gerät erreichbar", ("antwortet auf Ping" if ping else "kein Ping") + (f", offene Verwaltungs-Ports: {', '.join(map(str, mgmt))}" if mgmt else ""))
+    else:
+        step(False, "Gerät nicht erreichbar", "Weder Ping noch Weboberfläche/SSH antworten – Adresse und Netzweg prüfen.")
+    # 3. Antwortet der SNMP-Dienst überhaupt? (v3-Discovery braucht keine Zugangsdaten)
+    agent = None
+    try:
+        probe = snmplib.ClientV3(host, "diktyo-probe", None, "", None, "", port=port, timeout=2.0, retries=1)
+        probe._discover()
+        agent = True
+        step(True, "SNMP-Dienst antwortet", f"Engine-ID {probe.engine_id.hex()} – Filter (Service Access / Trusted Hosts) lassen díktyo durch.")
+    except snmplib.SNMPError:
+        agent = False if conf.get("version") == "v3" else None
+        if conf.get("version") == "v3":
+            step(False, "SNMP-Dienst antwortet nicht",
+                 "Keine Antwort auf die SNMPv3-Anfrage. Der Switch verwirft die Pakete: SNMP unter Service Access nicht erlaubt, "
+                 f"oder Trusted Hosts/Secured Client enthält {sender or 'die Absenderadresse'} nicht. Danach am Switch mit Save speichern.")
+        else:
+            step(None, "SNMPv3-Probe ohne Antwort", "Bei v2c normal, wenn v3 am Switch aus ist – weiter mit der eigentlichen Abfrage.")
+    except Exception as ex:  # unerwartete Antwort
+        step(None, "SNMP-Probe uneindeutig", str(ex)[:120])
+    # 4. Eigentliche Abfrage mit den Zugangsdaten
+    try:
+        r = _client(conf).get(SYS["descr"], SYS["name"])
+        step(True, "Abfrage mit Zugangsdaten erfolgreich", f"{snmplib.text(r.get(SYS['name']))} · {snmplib.text(r.get(SYS['descr']))[:80]}")
+        summary = "SNMP funktioniert."
+    except (snmplib.SNMPError, DriverError) as ex:
+        msg = str(ex)
+        if conf.get("version") != "v3" and "Keine Antwort" in msg:
+            step(False, "Keine Antwort auf SNMPv2c",
+                 "Ein Switch antwortet bei v2c auf eine falsche Community gar nicht – Community prüfen. Sonst wie bei v3: SNMP unter Service Access erlauben und "
+                 f"{sender or 'die Absenderadresse'} als Trusted Host eintragen.")
+        else:
+            step(False, "Abfrage mit Zugangsdaten fehlgeschlagen", msg + (" – der Dienst antwortet, also liegt es an Benutzer, Passwörtern oder Verfahren (SHA/AES)." if agent else ""))
+        if agent:
+            summary = "Der Switch antwortet, aber die Anmeldung passt nicht: Benutzer, Auth-/Privacy-Passwort und Verfahren vergleichen."
+        elif not direct:
+            summary = (f"Der Switch lässt díktyo nicht durch. Am Switch die Adresse {sender} erlauben (Trusted Host) – oder díktyo eine Netzwerkkarte im Netz des Switches geben."
+                       if sender else "Der Switch lässt díktyo nicht durch. Am Switch die WAN-Adresse des Routers zwischen díktyo und Switch erlauben – oder díktyo eine Netzwerkkarte im Netz des Switches geben.")
+        else:
+            summary = "Der Switch lässt díktyo nicht durch: SNMP unter Service Access erlauben und díktyos Adresse als Trusted Host eintragen."
+    return dict(steps=steps, summary=summary, source=src, sender=sender)
+
+
 def test(conf):
     try:
         r = _client(conf).get(SYS["descr"], SYS["name"])

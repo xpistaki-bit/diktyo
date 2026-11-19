@@ -6,7 +6,7 @@ to be a slim, self-hosted alternative to NetBox for private users. It runs as a 
 file, either in a Proxmox LXC or in a Docker container, and is managed in the browser. The interface is available
 in German and English.
 
-> **Status: v0.8 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.9 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plans for later versions are in [docs/architecture.md](docs/architecture.md).
 
 ## Installation
@@ -141,6 +141,8 @@ without a connection are listed separately.
   30 seconds while the view is open.
 - The PDF can contain the topology as a graphic (section "Topology graphic").
 
+- **Move devices** with the mouse; positions are stored per profile (also used for the PDF), "Reset layout" restores
+  the automatic arrangement.
 - **Full screen** enlarges the topology to the whole window below the header; Esc returns to normal size.
 - **Internet:** a globe in front of the WAN router. With the FRITZ!Box (or UniFi) integration it shows whether the
   internet connection is up (animated green line or red) and the current traffic down/up on the line.
@@ -219,6 +221,13 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
   changes.
 - **Measurements** (WAN traffic, port traffic) are kept 2 days by default, up to 14 (Settings → Detection), and
   shown as charts over 2 h, 24 h, 2 days or 7 days.
+
+- **Service scan (nmap) on demand** in the device dialog: open TCP ports with service, product and version, web page
+  titles and TLS certificates with expiry date (quick 100 / standard 1000 / all ports).
+- **SNMP diagnosis** in the switch dialog: network path (including the NAT address the switch sees when díktyo is in
+  another network), reachability, whether the SNMP service answers at all, and the sign-in.
+- **FRITZ!Box second factor:** if FRITZ!OS asks for a confirmation for the configuration export, díktyo shows how to
+  confirm (button on the box or phone code) and continues; scheduled backups show a note instead.
 
 Integrations and monitoring run in the background service next to the scans. Credentials are stored encrypted and
 go into backups only with the backup passphrase.

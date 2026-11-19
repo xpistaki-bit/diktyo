@@ -136,3 +136,25 @@ def test_v3_settings_via_api():
     with db() as c:
         c.execute("UPDATE integrations SET secret=? WHERE id=?", (integrations.security.encrypt("nur-text"), i["id"]))
         assert integrations.conf_of(c.execute("SELECT * FROM integrations WHERE id=?", (i["id"],)).fetchone())["password"] == "nur-text"
+
+
+def test_snmp_diagnose():
+    """Diagnose unterscheidet: Dienst antwortet + Anmeldung falsch / alles ok / Dienst antwortet gar nicht."""
+    a = AgentV3()
+    a.start()
+    conf = dict(host="127.0.0.1", port=a.port, version="v3", username="monitor", auth_proto="SHA", auth_pass="auth-pass-1",
+                priv_proto="AES", priv_pass="priv-pass-2")
+    ok = snmp.diagnose(conf)
+    titles = [x["title"] for x in ok["steps"]]
+    assert "SNMP-Dienst antwortet" in titles and ok["steps"][-1]["ok"] is True and ok["summary"] == "SNMP funktioniert."
+    bad = snmp.diagnose({**conf, "auth_pass": "falsch-1234"})
+    assert bad["steps"][-1]["ok"] is False and "Anmeldung passt nicht" in bad["summary"]
+    # niemand antwortet (freier Port) – Absender über Router, Hinweis auf den Router aus dem Bestand
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", 0))
+    free = sock.getsockname()[1]
+    sock.close()
+    none = snmp.diagnose({**conf, "port": free}, ("192.168.178.3", "ASUS EBM68"))
+    dead = next(x for x in none["steps"] if x["title"] == "SNMP-Dienst antwortet nicht")
+    route = next(x for x in none["steps"] if x["title"].startswith("Netzweg"))
+    assert "192.168.178.3 (ASUS EBM68)" in route["detail"] and "192.168.178.3" in dead["detail"] and "192.168.178.3" in none["summary"]

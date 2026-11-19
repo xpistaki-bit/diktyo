@@ -65,6 +65,12 @@ díktyo dann beim DNS des Subnetzes ab (Gateway bzw. DNS-Angabe im IPAM), die MA
 - **Standorte:** Baum aus Haus › Etage › Raum. Home Assistant kann seine Bereiche als Standorte liefern.
 - **Katalog:** ca. 80 gängige Geräte, eigene Einträge und CSV-Import; dort auch die *Erkennungsregeln* des Netzscans.
 
+### Dienste prüfen (nmap)
+
+Im Gerätedialog unter *Dienste (nmap)*: Tiefe wählen (Schnell 100 Ports, Standard 1000 Ports, alle 65535 Ports) und
+*Dienste prüfen*. Der Hintergrunddienst zeigt den Fortschritt und listet danach offene Ports mit Dienst, Produkt und
+Version, Titel von Webseiten (mit Link) und TLS-Zertifikate mit Ablaufdatum.
+
 ## 4. Integrationen
 
 Reiter *Integrationen* → passenden Knopf wählen. Jeder Dialog zeigt oben die Schritte; *Verbindung testen* prüft die
@@ -87,6 +93,13 @@ Angaben, bevor gespeichert wird.
 - Für das Konfigurations-Backup zusätzlich SSH-Benutzer und -Passwort eintragen.
 - Antwortet der Switch gar nicht („Keine Antwort“), blockiert er die Anfragen – meist fehlt die Freigabe unter Service
   Access oder Trusted Hosts.
+- **Diagnose** im Dialog prüft Schritt für Schritt: Netzweg, Erreichbarkeit, ob der SNMP-Dienst überhaupt antwortet
+  (ohne Zugangsdaten) und dann die Anmeldung. So ist klar, ob der Switch díktyo blockiert oder Benutzer/Passwort falsch sind.
+- **díktyo in einem anderen Netz als der Switch** (z. B. díktyo hinter dem ASUS-Router, Switch im FRITZ!Box-Netz): Der
+  Router dazwischen macht NAT, der Switch sieht als Absender also die **WAN-Adresse dieses Routers**, nicht díktyo. Genau
+  diese Adresse muss am Switch als Trusted Host erlaubt sein. Die Diagnose nennt sie, wenn der Router in díktyo bekannt
+  ist. Alternative: dem díktyo-Container eine zweite Netzwerkkarte im Netz des Switches geben (Proxmox: Netzwerkgerät
+  an der Bridge dieses Netzes hinzufügen) – dann ist der Weg direkt.
 
 ### ASUS-Router mit AiMesh (z. B. ExpertWiFi EBM68)
 
@@ -162,6 +175,9 @@ getestet, aber noch nicht an echter Hardware. Klappt etwas nicht, die Meldung de
 - *Schnell-Ping* prüft alle Geräte sofort.
 - **Internet:** Links steht die Weltkugel, verbunden mit dem Router. Mit FRITZ!Box-Integration zeigt sie, ob die
   Internetverbindung steht (grün animiert bzw. rot), und an der Leitung den aktuellen Traffic ↓/↑ – alle 30 s aktuell.
+- **Verschieben:** Geräte und Gruppen lassen sich mit der Maus an eine andere Stelle ziehen. díktyo merkt sich die
+  Position im Profil (gilt für alle, die das Profil sehen, und für das PDF). *Anordnung zurücksetzen* stellt die
+  automatische Anordnung wieder her.
 - *Vollbild* vergrößert die Topologie auf den ganzen Bildschirm unter der Kopfzeile; *Normalgröße* oder Esc schaltet zurück.
 
 ## 7. Konfigurations-Backups der Geräte
@@ -173,6 +189,11 @@ getestet, aber noch nicht an echter Hardware. Klappt etwas nicht, die Meldung de
   Text-Konfigurationen (FRITZ!Box, Switch) die **Änderungen** zum vorherigen Stand ansehen.
 - Die FRITZ!Box-Datei ist mit dem „Passwort für die Konfigurationsdatei“ (sonst dem Anmeldepasswort) geschützt – du
   brauchst es zum Wiederherstellen in der FRITZ!Box.
+- **Bestätigung (zweiter Faktor):** Neuere FRITZ!OS-Versionen verlangen für den Export eine Bestätigung. díktyo zeigt
+  dann einen Dialog: eine Taste an der FRITZ!Box drücken oder am Telefon den angezeigten Code (z. B. `*11234`) wählen;
+  danach läuft die Sicherung von selbst weiter. Beim automatischen Zeitplan geht das nicht – dann erscheint ein Hinweis
+  und die Sicherung wird per *Konfiguration sichern* von Hand ausgelöst. (Die Bestätigung lässt sich in der FRITZ!Box
+  unter *System → FRITZ!Box-Benutzer → Anmeldung im Heimnetz* abschalten; das schwächt aber den Schutz.)
 
 ## 8. Ausgabe und Sicherung
 

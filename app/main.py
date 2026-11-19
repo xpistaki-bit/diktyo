@@ -413,6 +413,7 @@ ERR_EN = {
     "Token oder MQTT-Broker angeben": "Enter a token or an MQTT broker",
     "Konfigurations-Backup nicht gefunden": "Configuration backup not found",
     "Ungültige Positionen": "Invalid positions",
+    "Für diese Integration gibt es keine Diagnose": "There is no diagnosis for this integration",
     "Das Gerät hat keine IPv4-Adresse": "The device has no IPv4 address",
     "nmap ist nicht installiert": "nmap is not installed",
     "Zeitlimit erreicht – „Schnell“ wählen oder später erneut versuchen": "Time limit reached – choose “Quick” or try again later",

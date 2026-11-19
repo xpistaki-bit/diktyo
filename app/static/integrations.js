@@ -299,7 +299,9 @@ async function integrationDialog(ctx, i, drv) {
       <div><label>${t('Abfrage alle')}</label><select name="interval_s">${[30, 60, 300, 900].map(v => `<option value="${v}" ${v === i.interval_s ? 'selected' : ''}>${v < 60 ? v + ' s' : v / 60 + ' min'}</option>`).join('')}</select></div>
       <div><label>${t('Gerät in díktyo')}</label><select name="device_id"><option value="">${t('– automatisch zuordnen –')}</option>${devices.filter(d => d.status !== 'ignored').sort((a, b) => cmp(a.name, b.name)).map(d => `<option value="${d.id}" ${d.id === i.device_id ? 'selected' : ''}>${h(d.name)}</option>`).join('')}</select></div>
       <div><label>&nbsp;</label><label class="chk"><input type="checkbox" name="enabled" ${i.enabled ? 'checked' : ''}> ${t('aktiv')}</label></div></div>
-    <div class="row" style="margin-top:12px"><button type="button" class="sm" data-test>${t('Verbindung testen')}</button><span class="small" id="testres"></span></div>`, {
+    <div class="row" style="margin-top:12px"><button type="button" class="sm" data-test>${t('Verbindung testen')}</button>
+      ${drv.key === 'snmp' ? `<button type="button" class="sm" data-diag>${t('Diagnose')}</button>` : ''}<span class="small" id="testres"></span></div>
+    <div id="diagres"></div>`, {
     wide: true,
     onOpen: f => {
       const vis = () => $$('[data-show-k]', f).forEach(el => { const sel = $(`[name=${el.dataset.showK}]`, f); el.style.display = !sel || sel.value === el.dataset.showV ? '' : 'none'; });
@@ -318,10 +320,21 @@ async function integrationDialog(ctx, i, drv) {
           $('#testres', f).textContent = '✓ ' + (drv.key === 'fritzbox' ? `${x.model} · FRITZ!OS ${x.firmware} · ${t('{n} Geräte', { n: x.hosts })} · ${x.auth ? t('Anmeldung ok, Mesh-Topologie verfügbar') : t('ohne Anmeldung (Mesh-Topologie nicht verfügbar)')}`
             : drv.key === 'snmp' ? `${x.name} · ${x.descr}` : drv.key === 'asuswrt' ? `${x.model} · Firmware ${x.firmware} · ${t('{n} Clients', { n: x.clients })} · ${t('{n} Mesh-Knoten', { n: x.nodes })}`
             : drv.key === 'proxmox' ? `Proxmox VE ${x.version} · ${t('{n} VMs und Container', { n: x.guests })}`
+            : ['omada', 'unifi'].includes(drv.key) ? [x.version ? `UniFi Network ${x.version}` : '', `${t('Sites')}: ${x.sites}`, t('{n} Geräte', { n: x.devices }), t('{n} Clients', { n: x.clients })].filter(Boolean).join(' · ')
             : [x.devices != null ? t('{n} HA-Geräte mit MAC, {m} Bereiche', { n: x.devices, m: x.areas }) : '', x.mqtt ? t('MQTT-Anmeldung ok') : ''].filter(Boolean).join(' · '));
           $('#testres', f).className = 'small okc';
         } catch (e) { $('#testres', f).textContent = '✗ ' + e.message; $('#testres', f).className = 'small errtxt'; }
         ev.target.disabled = false;
+      };
+      const db = $('[data-diag]', f);
+      if (db) db.onclick = async () => {
+        db.disabled = true; const out = $('#diagres', f); out.innerHTML = `<p class="muted small">${t('Diagnose läuft (bis zu 15 s) …')}</p>`;
+        try {
+          const r = await api('POST', `${P}/integrations/diagnose`, { ...fd(f), driver: drv.key, id: i.id });
+          out.innerHTML = `<ul class="diag">${r.steps.map(s => `<li class="${s.ok === true ? 'ok' : s.ok === false ? 'bad' : 'info'}"><b>${h(t(s.title))}</b><div class="small">${h(s.detail)}</div></li>`).join('')}</ul>
+            <p class="diag-sum"><b>${t('Ergebnis')}:</b> ${h(r.summary)}</p>`;
+        } catch (e) { out.innerHTML = `<p class="errtxt small">${h(e.message)}</p>`; }
+        db.disabled = false;
       };
     },
     onOk: f => {
