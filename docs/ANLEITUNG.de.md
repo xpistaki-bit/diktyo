@@ -197,7 +197,11 @@ getestet, aber noch nicht an echter Hardware. Klappt etwas nicht, die Meldung de
   dann einen Dialog: eine Taste an der FRITZ!Box drücken, am Telefon den angezeigten Code (z. B. `*11234`) wählen
   oder – wenn in der FRITZ!Box eingerichtet – den **Code aus der Authenticator-App** eingeben; danach läuft die
   Sicherung von selbst weiter. (Der App-Code geht nur über die Weboberfläche der FRITZ!Box; díktyo meldet sich dafür
-  kurz mit demselben Benutzer an und wieder ab.) Beim automatischen Zeitplan geht das nicht – dann erscheint ein Hinweis
+  kurz mit demselben Benutzer an und wieder ab.)
+- **Automatisch trotz Bestätigung:** Trägst du in der FRITZ!Box-Integration den **Authenticator-Schlüssel** ein (den
+  Base32-Text, den die FRITZ!Box beim Einrichten der App unter „Schlüssel manuell eingeben“ zeigt), erzeugt díktyo den
+  Code selbst und sichert auch nach Zeitplan. Abwägung: díktyo kann den zweiten Faktor dann allein erfüllen; der
+  Schlüssel liegt verschlüsselt in díktyo und kommt nur mit Backup-Passphrase in die Sicherung. Beim automatischen Zeitplan geht das nicht – dann erscheint ein Hinweis
   und die Sicherung wird per *Konfiguration sichern* von Hand ausgelöst. (Die Bestätigung lässt sich in der FRITZ!Box
   unter *System → FRITZ!Box-Benutzer → Anmeldung im Heimnetz* abschalten; das schwächt aber den Schutz.)
 

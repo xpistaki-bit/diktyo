@@ -69,7 +69,7 @@ def catalog_from_sysinfo(body: dict = Body(...), admin=Depends(require_admin)):
     with db() as c:
         r = c.execute("SELECT * FROM device_models WHERE lower(manufacturer)=lower(?) AND lower(model)=lower(?)", (s["manufacturer"], s["model"])).fetchone()
     info = {k: v for k, v in res["info"].items() if k not in ("serial", "uuid")}  # gerätebezogen, gehört nicht in den Katalog
-    return dict(suggestion=s, lookup=res["lookup"], info=info, existing=catalog.row(r) if r else None,
+    return dict(suggestion=s, lookup=res["lookup"], lookup_status=res["lookup_status"], info=info, existing=catalog.row(r) if r else None,
                 ignored=[k for k in ("serial", "uuid") if res["info"].get(k)])
 
 

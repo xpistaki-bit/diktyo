@@ -14,6 +14,7 @@ const DRIVER_STEPS = {
   fritzbox: [
     'Adresse der FRITZ!Box eintragen, meist <b>192.168.178.1</b>.',
     'In der FRITZ!Box unter <b>Heimnetz → Netzwerk → Netzwerkeinstellungen</b> „Zugriff für Anwendungen zulassen“ einschalten.',
+    'Verlangt die FRITZ!Box für das Backup eine Bestätigung (zweiter Faktor), kann díktyo mit dem <b>Authenticator-Schlüssel</b> auch automatisch sichern. Den Schlüssel zeigt die FRITZ!Box beim Einrichten der App (<b>System → FRITZ!Box-Benutzer → Anmeldung im Heimnetz</b>, „Schlüssel manuell eingeben“). Achtung: Damit kann díktyo den zweiten Faktor allein erfüllen.',
     'Ohne Benutzer liest díktyo nur Geräteliste und WAN-Traffic. Für Mesh-Topologie, WLAN und Konfigurations-Backup unter <b>System → FRITZ!Box-Benutzer</b> einen Benutzer mit dem Recht <b>„FRITZ!Box Einstellungen“</b> anlegen und hier eintragen.',
     '„Verbindung testen“ zeigt Modell, FRITZ!OS und ob die Anmeldung reicht.',
   ],
@@ -127,7 +128,7 @@ async function tabIntegrations(ctx) {
           ${i.summary?.device_id ? ` · <a href="#" data-dev="${i.summary.device_id}">${t('Gerät öffnen')}</a>` : ''}</p>
         ${i.last_error ? `<p class="${i.last_ok ? 'warnc' : 'errtxt'} small">${h(i.last_error)}</p>` : ''}
         ${i.can_backup ? `<p class="small cfgline"><b>${t('Konfiguration')}:</b> ${i.cfg_ok ? t('zuletzt gesichert {d}', { d: h(ago(i.cfg_ok)) }) : t('noch nicht gesichert')}
-          ${i.cfg_result?.status === 'error' ? ` · <span class="errtxt">${h(i.cfg_result.message)}</span>` : i.cfg_result?.status === 'unchanged' ? ` · <span class="muted">${t('unverändert')}</span>` : ''}
+          ${i.cfg_result?.status === 'error' ? ` · <span class="${i.cfg_result.second_factor ? 'warnc' : 'errtxt'}">${h(t(i.cfg_result.message))}</span>` : i.cfg_result?.status === 'unchanged' ? ` · <span class="muted">${t('unverändert')}</span>` : ''}
           ${ctx.canEdit ? `<button class="sm" data-cfg>${t('Konfiguration sichern')}</button>` : ''}</p>` : ''}
         ${i.driver === 'fritzbox' ? fritzCard(i) : i.driver === 'snmp' ? snmpCard(i) : i.driver === 'asuswrt' ? asusCard(i) : i.driver === 'proxmox' ? pveCard(i) : ['omada', 'unifi'].includes(i.driver) ? ctrlCard(i) : haCard(i)}
       </div>`).join('') || `<div class="panel empty-box">${t('Noch keine Integration. Füge deine FRITZ!Box hinzu – das geht auch ohne Passwort.')}</div>`}</div>

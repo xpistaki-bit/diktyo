@@ -61,7 +61,7 @@ def run(iid, interactive=False, totp=None):
             else:
                 res = dict(status="error", second_factor=True,
                            message="Die FRITZ!Box verlangt für den Export eine Bestätigung (zweiter Faktor). "
-                                   "Automatisch geht das nicht – bitte „Konfiguration sichern“ von Hand auslösen und an der FRITZ!Box bestätigen.")
+                                   "Automatisch geht das nur mit hinterlegtem Authenticator-Schlüssel – sonst „Konfiguration sichern“ von Hand auslösen.")
     except Exception as ex:
         res = dict(status="error", message=f"{type(ex).__name__}: {ex}")
     else:

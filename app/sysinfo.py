@@ -66,6 +66,9 @@ def parse(text):
     product = pick("product name", "product", "model", "hardware model", "csmodel", "product name ", "name")
     version = pick("version", "product version", "systemversion")
     family = pick("family", "product family", "systemfamily")
+    family = re.sub(r"^[0-9A-Fa-f]{4}_[0-9A-Fa-f]+\s*", "", family)  # HP: „103C_53307F HP EliteDesk“
+    if family.lower().startswith(vendor.lower() + " "):
+        family = family[len(vendor) + 1:]
     model = product
     if vendor == "Lenovo" and version and not re.fullmatch(r"[0-9A-Z]{8,10}", version):
         model = version  # Lenovo: Produktname = Maschinentyp (z. B. 10MQS0B600), Version = Modellname
@@ -104,19 +107,21 @@ def lookup(manufacturer, model, family="", lang="de"):
     """Kurze Beschreibung aus Wikipedia (nur Hersteller und Modell werden gesendet). -> dict(title, url, extract) | None"""
     if not manufacturer or not model:
         return None
-    queries = [f"{manufacturer} {model}"] + ([f"{manufacturer} {family}"] if family and family.lower() not in model.lower() else [])
-    queries.append(f"{manufacturer} {model.split()[0]}")
+    words = model.split()
+    queries = [f"{manufacturer} {' '.join(words[:n])}" for n in range(len(words), 0, -1)][:4]  # „HP EliteDesk 800 G4 DM 35W“ … „HP EliteDesk“
+    if family and family.lower() not in model.lower():
+        queries.append(f"{manufacturer} {family}")
+    queries.append(f"{manufacturer} {words[0]}")
     headers = {"User-Agent": "diktyo network documentation (https://github.com/xpistaki-bit/diktyo)"}
     with httpx.Client(timeout=6, headers=headers, follow_redirects=True) as cl:
         for wiki in dict.fromkeys([lang, "en"]):
             for q in dict.fromkeys(queries):
-                try:
-                    r = cl.get(f"https://{wiki}.wikipedia.org/w/rest.php/v1/search/title", params={"q": q, "limit": 5})
-                    pages = r.json().get("pages") or []
-                except (httpx.HTTPError, ValueError):
-                    return None
-                key = (family or model.split()[0]).lower()
-                page = next((p for p in pages if key in p["title"].lower()), None)  # z. B. „OptiPlex“ (ohne Hersteller im Titel)
+                r = cl.get(f"https://{wiki}.wikipedia.org/w/rest.php/v1/search/title", params={"q": q, "limit": 5})
+                r.raise_for_status()
+                pages = r.json().get("pages") or []
+                key = (family or words[0]).lower()
+                # z. B. „OptiPlex“ (ohne Hersteller im Titel) oder „List of HP business desktops“
+                page = next((p for p in pages if key in p["title"].lower() or (len(q.split()) > 1 and manufacturer.lower() in p["title"].lower().split())), None)
                 if not page:
                     continue
                 try:
@@ -134,16 +139,17 @@ def lookup(manufacturer, model, family="", lang="de"):
 def suggest(text, do_lookup=True, lang="de"):
     info = parse(text)
     if not info["manufacturer"] or not info["model"]:
-        return dict(info=info, suggestion=None, lookup=None)
-    wiki = None
+        return dict(info=info, suggestion=None, lookup=None, lookup_status="off")
+    wiki, status = None, "off"
     if do_lookup and not info["virtual"]:
         try:
             wiki = lookup(info["manufacturer"], info["model"], info["family"], lang)
-        except Exception:
-            wiki = None
+            status = "found" if wiki else "none"
+        except Exception as ex:
+            status = f"error: {type(ex).__name__}: {str(ex)[:120]}"
     note = f"{wiki['title']}: {wiki['extract']}" if wiki else ""
     if info["manufacturer"] == "Lenovo" and info["version"] and info["model"] == info["version"] and info["sku"]:
         note = (note + " " if note else "") + f"Maschinentyp {info['sku']}"
     sug = dict(manufacturer=info["manufacturer"], model=info["model"], type=info["type"], ports=ports_for(info), wifi="", managed=False,
                note=note[:500], source=(wiki or {}).get("url", "")[:120] or "Systeminfo")
-    return dict(info=info, suggestion=sug, lookup=wiki)
+    return dict(info=info, suggestion=sug, lookup=wiki, lookup_status=status)

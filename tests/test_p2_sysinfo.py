@@ -51,3 +51,12 @@ def test_api_suggestion_and_privacy(monkeypatch):
     assert again["existing"]["id"] == saved["id"] and len(sent) == 1
     bad = cl.post("/api/catalog/from-sysinfo", json={"text": "hallo welt"}, headers=H)
     assert bad.status_code == 400 and "dmidecode" in bad.json()["error"]
+
+
+def test_hp_family_cleanup_and_lookup_status(monkeypatch):
+    hp = "Manufacturer: HP\nProduct Name: HP EliteDesk 800 G4 DM 35W\nVersion: SBKPF\nFamily: 103C_53307F HP EliteDesk\n"
+    i = sysinfo.parse(hp)
+    assert (i["model"], i["family"], i["type"]) == ("EliteDesk 800 G4 DM 35W", "EliteDesk", "computer")
+    monkeypatch.setattr(sysinfo, "lookup", lambda *a, **k: (_ for _ in ()).throw(OSError("Name or service not known")))
+    r = sysinfo.suggest(hp)
+    assert r["lookup"] is None and r["lookup_status"].startswith("error: OSError")

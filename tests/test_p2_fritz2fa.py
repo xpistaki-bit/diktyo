@@ -148,3 +148,44 @@ def test_fritz_totp_via_web(monkeypatch):
     assert data.startswith(b"**** FRITZ!Box") and name == "FRITZBox_6591_Cable.export" and is_text
     assert seen[0] == "/login_sid.lua" and seen[-1] == "/login_sid.lua"  # am Ende abgemeldet
     assert any("tfa_start" in b for b in seen_bodies) and any("tfa_googleauth=123456" in b for b in seen_bodies)
+
+
+def test_totp_rfc6238_and_auto_backup(monkeypatch):
+    """Mit hinterlegtem Authenticator-Schlüssel sichert díktyo trotz 866 auch nach Zeitplan (Code wird selbst erzeugt)."""
+    assert fritzbox.totp_now("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", t=59, digits=8) == "94287082"  # RFC 6238, Anhang B
+    assert fritzbox.totp_now("otpauth://totp/FRITZ:x?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=FRITZ", t=59) == "287082"
+    used = []
+    monkeypatch.setattr(fritzbox, "_connect", lambda conf: FC())
+    monkeypatch.setattr(fritzbox.httpx, "post", lambda *a, **k: soap_err(866, "second factor authentication required"))
+    monkeypatch.setattr(fritzbox, "backup_web_totp", lambda conf, code: used.append(code) or b"**** FRITZ!Box CONFIGURATION EXPORT\n")
+    name, data, _ = fritzbox.backup(dict(host="h", username="u", password="pw", totp_secret="GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"), {})
+    assert data.startswith(b"****") and len(used) == 1 and used[0].isdigit() and len(used[0]) == 6
+    # ohne Schlüssel bleibt es beim Hinweis
+    try:
+        fritzbox.backup(dict(host="h", username="u", password="pw"), {})
+        raise AssertionError
+    except fritzbox.SecondFactorRequired:
+        pass
+
+
+def test_poll_does_not_overwrite_backup_result(monkeypatch):
+    """Eine länger laufende Abfrage darf das Ergebnis eines gleichzeitig gelaufenen Backups nicht mit dem alten Stand überschreiben."""
+    cl = login()
+    pid = cl.post("/api/profiles", json={"name": "Wettlauf"}, headers=H).json()["profile"]["id"]
+    old = {"cfg_result": {"status": "error", "message": "FritzConnectionException: 866"}, "cfg_ok": None}
+    with db() as c:
+        iid = c.execute("INSERT INTO integrations(profile_id, driver, name, host, secret, options, state, created) VALUES(?,?,?,?,?,?,?,?)",
+                        (pid, "fritzbox", "FRITZ!Box", "192.0.2.1", "", "{}", json.dumps(old), now())).lastrowid
+
+    def slow_poll(conf, state):
+        with db() as c:  # während der Abfrage: Backup erfolgreich
+            st = json.loads(c.execute("SELECT state FROM integrations WHERE id=?", (iid,)).fetchone()["state"])
+            st.update(cfg_result={"status": "new", "id": 1}, cfg_ok=now())
+            c.execute("UPDATE integrations SET state=? WHERE id=?", (json.dumps(st), iid))
+        return dict(info={}, wan={}, auth=False, hosts=[], mesh={}, wlan=[]), {}, dict(state, extra=1)
+    monkeypatch.setattr(fritzbox, "poll", slow_poll)
+    monkeypatch.setattr(integrations, "APPLY", {**integrations.APPLY, "fritzbox": lambda c, row, res: {}})
+    integrations.poll(iid)
+    with db() as c:
+        st = json.loads(c.execute("SELECT state FROM integrations WHERE id=?", (iid,)).fetchone()["state"])
+    assert st["cfg_result"]["status"] == "new" and st["cfg_ok"] and st["extra"] == 1

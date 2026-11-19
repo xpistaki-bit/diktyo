@@ -51,6 +51,7 @@ def poll(iid, log=print):
         c.execute("UPDATE integrations SET last_poll=? WHERE id=?", (now(), iid))
     drv = DRIVERS.get(row["driver"])
     state = json.loads(row["state"] or "{}")
+    before = json.loads(row["state"] or "{}")
     try:
         res, values, new_state = drv.poll(conf_of(row), state)
     except ERRORS as ex:
@@ -67,7 +68,8 @@ def poll(iid, log=print):
             runner._set_online(c, summary["device_id"], 1, now(), row["driver"])
         metrics.put(c, row["profile_id"], {f"i{iid}:{k}": v for k, v in values.items()})
         row = c.execute("SELECT * FROM integrations WHERE id=?", (iid,)).fetchone()  # apply_ha schreibt eigenen Zustand
-        new_state = {**json.loads(row["state"] or "{}"), **new_state}
+        changed = {k: v for k, v in new_state.items() if before.get(k, object()) != v}  # nur Änderungen des Treibers
+        new_state = {**json.loads(row["state"] or "{}"), **changed}
         new_state.update(summary=summary, result=_slim(row["driver"], res), ts=time.time())
         c.execute("UPDATE integrations SET state=?, last_ok=?, last_error=? WHERE id=?",
                   (json.dumps(new_state, ensure_ascii=False), now(), res.get("warning", ""), iid))

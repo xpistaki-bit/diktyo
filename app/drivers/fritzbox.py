@@ -16,6 +16,8 @@ FIELDS = [
     dict(key="cfg_schedule", label="Konfiguration sichern", type="select", default="weekly", options=[
         ["weekly", "wöchentlich"], ["daily", "täglich"], ["no", "nein"]]),
     dict(key="export_pass", label="Passwort für die Konfigurationsdatei (sonst das Anmeldepasswort)", type="password", default="", secret=True),
+    dict(key="totp_secret", label="Authenticator-Schlüssel (optional, für automatische Sicherungen)", type="password", default="",
+         secret=True, placeholder="Base32-Schlüssel aus der FRITZ!Box"),
 ]
 CAN_BACKUP = True
 
@@ -300,6 +302,28 @@ def backup_web_totp(conf, code):
                 pass
 
 
+def totp_now(secret, t=None, digits=6, step=30):
+    """Aktueller Code einer Authenticator-App (RFC 6238, SHA-1) aus dem Base32-Schlüssel bzw. einer otpauth://-Adresse."""
+    import base64
+    import hashlib
+    import hmac
+    import struct
+    import time as _t
+    import urllib.parse
+    s = str(secret or "").strip()
+    if s.lower().startswith("otpauth://"):
+        s = urllib.parse.parse_qs(urllib.parse.urlparse(s).query).get("secret", [""])[0]
+    s = s.replace(" ", "").replace("-", "").upper()
+    try:
+        key = base64.b32decode(s + "=" * (-len(s) % 8))
+    except ValueError:
+        raise DriverError("Authenticator-Schlüssel ungültig (Base32 aus der FRITZ!Box, z. B. „WI5M JOGQ …“)")
+    counter = int((t if t is not None else _t.time()) // step)
+    mac = hmac.new(key, struct.pack(">Q", counter), hashlib.sha1).digest()
+    o = mac[-1] & 0x0F
+    return str((struct.unpack(">I", mac[o:o + 4])[0] & 0x7FFFFFFF) % 10 ** digits).zfill(digits)
+
+
 def backup(conf, state):
     """Konfigurationsexport der FRITZ!Box (wie System → Sicherung). -> (Dateiname, Inhalt, Text?)
     Verlangt die FRITZ!Box einen zweiten Faktor, wird SecondFactorRequired geworfen; nach der Bestätigung liegt der
@@ -319,6 +343,12 @@ def backup(conf, state):
                   token=state.get("sf_token"))
     except PermissionError:
         raise DriverError("Benutzer hat nicht das Recht „FRITZ!Box Einstellungen“")
+    except SecondFactorRequired:
+        if not conf.get("totp_secret") or state.get("sf_token"):
+            raise
+        # Schlüssel der Authenticator-App hinterlegt: Code selbst erzeugen (auch für den Zeitplan)
+        model = (getattr(fc, "modelname", "") or "FRITZ.Box").replace(" ", "_").replace("!", "")
+        return f"{model}.export", backup_web_totp(conf, totp_now(conf["totp_secret"])), True
     finally:
         state.pop("sf_token", None)  # ein Token gilt nur für einen Vorgang
     url = r.get("NewX_AVM-DE_ConfigFileUrl")

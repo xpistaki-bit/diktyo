@@ -413,6 +413,7 @@ ERR_EN = {
     "Token oder MQTT-Broker angeben": "Enter a token or an MQTT broker",
     "Konfigurations-Backup nicht gefunden": "Configuration backup not found",
     "Ungültige Positionen": "Invalid positions",
+    "Authenticator-Schlüssel ungültig (Base32 aus der FRITZ!Box, z. B. „WI5M JOGQ …“)": "Authenticator key invalid (Base32 from the FRITZ!Box, e.g. “WI5M JOGQ …”)",
     "Bitte Systeminformationen einfügen": "Please paste system information",
     "Hersteller und Modell nicht erkannt – z. B. die Ausgabe von „dmidecode -t system“ einfügen": "Manufacturer and model not recognised – paste e.g. the output of “dmidecode -t system”",
     "Der Code aus der App hat 6 Ziffern": "The code from the app has 6 digits",
