@@ -6,10 +6,10 @@ to be a slim, self-hosted alternative to NetBox for private users. It runs as a 
 file, either in a Proxmox LXC or in a Docker container, and is managed in the browser. The interface is available
 in German and English.
 
-> **Status: early development (v0.5, milestone M4).** Accounts, profiles, devices with ports and connections, IPAM,
-> the device catalog, PDF/CSV output, backups, the network scan with device identification, the FRITZ!Box and SNMP
-> integrations, online monitoring and the graphical topology work. Further integrations (ASUS, Proxmox, Home
-> Assistant) and device configuration backups follow – see [docs/architecture.md](docs/architecture.md).
+> **Status: early development (v0.6, milestone M5).** Accounts, profiles, devices with ports and connections, IPAM,
+> the device catalog, PDF/CSV output, backups, the network scan with device identification, online monitoring, the
+> graphical topology and integrations for FRITZ!Box, SNMP switches, ASUS AiMesh, Proxmox VE and Home Assistant work.
+> Device configuration backups follow – see [docs/architecture.md](docs/architecture.md).
 
 ## Installation
 
@@ -193,6 +193,16 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
   counters), MAC addresses learned per port and LLDP neighbours. Devices whose MAC address appears alone on a port
   are connected to that port automatically; on a port with many addresses the switch, access point or router behind
   it is chosen. Enable SNMP on the switch (Zyxel: Management → Access Control → SNMP) and set a community.
+- **ASUS router with AiMesh** (for example ExpertWiFi EBM68): clients with name, IP, MAC, Wi-Fi band and the mesh
+  node they are connected to, plus the mesh nodes with their backhaul (mesh or LAN). Sign in with the router's admin
+  account (web interface, usually HTTPS port 8443). ASUS allows only one admin session at a time; díktyo keeps its
+  session open, and the default interval is 5 minutes.
+- **Proxmox VE** (API token, read-only): nodes, VMs and containers with status, MAC, bridge, VLAN tag and IP
+  addresses (via the QEMU guest agent for VMs and the interface list for containers); they are attached to their host
+  as "virtual". The token setup is shown in the dialog and in [docs/architecture.md](docs/architecture.md).
+- **Home Assistant:** names and areas of HA devices are taken over by MAC address; via MQTT díktyo reports online
+  sensors, counters, WAN traffic and events (device offline/online, new device). A blueprint for phone notifications
+  is in [docs/home-assistant](docs/home-assistant/README.md).
 - Connections set by an integration never replace connections entered by hand.
 - **Online monitoring:** all confirmed devices with an IP address are pinged every 30 s, 1 min or 5 min (per
   profile); devices that drop pings are checked through a known open port. The device dialog shows the last

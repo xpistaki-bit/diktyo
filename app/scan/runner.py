@@ -169,12 +169,21 @@ def run(job_id, log=print):
 
 
 # ------------------------------------------------------------ Einsortieren
+def event(c, pid, kind, did=None, **data):
+    """Ereignis für Benachrichtigungen (wird z. B. per MQTT an Home Assistant gemeldet)."""
+    c.execute("INSERT INTO events(profile_id, ts, kind, device_id, data) VALUES(?,?,?,?,?)",
+              (pid, now(), kind, did, json.dumps(data, ensure_ascii=False)))
+
+
 def _set_online(c, did, online, ts, source="scan"):
-    r = c.execute("SELECT online FROM devices WHERE id=?", (did,)).fetchone()
+    r = c.execute("SELECT online, status, profile_id, name FROM devices WHERE id=?", (did,)).fetchone()
     if r is None:
         return
     if r["online"] != online:
         c.execute("INSERT INTO status_events(device_id, ts, online, source) VALUES(?,?,?,?)", (did, ts, online, source))
+        # Meldung nur bei echten Wechseln bestätigter Geräte (nicht beim ersten Sehen)
+        if r["status"] == "confirmed" and r["online"] is not None:
+            event(c, r["profile_id"], "device_online" if online else "device_offline", did, name=r["name"], source=source)
     if online:
         c.execute("UPDATE devices SET online=1, last_seen=? WHERE id=?", (ts, did))
     else:
@@ -254,6 +263,7 @@ def merge(c, pid, job_id, hosts, probed=(), source="scan", record=True):
                 by_mac[h["mac"]] = did
             by_ip.setdefault(h["ip"], did)
             stats["new"] += 1
+            event(c, pid, "new_device", did, name=body["name"], ip=h["ip"], mac=h["mac"], label=idt.get("label", ""), source=source)
         seen.add(did)
         if record:
             c.execute("INSERT INTO observations(profile_id, job_id, device_id, ip, mac, data, seen) VALUES(?,?,?,?,?,?,?)",

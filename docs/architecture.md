@@ -65,7 +65,7 @@ shipped in the repository. `nmap` is installed from the distribution packages.
 | M2 | worker, scanner, identification with reasons, inbox, scheduled scans, OUI and Fingerbank | done |
 | M3 | FRITZ!Box TR-064, SNMP/Zyxel, metrics, status history, configurable interval | done |
 | M4 | topology: overall tree + detail view with switch front panel, clickable ports, collapsible WLAN, quick ping, live status | done |
-| M5 | ASUS AiMesh, Proxmox, Home Assistant (MQTT discovery, blueprint, areas) | |
+| M5 | ASUS AiMesh, Proxmox, Home Assistant (MQTT discovery, blueprint, areas) | done |
 | M6 | config backups for FRITZ!Box, Zyxel and ASUS; polish, documentation | |
 
 Phase 2: write actions, more integrations (Omada, UniFi, Netgear, devolo, Docker API), nmap service detection on

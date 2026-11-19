@@ -1,0 +1,68 @@
+blueprint:
+  name: díktyo – Benachrichtigung bei Netzwerk-Ereignissen
+  description: >
+    Schickt eine Benachrichtigung an die Home-Assistant-App, wenn díktyo meldet, dass ein Gerät offline geht,
+    wieder online kommt oder ein neues, unbekanntes Gerät im Netz auftaucht. Voraussetzung: Integration
+    „Home Assistant“ in díktyo mit MQTT-Broker.
+  domain: automation
+  source_url: https://github.com/xpistaki-bit/diktyo/blob/main/docs/home-assistant/diktyo-benachrichtigung.yaml
+  input:
+    event_entity:
+      name: díktyo-Ereignis
+      description: Die Ereignis-Entität von díktyo (Gerät „díktyo <Profil>“, Entität „Ereignis“).
+      selector:
+        entity:
+          filter:
+            - domain: event
+              integration: mqtt
+    notify_device:
+      name: Gerät für die Benachrichtigung
+      description: Ein Mobilgerät mit der Home-Assistant-App.
+      selector:
+        device:
+          filter:
+            - integration: mobile_app
+    event_types:
+      name: Ereignisse
+      description: Bei welchen Ereignissen benachrichtigt werden soll.
+      default:
+        - device_offline
+        - new_device
+      selector:
+        select:
+          multiple: true
+          options:
+            - label: Gerät offline
+              value: device_offline
+            - label: Gerät wieder online
+              value: device_online
+            - label: Neues Gerät im Netz
+              value: new_device
+
+mode: queued
+max: 20
+
+triggers:
+  - trigger: state
+    entity_id: !input event_entity
+    not_to:
+      - unavailable
+      - unknown
+
+variables:
+  wanted: !input event_types
+  ev: "{{ trigger.to_state.attributes.event_type }}"
+
+conditions:
+  - condition: template
+    value_template: "{{ ev in wanted }}"
+
+actions:
+  - domain: mobile_app
+    type: notify
+    device_id: !input notify_device
+    title: >
+      {{ {'device_offline': 'Gerät offline', 'device_online': 'Gerät wieder online',
+          'new_device': 'Neues Gerät im Netz'}.get(ev, 'díktyo') }}
+    message: >
+      {% set a = trigger.to_state.attributes %}{{ a.device }}{% if a.ip %} ({{ a.ip }}){% endif %}{% if ev == 'new_device' and a.label %} – vermutlich {{ a.label }}{% endif %}

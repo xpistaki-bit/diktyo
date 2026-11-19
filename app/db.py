@@ -226,6 +226,18 @@ MIGRATIONS = [
     UPDATE ip_addresses SET source='scan' WHERE device_id IN (SELECT id FROM devices WHERE status<>'confirmed')
         OR id IN (SELECT a.id FROM ip_addresses a JOIN observations o ON o.device_id = a.device_id AND o.ip = a.address);
     """,
+    # 5: Ereignisse (Gerät offline/online, neues Gerät) für Benachrichtigungen, z. B. an Home Assistant
+    """
+    CREATE TABLE events(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        ts TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        device_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+        data TEXT NOT NULL DEFAULT '{}',
+        delivered TEXT NOT NULL DEFAULT '');
+    CREATE INDEX events_profile ON events(profile_id, id);
+    """,
 ]
 
 

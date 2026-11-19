@@ -203,7 +203,7 @@ def test_integration_api_and_monitor():
     pid = _profile(cl, "API-Test")
     P = f"/api/profiles/{pid}"
     r = cl.get(f"{P}/integrations").json()
-    assert {d["key"] for d in r["drivers"]} == {"fritzbox", "snmp"} and r["monitor"] == {"enabled": True, "interval_s": 60}
+    assert {d["key"] for d in r["drivers"]} == {"fritzbox", "snmp", "asuswrt", "proxmox", "homeassistant"} and r["monitor"] == {"enabled": True, "interval_s": 60}
     i = cl.post(f"{P}/integrations", json={"driver": "snmp", "host": "127.0.0.1", "port": 1, "password": "abc", "interval_s": 5}, headers=H).json()
     assert i["password"] == "••••••" and i["interval_s"] == 15
     i2 = cl.put(f"{P}/integrations/{i['id']}", json={"host": "127.0.0.2", "password": "••••••"}, headers=H).json()

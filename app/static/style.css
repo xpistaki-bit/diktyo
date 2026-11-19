@@ -236,7 +236,7 @@ table.kvt td{font-size:12.5px;word-break:break-word}
 .dlg-err.on{display:block}
 #nav a.home{display:inline-flex;align-items:center;gap:5px;color:var(--ink)}
 #nav a.home:hover{color:var(--cyan)}
-td.errtxt{color:var(--err);font-size:12.5px}
+td.errtxt,.errtxt{color:var(--err);font-size:12.5px}
 .conflicts li{display:flex;gap:10px;align-items:baseline;justify-content:space-between}
 .conflicts li button.link{font-size:12px;color:var(--mute);white-space:nowrap}
 .conflicts li button.link:hover{color:var(--cyan)}

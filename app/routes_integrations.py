@@ -173,3 +173,12 @@ def metrics_days_put(body: dict = Body(...), admin=Depends(require_admin)):
     with db() as c:
         set_setting(c, "metrics_days", days)
     return dict(days=days)
+
+
+@router.get("/api/profiles/{pid}/events")
+def events_list(pid: int, limit: int = 30, user=Depends(require_user)):
+    with db() as c:
+        profile_access(c, user, pid)
+        rows = c.execute("SELECT * FROM events WHERE profile_id=? ORDER BY id DESC LIMIT ?", (pid, max(1, min(limit, 200)))).fetchall()
+        return dict(events=[dict(id=r["id"], ts=r["ts"], kind=r["kind"], device_id=r["device_id"], data=json.loads(r["data"] or "{}"),
+                                 delivered=r["delivered"]) for r in rows])

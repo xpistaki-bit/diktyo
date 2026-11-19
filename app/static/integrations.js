@@ -4,6 +4,12 @@ const DRIVER_HELP = {
   fritzbox: 'Ohne Anmeldung liest díktyo die Geräteliste und den WAN-Traffic. Mit einem FRITZ!Box-Benutzer (System → FRITZ!Box-Benutzer, Recht „FRITZ!Box Einstellungen“) kommen die Mesh-Topologie (welches Gerät an welchem LAN-Port bzw. WLAN hängt) und die WLAN-Daten dazu. In der FRITZ!Box muss unter Heimnetz → Netzwerk → Netzwerkeinstellungen „Zugriff für Anwendungen zulassen“ eingeschaltet sein.',
   snmp: 'Am Switch SNMP einschalten: v2c mit einer Community oder v3 mit Benutzer (SHA/AES, Gruppe „read-only“). Zyxel: Management → Access Control → SNMP; unter Service Access muss SNMP erlaubt sein, und falls Trusted Hosts gesetzt sind, die Absenderadresse von díktyo (hinter einem Router dessen WAN-Adresse). díktyo liest nur: Port-Status, Traffic, gelernte MAC-Adressen und LLDP-Nachbarn.',
 };
+Object.assign(DRIVER_HELP, {
+  asuswrt: 'Für ASUS-Router mit AiMesh (z. B. ExpertWiFi EBM68): liest die Clients mit Mesh-Knoten und WLAN-Band sowie die Knoten selbst. Anmeldung mit dem Admin-Konto des Routers (Weboberfläche, meist HTTPS-Port 8443). ASUS erlaubt nur eine Admin-Sitzung; díktyo hält seine Sitzung offen – meldet dich die Weboberfläche ab, das Abfrageintervall erhöhen.',
+  proxmox: 'Liest Knoten, VMs und LXCs mit MAC, Bridge, VLAN-Tag und IP (über den QEMU Guest Agent bzw. die LXC-Schnittstellen) und hängt sie virtuell an ihren Host. Einmal auf einem Knoten: pveum role add DiktyoRead -privs "VM.Audit,VM.GuestAgent.Audit,Sys.Audit,Datastore.Audit,SDN.Audit"; pveum user add diktyo@pve; pveum acl modify / --users diktyo@pve --roles DiktyoRead; pveum user token add diktyo@pve diktyo --privsep 1; pveum acl modify / --tokens \'diktyo@pve!diktyo\' --roles DiktyoRead. Das Token-Secret wird nur einmal angezeigt.',
+  homeassistant: 'Mit einem Long-Lived Access Token (HA → Profil → Sicherheit) übernimmt díktyo Namen und Bereiche der HA-Geräte (Abgleich über die MAC-Adresse). Mit einem MQTT-Broker (Mosquitto-Add-on, eigener Benutzer) meldet díktyo Online-Sensoren, die Zahl neuer Geräte, den WAN-Traffic und Ereignisse an HA. Für Benachrichtigungen die Blueprint aus docs/home-assistant importieren.',
+});
+const EVENT = { device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät' };
 const RANGES = [[7200, '2 h'], [86400, '24 h'], [172800, '2 Tage'], [604800, '7 Tage']];
 const fmtBps = v => {
   if (v == null || isNaN(v)) return '–';
@@ -58,7 +64,8 @@ async function tabIntegrations(ctx) {
         <p class="muted small">${t('Messwerte werden {n} Tage aufbewahrt (Einstellungen → Erkennung).', { n: r.metrics_days })}</p></form>
       <div class="panel"><h3>${t('Integrationen')}</h3>
         <p class="muted small" style="margin-top:0">${t('Geräte, die díktyo direkt abfragt. Die FRITZ!Box liefert alle angeschlossenen Geräte mit MAC-Adresse (auch aus Netzen hinter einem Router) und den WAN-Traffic; ein Switch per SNMP liefert Port-Status, Traffic und welches Gerät an welchem Port hängt.')}</p>
-        ${ctx.canEdit ? `<div class="row"><button class="pri" data-add="fritzbox">${t('+ FRITZ!Box')}</button><button class="pri" data-add="snmp">${t('+ Switch (SNMP)')}</button></div>` : ''}</div>
+        ${ctx.canEdit ? `<div class="row"><button class="pri" data-add="fritzbox">${t('+ FRITZ!Box')}</button><button class="pri" data-add="snmp">${t('+ Switch (SNMP)')}</button>
+          <button class="pri" data-add="asuswrt">${t('+ ASUS (AiMesh)')}</button><button class="pri" data-add="proxmox">${t('+ Proxmox')}</button><button class="pri" data-add="homeassistant">${t('+ Home Assistant')}</button></div>` : ''}</div>
     </div>
     <div id="ints" class="stack" style="margin-top:16px">${r.integrations.map(i => `<div class="panel integ" data-id="${i.id}">
         <div class="row between"><div class="row"><span class="dot ${st(i)}"></span><b>${h(i.name)}</b><span class="muted mono small">${h(i.host)}</span>
@@ -67,8 +74,18 @@ async function tabIntegrations(ctx) {
         <p class="muted small" style="margin:4px 0 0">${i.last_ok ? t('zuletzt erfolgreich {d}', { d: h(ago(i.last_ok)) }) : t('noch nicht abgefragt')} · ${t('alle {n}', { n: i.interval_s < 60 ? i.interval_s + ' s' : i.interval_s / 60 + ' min' })}
           ${i.summary?.device_id ? ` · <a href="#" data-dev="${i.summary.device_id}">${t('Gerät öffnen')}</a>` : ''}</p>
         ${i.last_error ? `<p class="${i.last_ok ? 'warnc' : 'errtxt'} small">${h(i.last_error)}</p>` : ''}
-        ${i.driver === 'fritzbox' ? fritzCard(i) : snmpCard(i)}
-      </div>`).join('') || `<div class="panel empty-box">${t('Noch keine Integration. Füge deine FRITZ!Box hinzu – das geht auch ohne Passwort.')}</div>`}</div>`;
+        ${i.driver === 'fritzbox' ? fritzCard(i) : i.driver === 'snmp' ? snmpCard(i) : i.driver === 'asuswrt' ? asusCard(i) : i.driver === 'proxmox' ? pveCard(i) : haCard(i)}
+      </div>`).join('') || `<div class="panel empty-box">${t('Noch keine Integration. Füge deine FRITZ!Box hinzu – das geht auch ohne Passwort.')}</div>`}</div>
+    <h2>${t('Letzte Ereignisse')}</h2><div id="events"></div>`;
+  api('GET', `${P}/events?limit=15`).then(({ events }) => {
+    const el = $('#events', ctx.el); if (!el) return;
+    el.innerHTML = events.length ? `<div class="table-wrap"><table class="compact"><tbody>${events.map(e => `<tr><td class="mono small">${h(fmtDate(e.ts))}</td>
+      <td><span class="badge ${e.kind === 'device_offline' ? 'warn' : e.kind === 'new_device' ? 'owner' : 'ok'}">${t(EVENT[e.kind] || e.kind)}</span></td>
+      <td>${e.device_id ? `<a href="#" data-ev="${e.device_id}">${h(e.data.name || '')}</a>` : h(e.data.name || '')}</td><td class="mono small">${h(e.data.ip || '')}</td>
+      <td class="small muted">${e.delivered ? t('an HA gemeldet') : ''}</td></tr>`).join('')}</tbody></table></div>`
+      : `<p class="muted small">${t('Noch keine Ereignisse. Sie entstehen, wenn bestätigte Geräte offline oder wieder online gehen oder neue Geräte auftauchen.')}</p>`;
+    $$('[data-ev]', el).forEach(a => a.onclick = ev => { ev.preventDefault(); deviceDialog(ctx, +a.dataset.ev); });
+  }).catch(() => { });
 
   const mon = $('#mon', ctx.el);
   mon.onchange = async () => {
@@ -131,6 +148,29 @@ function snmpCard(i) {
       <div class="chartbox" data-port="${first}"></div>` : ''}`;
 }
 
+function asusCard(i) {
+  const r = i.result || {}, info = r.info || {}, s = i.summary || {};
+  return `<div class="kv">${info.model ? `<span>${t('Modell')}: <b>${h(info.model)}</b></span>` : ''}${info.firmware ? `<span>Firmware: <b>${h(info.firmware)}</b></span>` : ''}
+      ${r.clients != null ? `<span>${t('Clients')}: <b>${r.online} ${t('online')} / ${r.clients}</b> (${t('{n} per WLAN', { n: r.wlan })})</span>` : ''}</div>
+    ${r.nodes?.length ? `<div class="kv">${r.nodes.map(n => `<span><span class="dot ${n.online ? 'on' : 'off'}"></span> <b>${h(n.name)}</b> <span class="mono small">${h(n.ip)}</span> <small class="muted">${n.wired_backhaul ? t('LAN-Backhaul') : n.ip === info.ip ? t('Hauptrouter') : t('Mesh')}</small></span>`).join('')}</div>` : ''}
+    ${s.links != null ? `<p class="muted small">${t('Letzte Abfrage: {n} neu im Posteingang, {l} Verbindungen gesetzt.', { n: s.new, l: s.links })}</p>` : ''}`;
+}
+
+function pveCard(i) {
+  const r = i.result || {}, s = i.summary || {};
+  return `<div class="kv">${r.info?.version ? `<span>Proxmox VE: <b>${h(r.info.version)}</b></span>` : ''}
+      ${r.guests != null ? `<span>${t('VMs und Container')}: <b>${r.running} ${t('laufen')} / ${r.guests}</b></span>` : ''}
+      ${(r.nodes || []).map(n => `<span><span class="dot ${n.online ? 'on' : 'off'}"></span> <b>${h(n.name)}</b> <span class="mono small">${h(n.ip)}</span></span>`).join('')}</div>
+    ${s.links != null ? `<p class="muted small">${t('Letzte Abfrage: {n} neu im Posteingang, {l} Verbindungen gesetzt.', { n: s.new, l: s.links })}</p>` : ''}`;
+}
+
+function haCard(i) {
+  const s = i.summary || {}, r = i.result || {};
+  return `<div class="kv">${r.info?.devices != null ? `<span>${t('HA-Geräte mit MAC')}: <b>${r.info.devices}</b></span>` : ''}
+      ${s.matched != null ? `<span>${t('zugeordnet')}: <b>${s.matched}</b></span><span>${t('Namen übernommen')}: <b>${s.renamed}</b></span><span>${t('Standorte gesetzt')}: <b>${s.located}</b></span>` : ''}
+      ${s.messages != null ? `<span>MQTT: <b>${t('{n} Geräte gemeldet', { n: s.published })}, ${t('{n} Ereignisse', { n: s.events })}</b></span>` : ''}</div>`;
+}
+
 async function integrationDialog(ctx, i, drv) {
   const P = `/api/profiles/${ctx.pid}`;
   const { devices } = await api('GET', `${P}/devices`);
@@ -157,7 +197,10 @@ async function integrationDialog(ctx, i, drv) {
         try {
           const r = await api('POST', `${P}/integrations/test`, { ...fd(f), driver: drv.key, id: i.id });
           const x = r.result;
-          $('#testres', f).textContent = '✓ ' + (drv.key === 'fritzbox' ? `${x.model} · FRITZ!OS ${x.firmware} · ${t('{n} Geräte', { n: x.hosts })} · ${x.auth ? t('Anmeldung ok, Mesh-Topologie verfügbar') : t('ohne Anmeldung (Mesh-Topologie nicht verfügbar)')}` : `${x.name} · ${x.descr}`);
+          $('#testres', f).textContent = '✓ ' + (drv.key === 'fritzbox' ? `${x.model} · FRITZ!OS ${x.firmware} · ${t('{n} Geräte', { n: x.hosts })} · ${x.auth ? t('Anmeldung ok, Mesh-Topologie verfügbar') : t('ohne Anmeldung (Mesh-Topologie nicht verfügbar)')}`
+            : drv.key === 'snmp' ? `${x.name} · ${x.descr}` : drv.key === 'asuswrt' ? `${x.model} · Firmware ${x.firmware} · ${t('{n} Clients', { n: x.clients })} · ${t('{n} Mesh-Knoten', { n: x.nodes })}`
+            : drv.key === 'proxmox' ? `Proxmox VE ${x.version} · ${t('{n} VMs und Container', { n: x.guests })}`
+            : [x.devices != null ? t('{n} HA-Geräte mit MAC, {m} Bereiche', { n: x.devices, m: x.areas }) : '', x.mqtt ? t('MQTT-Anmeldung ok') : ''].filter(Boolean).join(' · '));
           $('#testres', f).className = 'small okc';
         } catch (e) { $('#testres', f).textContent = '✗ ' + e.message; $('#testres', f).className = 'small errtxt'; }
         ev.target.disabled = false;
