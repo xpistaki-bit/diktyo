@@ -928,6 +928,16 @@
   }
  },
  {
+  "key": "pc-host",
+  "label": "Computer",
+  "label_en": "Computer",
+  "type": "computer",
+  "weight": 55,
+  "cond": {
+   "hostname": "(^|[-_])(pc|desktop|notebook|laptop|workstation)($|[-_])"
+  }
+ },
+ {
   "key": "smb",
   "label": "Computer oder NAS mit Dateifreigabe",
   "label_en": "Computer or NAS with file sharing",

@@ -101,7 +101,7 @@ NET="name=eth0,bridge=${BRIDGE},ip=${IP}"
 
 echo "==> Creating container $CTID ($NAME)"
 pct create "$CTID" "${TPL_STORAGE}:vztmpl/${TPL}" --hostname "$NAME" --cores "$CORES" --memory "$RAM" --swap 512 \
-  --rootfs "${STORAGE}:${DISK}" --net0 "$NET" --unprivileged 1 --features nesting=1 --onboot 1 \
+  --rootfs "${STORAGE}:${DISK}" --net0 "$NET" --unprivileged 1 --features nesting=1 --onboot 1 --timezone host \
   --description "díktyo network documentation, port ${PORT}"
 add_vlan_nics "$CTID"
 if ! pct start "$CTID"; then

@@ -119,7 +119,13 @@ def match_catalog(index, h, f):
         score = (exact, len(m["token"]), len(m["model"]))
         if best is None or score > best[0]:
             best = (score, m)
-    return best[1] if best else None
+    if best:
+        return best[1]
+    # Hostname wie „XGS1935“: Modell, dessen Name damit beginnt (bei mehreren das kürzeste, z. B. XGS1935-28 vor XGS1935-28HP)
+    toks = [t for t in re.findall(r"[A-Za-z0-9][A-Za-z0-9\-]*", f["hostname"]) if re.search(r"\d", t) and len(t) >= 5]
+    cands = [m for m in index for t in toks if m["token"].lower().startswith(t.lower())
+             and any(v and (v in vend or v in text.lower()) for v in m["vendors"])]
+    return min(cands, key=lambda m: len(m["model"])) if cands else None
 
 
 # ------------------------------------------------------------ Fingerbank

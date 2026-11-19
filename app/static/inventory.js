@@ -151,9 +151,7 @@ async function deviceDialog(ctx, did) {
     <h4>${t('Notizen')}</h4>
     <textarea name="notes" rows="3" maxlength="5000" ${dis}>${h(v.notes || '')}</textarea>
     <label>${t('Tags (durch Komma getrennt)')}</label><input name="tags" value="${h((v.tags || []).join(', '))}" ${dis}>
-    ${d && d.ports.length ? `<h4>${t('Portbelegung')}</h4><div class="table-wrap"><table class="compact"><thead><tr><th>${t('Port')}</th><th>${t('Art')}</th><th>${t('Verbunden mit')}</th><th>${t('IP')}</th><th>${t('MAC')}</th></tr></thead><tbody>
-      ${d.ports.map(p => `<tr><td>${h(p.name)}</td><td class="mono">${h(p.kind.toUpperCase())} ${h(p.speed)}${p.poe ? ' PoE' : ''}</td><td>${p.peer ? `${h(p.peer.device_name)}${p.peer.direction === 'up' ? ` <span class="badge">${t('Uplink')}</span>` : ''}` : '<span class="muted">–</span>'}</td><td class="mono">${h(p.peer?.ip || '')}</td><td class="mono">${h(p.peer?.mac || '')}</td></tr>`).join('')}
-      </tbody></table></div>` : ''}
+    ${d && d.ports.length ? portTable(d) : ''}
     ${d && d.connected.length ? `<h4>${t('Verbundene Geräte')} (${d.connected.length})</h4><div class="table-wrap"><table class="compact"><thead><tr><th>${t('Name')}</th><th>${t('Verbindung')}</th><th>${t('IP')}</th><th>${t('MAC')}</th></tr></thead><tbody>
       ${d.connected.map(k => `<tr><td>${h(k.name)}</td><td>${t(MEDIUM_SHORT[k.medium])}${k.port_name ? ' · ' + t('Port') + ' ' + h(k.port_name) : ''}</td><td class="mono">${h(k.ip)}</td><td class="mono">${h(k.mac)}</td></tr>`).join('')}
       </tbody></table></div>` : ''}`;
@@ -218,6 +216,19 @@ async function deviceDialog(ctx, did) {
   if (res) { toast(t('gespeichert')); ctx.reload(); }
 }
 
+function portTable(d) {
+  const live = d.ports.some(p => p.live);
+  return `<h4>${t('Portbelegung')}${live ? ` <small class="muted">· ${t('Status per SNMP')}</small>` : ''}</h4><div class="table-wrap"><table class="compact"><thead><tr>${live ? '<th></th>' : ''}<th>${t('Port')}</th><th>${t('Art')}</th><th>${t('Verbunden mit')}</th><th>${t('IP')}</th><th>${t('MAC')}</th>
+    ${live ? `<th>${t('Link')}</th><th>↓ / ↑</th><th>${t('gelernt')}</th>` : ''}</tr></thead><tbody>
+    ${d.ports.map(p => `<tr>${live ? `<td>${p.live ? `<span class="dot ${p.live.oper === 'up' ? 'on' : 'off'}"></span>` : ''}</td>` : ''}<td>${h(p.name)}</td><td class="mono">${h(p.kind.toUpperCase())} ${h(p.speed)}${p.poe ? ' PoE' : ''}</td>
+      <td>${p.peer ? `${h(p.peer.device_name)}${p.peer.direction === 'up' ? ` <span class="badge">${t('Uplink')}</span>` : ''}` : p.live?.lldp ? `<span class="muted">LLDP: ${h(p.live.lldp.name)}</span>` : '<span class="muted">–</span>'}</td>
+      <td class="mono">${h(p.peer?.ip || '')}</td><td class="mono">${h(p.peer?.mac || '')}</td>
+      ${live ? `<td class="mono small">${p.live && p.live.oper === 'up' ? (p.live.speed >= 1000 ? p.live.speed / 1000 + 'G' : p.live.speed + 'M') : ''}</td>
+        <td class="mono small">${p.live && p.live.in_bps != null ? fmtBps(p.live.in_bps) + ' / ' + fmtBps(p.live.out_bps) : ''}</td>
+        <td class="mono small" title="${t('MAC-Adressen, die der Switch an diesem Port gelernt hat')}">${p.live?.macs || ''}</td>` : ''}</tr>`).join('')}
+  </tbody></table></div>`;
+}
+
 function identBox(d) {
   const i = d.ident_full, s = d.seen || {};
   const rows = [
@@ -250,8 +261,15 @@ function conflictText(c) {
 async function tabIpam(ctx) {
   const P = `/api/profiles/${ctx.pid}`;
   const [{ subnets, conflicts }, { vlans }] = await Promise.all([api('GET', `${P}/subnets`), api('GET', `${P}/vlans`)]);
+  const open = conflicts.filter(c => !c.acked), acked = conflicts.filter(c => c.acked);
+  const showAcked = tabIpam.showAcked;
+  const item = c => `<li class="${c.level}${c.acked ? ' acked' : ''}" data-key="${h(c.key)}"><span>${conflictText(c)}</span>${ctx.canEdit ? `<button type="button" class="link sm" data-ack="${c.acked ? 0 : 1}" title="${c.acked ? t('wieder einblenden') : t('als gelesen markieren')}">${c.acked ? t('einblenden') : '✓ ' + t('gelesen')}</button>` : ''}</li>`;
   ctx.el.innerHTML = `
-    ${conflicts.length ? `<div class="panel conflicts"><b>${t('Hinweise')} (${conflicts.length})</b><ul>${conflicts.map(c => `<li class="${c.level}">${conflictText(c)}</li>`).join('')}</ul></div>` : ''}
+    ${open.length || acked.length ? `<div class="panel conflicts ${open.length ? '' : 'quiet'}"><div class="row between"><b>${t('Hinweise')} (${open.length})</b>
+        <span class="row">${ctx.canEdit && open.length > 1 ? `<button type="button" class="sm" data-ackall>${t('alle als gelesen markieren')}</button>` : ''}
+        ${acked.length ? `<button type="button" class="link sm" data-showacked>${showAcked ? t('gelesene ausblenden') : t('{n} gelesene anzeigen', { n: acked.length })}</button>` : ''}</span></div>
+      ${open.length ? `<ul>${open.map(item).join('')}</ul>` : `<p class="muted small" style="margin:6px 0 0">${t('Keine offenen Hinweise.')}</p>`}
+      ${showAcked && acked.length ? `<ul class="ackedlist">${acked.map(item).join('')}</ul>` : ''}</div>` : ''}
     <div class="row between"><h2>${t('Subnetze')}</h2>${ctx.canEdit ? `<button class="pri sm" id="addsn">${t('+ Subnetz')}</button>` : ''}</div><div id="sn"></div>
     <div class="row between"><h2>${t('VLANs')}</h2>${ctx.canEdit ? `<button class="pri sm" id="addvl">${t('+ VLAN')}</button>` : ''}</div><div id="vl"></div>`;
   sortTable($('#sn'), [
@@ -267,6 +285,10 @@ async function tabIpam(ctx) {
     { k: 'subnets', label: t('Subnetze'), cls: 'mono', val: v => v.subnets.join(' '), html: v => v.subnets.map(h).join(', ') },
     { k: 'description', label: t('Beschreibung') },
   ], vlans, { key: 'vl', onRow: ctx.canEdit ? v => vlanDialog(ctx, v, vlans) : null, empty: t('Noch keine VLANs.') });
+  const ack = async (keys, on) => { try { await api('POST', `${P}/hints/ack`, { keys, ack: on }); ctx.reload(); } catch (e) { toast(e.message, true); } };
+  $$('[data-ack]', ctx.el).forEach(b => b.onclick = () => ack([b.closest('li').dataset.key], b.dataset.ack === '1'));
+  const aa = $('[data-ackall]', ctx.el); if (aa) aa.onclick = () => ack(open.map(c => c.key), true);
+  const sa = $('[data-showacked]', ctx.el); if (sa) sa.onclick = () => { tabIpam.showAcked = !tabIpam.showAcked; ctx.reload(); };
   const as = $('#addsn'); if (as) as.onclick = () => subnetForm(ctx, null, vlans);
   const av = $('#addvl'); if (av) av.onclick = () => vlanDialog(ctx, null, vlans);
 }

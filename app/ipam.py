@@ -1,5 +1,6 @@
 """IPAM: Subnetze, Belegung, freie Bereiche und Konflikte."""
 import ipaddress
+import json
 
 from fastapi import HTTPException
 
@@ -159,7 +160,7 @@ def conflicts(c, pid):
         sid = subnet_of(nets, ip)
         if nets and sid is None:
             out.append(dict(level="warn", code="outside", ip=str(ip), device_id=a["device_id"], device=a["device_name"] or ""))
-        elif sid and a["kind"] == "static":
+        elif sid and a["kind"] == "static" and a["source"] == "manual":
             s = by_sid[sid]
             if s["dhcp_start"] and int(ipaddress.ip_address(s["dhcp_start"])) <= int(ip) <= int(ipaddress.ip_address(s["dhcp_end"])):
                 out.append(dict(level="warn", code="in_dhcp", ip=str(ip), device_id=a["device_id"], device=a["device_name"] or "", subnet=s["cidr"]))
@@ -179,4 +180,26 @@ def conflicts(c, pid):
             if na.version == nb.version and na.overlaps(nb):
                 out.append(dict(level="warn", code="overlap", a=str(na), b=str(nb)))
     order = {"err": 0, "warn": 1}
+    acked = set(json.loads(c.execute("SELECT settings FROM profiles WHERE id=?", (pid,)).fetchone()["settings"] or "{}").get("ack_hints", []))
+    for x in out:
+        x["key"] = conflict_key(x)
+        x["acked"] = x["key"] in acked
     return sorted(out, key=lambda x: (order[x["level"]], x["code"], x.get("ip", ""), x.get("mac", "")))
+
+
+def conflict_key(x):
+    return ":".join(str(x.get(k, "")) for k in ("code", "ip", "mac", "a", "b", "device_id"))
+
+
+def reclassify(c, pid):
+    """Vom Scan oder einer Integration eingetragene Adressen nach dem DHCP-Bereich einordnen (manuelle bleiben, wie sie sind)."""
+    ranges = [(int(ipaddress.ip_address(r["dhcp_start"])), int(ipaddress.ip_address(r["dhcp_end"])))
+              for r in c.execute("SELECT dhcp_start, dhcp_end FROM subnets WHERE profile_id=? AND dhcp_start<>''", (pid,))]
+    for r in c.execute("SELECT id, address, kind FROM ip_addresses WHERE profile_id=? AND source<>'manual'", (pid,)).fetchall():
+        try:
+            a = int(ipaddress.ip_address(r["address"]))
+        except ValueError:
+            continue
+        kind = "dhcp" if any(lo <= a <= hi for lo, hi in ranges) else "static"
+        if kind != r["kind"]:
+            c.execute("UPDATE ip_addresses SET kind=? WHERE id=?", (kind, r["id"]))

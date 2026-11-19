@@ -118,6 +118,7 @@ R = [
     ("camera-rtsp", "Kamera (RTSP-Stream)", "Camera (RTSP stream)", "camera", 55, dict(ports=[554])),
     ("camera-vendor", "IP-Kamera", "IP camera", "camera", 85, dict(vendor=r"hikvision|dahua|reolink|axis comm|amcrest|wyze|ezviz|foscam")),
     ("windows", "Windows-PC", "Windows PC", "computer", 60, dict(hostname=r"^desktop-|^laptop-|^win-")),
+    ("pc-host", "Computer", "Computer", "computer", 55, dict(hostname=r"(^|[-_])(pc|desktop|notebook|laptop|workstation)($|[-_])")),
     ("smb", "Computer oder NAS mit Dateifreigabe", "Computer or NAS with file sharing", "computer", 35, dict(ports=[445])),
     ("intel-nic", "Computer (Intel-Netzwerkkarte)", "Computer (Intel network card)", "computer", 30, dict(vendor=r"^intel")),
     ("wifi-module", "Laptop oder Mobilgerät (WLAN-Modul)", "Laptop or mobile device (Wi-Fi module)", "laptop", 25, dict(vendor=r"azurewave|liteon|murata|universal global|hon hai|chongqing fugui")),

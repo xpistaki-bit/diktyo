@@ -6,10 +6,10 @@ to be a slim, self-hosted alternative to NetBox for private users. It runs as a 
 file, either in a Proxmox LXC or in a Docker container, and is managed in the browser. The interface is available
 in German and English.
 
-> **Status: early development (v0.3, milestone M2).** Accounts, profiles, devices with ports and connections, IPAM,
-> the device catalog, PDF/CSV output, backups and the network scan with device identification work. Topology view
-> and integrations (FRITZ!Box, SNMP, ASUS, Proxmox, Home Assistant) follow – see
-> [docs/architecture.md](docs/architecture.md) for the plan.
+> **Status: early development (v0.4, milestone M3).** Accounts, profiles, devices with ports and connections, IPAM,
+> the device catalog, PDF/CSV output, backups, the network scan with device identification, the FRITZ!Box and SNMP
+> integrations and online monitoring work. Topology view and further integrations (ASUS, Proxmox, Home Assistant)
+> follow – see [docs/architecture.md](docs/architecture.md) for the plan.
 
 ## Installation
 
@@ -153,9 +153,36 @@ entries. A changed DHCP address is updated, static addresses stay untouched.
   every 30 days; Settings → Detection shows the state.
 - **Fingerbank** (optional, external): with a free API key (Settings → Detection) and switched on per profile,
   MAC address and hostname of unknown devices are sent to fingerbank.org for a better guess.
+- **Networks behind a router:** a scan sees MAC addresses, mDNS and UPnP only in the networks the container is
+  directly connected to. Other networks (for example the FRITZ!Box network when díktyo runs behind an ASUS router in
+  router mode) are reached by ping/TCP, without MAC addresses; the FRITZ!Box integration fills this gap.
 - **Privileges:** discovery needs no root rights (ping and TCP connections fill the kernel's ARP table). Only the
   operating-system detection of nmap needs `CAP_NET_RAW`; in the LXC the background service gets it, in Docker it
   stays off.
+
+## Integrations and monitoring
+
+The tab **Integrations** connects devices that díktyo queries directly (read-only), every 30 s to 15 min:
+
+- **FRITZ!Box (TR-064).** Without a password díktyo reads the host list (MAC, IP, name, LAN/Wi-Fi, active) and the
+  WAN traffic. This also covers devices in networks behind another router, which a scan only sees without MAC
+  addresses. With a FRITZ!Box user the mesh topology is added (which device is on which LAN port or Wi-Fi, which
+  sets the connections automatically) plus Wi-Fi networks. Create the user under System → FRITZ!Box Users with the
+  permission "FRITZ!Box settings"; "Allow access for applications" must be on (Home Network → Network → Network
+  Settings). New devices land in the inbox; known ones are updated and shown online/offline.
+- **Switch (SNMP v2c),** for example the Zyxel XGS1935: port status and speed, traffic per port (from the 64-bit
+  counters), MAC addresses learned per port and LLDP neighbours. Devices whose MAC address appears alone on a port
+  are connected to that port automatically; on a port with many addresses the switch, access point or router behind
+  it is chosen. Enable SNMP on the switch (Zyxel: Management → Access Control → SNMP) and set a community.
+- Connections set by an integration never replace connections entered by hand.
+- **Online monitoring:** all confirmed devices with an IP address are pinged every 30 s, 1 min or 5 min (per
+  profile); devices that drop pings are checked through a known open port. The device dialog shows the last
+  changes.
+- **Measurements** (WAN traffic, port traffic) are kept 2 days by default, up to 14 (Settings → Detection), and
+  shown as charts over 2 h, 24 h, 2 days or 7 days.
+
+Integrations and monitoring run in the background service next to the scans. Credentials are stored encrypted and
+go into backups only with the backup passphrase.
 
 ## Catalog
 

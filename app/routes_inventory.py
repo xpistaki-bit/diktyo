@@ -209,9 +209,12 @@ def subnet_create(pid: int, body: dict = Body(...), user=Depends(require_user)):
     with db() as c:
         profile_access(c, user, pid, "edit")
         s = ipam.clean_subnet(c, pid, body)
+        if c.execute("SELECT 1 FROM subnets WHERE profile_id=? AND cidr=?", (pid, s["cidr"])).fetchone():
+            raise HTTPException(409, f"Das Subnetz {s['cidr']} gibt es schon")
         c.execute("""INSERT INTO subnets(profile_id, vlan_id, cidr, name, gateway, dns, dhcp_start, dhcp_end, description)
                      VALUES(?,?,?,?,?,?,?,?,?)""", (pid, s["vlan_id"], s["cidr"], s["name"], s["gateway"], s["dns"], s["dhcp_start"],
                                                     s["dhcp_end"], s["description"]))
+        ipam.reclassify(c, pid)
         touch(c, pid)
         return dict(subnets=ipam.list_subnets(c, pid), conflicts=ipam.conflicts(c, pid))
 
@@ -228,11 +231,31 @@ def subnet_update(pid: int, sid: int, body: dict = Body(...), user=Depends(requi
     with db() as c:
         profile_access(c, user, pid, "edit")
         s = ipam.clean_subnet(c, pid, body)
+        dup = c.execute("SELECT id FROM subnets WHERE profile_id=? AND cidr=?", (pid, s["cidr"])).fetchone()
+        if dup and dup["id"] != sid:
+            raise HTTPException(409, f"Das Subnetz {s['cidr']} gibt es schon")
         if not c.execute("""UPDATE subnets SET vlan_id=?, cidr=?, name=?, gateway=?, dns=?, dhcp_start=?, dhcp_end=?, description=?
                             WHERE id=? AND profile_id=?""", (s["vlan_id"], s["cidr"], s["name"], s["gateway"], s["dns"], s["dhcp_start"],
                                                              s["dhcp_end"], s["description"], sid, pid)).rowcount:
             raise HTTPException(404, "Subnetz nicht gefunden")
+        ipam.reclassify(c, pid)
         touch(c, pid)
+        return dict(subnets=ipam.list_subnets(c, pid), conflicts=ipam.conflicts(c, pid))
+
+
+@router.post("/hints/ack")
+def hints_ack(pid: int, body: dict = Body(...), user=Depends(require_user)):
+    """Hinweise als gelesen markieren (ack=true) oder wieder einblenden (ack=false)."""
+    import json as _json
+    with db() as c:
+        p, _ = profile_access(c, user, pid, "edit")
+        st = _json.loads(p["settings"] or "{}")
+        keys = set(st.get("ack_hints", []))
+        sel = [str(k) for k in body.get("keys") or []]
+        keys = keys | set(sel) if body.get("ack", True) else keys - set(sel)
+        current = {x["key"] for x in ipam.conflicts(c, pid)}
+        st["ack_hints"] = sorted(keys & current)  # erledigte Hinweise nicht ewig mitschleppen
+        c.execute("UPDATE profiles SET settings=? WHERE id=?", (_json.dumps(st, ensure_ascii=False), pid))
         return dict(subnets=ipam.list_subnets(c, pid), conflicts=ipam.conflicts(c, pid))
 
 
@@ -242,6 +265,7 @@ def subnet_delete(pid: int, sid: int, user=Depends(require_user)):
         profile_access(c, user, pid, "edit")
         if not c.execute("DELETE FROM subnets WHERE id=? AND profile_id=?", (sid, pid)).rowcount:
             raise HTTPException(404, "Subnetz nicht gefunden")
+        ipam.reclassify(c, pid)
         touch(c, pid)
         return dict(subnets=ipam.list_subnets(c, pid), conflicts=ipam.conflicts(c, pid))
 

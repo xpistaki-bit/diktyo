@@ -6,3 +6,4 @@ cryptography>=42
 cairosvg>=2.7,<3
 pypdf>=4,<7
 zeroconf>=0.130,<1
+fritzconnection>=1.13,<2

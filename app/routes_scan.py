@@ -91,11 +91,11 @@ def scan_run(pid: int, body: dict = Body(default={}), user=Depends(require_user)
         profile_access(c, user, pid, "edit")
         if c.execute("SELECT 1 FROM jobs WHERE profile_id=? AND kind='scan' AND status IN ('queued','running')", (pid,)).fetchone():
             raise HTTPException(409, "Für dieses Profil läuft schon ein Scan")
-        params = {}
-        if body.get("mode") in runner.MODES:
-            params["mode"] = body["mode"]
-        if body.get("targets"):
-            params["targets"] = [_cidr(x) for x in body["targets"]]
+        # Modus und Netze beim Start festhalten, damit der Verlauf auch bei Fehlern stimmt
+        p = c.execute("SELECT * FROM profiles WHERE id=?", (pid,)).fetchone()
+        s = runner.settings(p)
+        params = dict(mode=body["mode"] if body.get("mode") in runner.MODES else s["mode"],
+                      targets=[_cidr(x) for x in body["targets"]] if body.get("targets") else runner.resolve_targets(c, pid, s))
         cur = c.execute("INSERT INTO jobs(profile_id, kind, params, user_id, created) VALUES(?, 'scan', ?, ?, ?)",
                         (pid, json.dumps(params), user["id"], now()))
         audit(c, "scan.run", user["id"], pid, params)
@@ -136,7 +136,9 @@ def inbox_action(pid: int, body: dict = Body(...), user=Depends(require_user)):
 @router.get("/api/settings/detection")
 def detection_get(admin=Depends(require_admin)):
     with db() as c:
-        return dict(fingerbank_key=security.MASK if get_setting(c, "fingerbank_key") else "", oui=oui.status(), worker=worker_status(c))
+        from . import metrics
+        return dict(fingerbank_key=security.MASK if get_setting(c, "fingerbank_key") else "", oui=oui.status(), worker=worker_status(c),
+                    metrics_days=metrics.retention_days(c))
 
 
 @router.put("/api/settings/detection")

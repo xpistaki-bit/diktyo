@@ -180,6 +180,8 @@ def save_device(c, pid, body, did=None):
     sync_ports(c, did, data["ports"])
 
     if "ips" in body:
+        # Herkunft erhalten, wenn Adresse und Art gleich bleiben; sonst gilt die Angabe als manuell
+        old_src = {(r["address"], r["kind"]): r["source"] for r in c.execute("SELECT address, kind, source FROM ip_addresses WHERE device_id=?", (did,))}
         c.execute("DELETE FROM ip_addresses WHERE device_id=?", (did,))
         seen = set()
         for ip in body.get("ips") or []:
@@ -190,8 +192,9 @@ def save_device(c, pid, body, did=None):
                 continue
             seen.add(a)
             kind = ip.get("kind") if ip.get("kind") in ("static", "dhcp", "reserved") else "static"
-            c.execute("INSERT INTO ip_addresses(profile_id, device_id, interface_id, address, kind, note) VALUES(?,?,?,?,?,?)",
-                      (pid, did, nic["id"], a, kind, str(ip.get("note") or "").strip()[:200]))
+            src = ip.get("source") if ip.get("source") in ("scan", "fritzbox", "snmp") else old_src.get((a, kind), "manual")
+            c.execute("INSERT INTO ip_addresses(profile_id, device_id, interface_id, address, kind, note, source) VALUES(?,?,?,?,?,?,?)",
+                      (pid, did, nic["id"], a, kind, str(ip.get("note") or "").strip()[:200], src))
     if "uplink" in body:
         set_uplink(c, pid, did, body.get("uplink"))
     return did
@@ -261,20 +264,26 @@ def device_detail(c, pid, did):
     by_id = {x["id"]: x for x in list_devices(c, pid)}
     base = by_id[did]
     uplinks, children, port_peer = _links_by_device(c, pid)
+    from .integrations import live_ports
+    live = live_ports(c, did)
     ports = []
     for r in c.execute("SELECT * FROM interfaces WHERE device_id=? AND role='port' ORDER BY port_no", (did,)):
         peer = port_peer.get(r["id"])
         if peer:
             o = by_id.get(peer["device_id"], {})
             peer = dict(peer, ip=(o.get("ips") or [{}])[0].get("address", ""), mac=o.get("mac", ""), type=o.get("type", ""))
-        ports.append(dict(id=r["id"], port_no=r["port_no"], name=r["name"], kind=r["kind"], speed=r["speed"], poe=bool(r["poe"]), peer=peer))
+        lp = live.get(r["port_no"])
+        ports.append(dict(id=r["id"], port_no=r["port_no"], name=r["name"], kind=r["kind"], speed=r["speed"], poe=bool(r["poe"]), peer=peer,
+                          live=dict(oper=lp["oper"], speed=lp["speed"], in_bps=lp["in_bps"], out_bps=lp["out_bps"], macs=len(lp["macs"]),
+                                    lldp=lp["lldp"]) if lp else None))
     kids = [dict(id=k, name=by_id[k]["name"], type=by_id[k]["type"], medium=uplinks[k]["medium"], port_name=uplinks[k]["port_name"],
                  ip=(by_id[k]["ips"] or [{}])[0].get("address", ""), mac=by_id[k]["mac"]) for k in children.get(did, []) if k in by_id]
     data = json.loads(d["data"] or "{}")
     events = [dict(ts=r["ts"], online=bool(r["online"])) for r in c.execute(
         "SELECT ts, online FROM status_events WHERE device_id=? ORDER BY id DESC LIMIT 10", (did,))]
+    integ = [dict(id=r["id"], driver=r["driver"], name=r["name"]) for r in c.execute("SELECT id, driver, name FROM integrations WHERE device_id=?", (did,))]
     return dict(base, ports=ports, port_groups=data.get("ports", []), connected=sorted(kids, key=lambda x: x["name"].lower()),
-                seen=data.get("seen"), ident_full=data.get("ident"), events=events)
+                seen=data.get("seen"), ident_full=data.get("ident"), events=events, integrations=integ)
 
 
 def ports_of(c, pid, did):

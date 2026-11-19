@@ -39,6 +39,11 @@ if [ -n "$VLANS" ]; then
   done
 fi
 
+# Zeitzone des Hosts übernehmen (Container laufen sonst in UTC und zeigen eine falsche Uhrzeit)
+pct set "$CTID" --timezone host >/dev/null 2>&1 || true
+HOST_TZ="$(timedatectl show -p Timezone --value 2>/dev/null || cat /etc/timezone 2>/dev/null || echo UTC)"
+pct exec "$CTID" -- sh -c "[ -f /usr/share/zoneinfo/$HOST_TZ ] && ln -sf /usr/share/zoneinfo/$HOST_TZ /etc/localtime && echo $HOST_TZ > /etc/timezone" || true
+
 TMP="$(mktemp /tmp/diktyo-XXXXXX.tar.gz)"
 tar -C "$SRC" --exclude=data --exclude=__pycache__ --exclude=.git --exclude=tests -czf "$TMP" .
 pct exec "$CTID" -- sh -c 'rm -rf /root/diktyo-paket && mkdir -p /root/diktyo-paket'

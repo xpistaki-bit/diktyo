@@ -9,8 +9,10 @@ import signal
 import time
 import traceback
 
-from . import catalog
-from .db import db, get_setting, migrate, now, set_setting
+import threading
+
+from . import catalog, integrations, metrics, monitor
+from .db import db, get_setting, migrate, now, parse_ts, set_setting
 from .scan import discover, ident, netinfo, runner
 
 POLL_S = 2
@@ -38,10 +40,11 @@ def enqueue_scheduled():
             if busy:
                 continue
             last = c.execute("SELECT created FROM jobs WHERE profile_id=? AND kind='scan' ORDER BY id DESC LIMIT 1", (p["id"],)).fetchone()
-            if last and datetime.datetime.fromisoformat(last["created"]) > datetime.datetime.now() - datetime.timedelta(hours=hours):
+            if last and parse_ts(last["created"]) > datetime.datetime.now().astimezone() - datetime.timedelta(hours=hours):
                 continue
+            s = runner.settings(p)
             c.execute("INSERT INTO jobs(profile_id, kind, params, created) VALUES(?, 'scan', ?, ?)",
-                      (p["id"], json.dumps(dict(scheduled=True)), now()))
+                      (p["id"], json.dumps(dict(scheduled=True, mode=s["mode"], targets=runner.resolve_targets(c, p["id"], s))), now()))
             log(f"geplanter Scan für Profil {p['id']} eingereiht")
 
 
@@ -71,6 +74,34 @@ def run_job(j):
             c.execute("UPDATE jobs SET status='error', message=?, finished=? WHERE id=?", (str(ex)[:500], now(), j["id"]))
 
 
+def poller():
+    """Eigener Thread: Integrationen und Ping-Überwachung laufen weiter, auch während ein langer Scan läuft."""
+    last_mon, last_prune = {}, 0
+    while not _stop:
+        t = time.time()
+        try:
+            with db() as c:
+                due = [r["id"] for r in c.execute("SELECT id, interval_s, last_poll FROM integrations WHERE enabled=1").fetchall()
+                       if not r["last_poll"] or t - parse_ts(r["last_poll"]).timestamp() >= max(15, r["interval_s"])]
+                profiles = c.execute("SELECT * FROM profiles").fetchall()
+            for iid in due:
+                integrations.poll(iid, log)
+            for p in profiles:
+                ms = monitor.settings(p)
+                if ms["enabled"] and t - last_mon.get(p["id"], 0) >= ms["interval_s"]:
+                    last_mon[p["id"]] = t
+                    monitor.run(p["id"])
+            if t - last_prune > 3600:
+                with db() as c:
+                    n = metrics.prune(c)
+                if n:
+                    log(f"{n} alte Messwerte gelöscht")
+                last_prune = t
+        except Exception as ex:
+            log("Abfrage:", type(ex).__name__, ex)
+        time.sleep(5)
+
+
 def main():
     def stop(*_):
         global _stop
@@ -78,6 +109,12 @@ def main():
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
+    try:  # weiche Grenze für offene Dateien auf das Maximum anheben (Scans öffnen viele Verbindungen)
+        import resource
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        resource.setrlimit(resource.RLIMIT_NOFILE, (min(hard, 65536) if hard != resource.RLIM_INFINITY else 65536, hard))
+    except (ValueError, OSError, ImportError):
+        pass
     migrate()
     with db() as c:
         catalog.merge_seed(c)
@@ -88,6 +125,7 @@ def main():
         log(f"{n} abgebrochene Aufträge markiert")
     log(f"Hintergrunddienst läuft (nmap: {'ja' if discover.nmap_available() else 'nein'}, "
         f"Betriebssystem-Erkennung: {'ja' if netinfo.has_raw() else 'nein, CAP_NET_RAW fehlt'})")
+    threading.Thread(target=poller, daemon=True, name="poller").start()
     last_beat = last_sched = 0
     while not _stop:
         t = time.time()

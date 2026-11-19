@@ -15,6 +15,8 @@ const ROLE = { owner: 'Besitzer', edit: 'Bearbeiten', view: 'Lesen' };
 const fmtDate = s => s ? new Date(s).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { dateStyle: 'medium', timeStyle: 'short' }) : '–';
 
 function toast(msg, err) {
+  const d = $('#dlg'), de = d.open && $('.dlg-err', d);
+  if (de && err) { de.textContent = msg; de.classList.add('on'); clearTimeout(toast.d); toast.d = setTimeout(() => de.classList.remove('on'), 8000); return; }
   const el = $('#toast'); el.textContent = msg; el.className = 'on' + (err ? ' err' : '');
   clearTimeout(toast.t); toast.t = setTimeout(() => el.className = '', err ? 5000 : 2400);
 }
@@ -35,7 +37,7 @@ function dialog(title, html, { ok = t('Speichern'), onOk, onOpen, wide, danger }
   return new Promise(res => {
     const d = $('#dlg'), f = $('#dlgform');
     d.classList.toggle('wide', !!wide);
-    f.innerHTML = `<h3>${h(title)}</h3><div class="c">${html}</div><div class="f"><button type="button" data-x>${ok ? t('Abbrechen') : t('Schließen')}</button>${ok ? `<button class="${danger ? 'danger' : 'pri'}" type="submit">${h(ok)}</button>` : ''}</div>`;
+    f.innerHTML = `<h3>${h(title)}</h3><div class="c">${html}</div><div class="dlg-err" role="alert"></div><div class="f"><button type="button" data-x>${ok ? t('Abbrechen') : t('Schließen')}</button>${ok ? `<button class="${danger ? 'danger' : 'pri'}" type="submit">${h(ok)}</button>` : ''}</div>`;
     const close = v => { d.close(); f.onsubmit = null; res(v); };
     $('[data-x]', f).onclick = () => close(null);
     d.oncancel = () => res(null);
@@ -54,11 +56,17 @@ const fd = f => Object.fromEntries(new FormData(f).entries());
 function crumbs(parts) { $('#crumbs').innerHTML = parts.map(([txt, href]) => href ? `<a href="${href}">${h(txt)}</a>` : h(txt)).join(' › '); }
 
 const ghIcon = '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="currentColor"><path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.22 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0z"/></svg>';
+const homeIcon = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>';
+function homeHref() {
+  let last = null;
+  try { last = localStorage.getItem('dk_last_profile'); } catch { }
+  return last ? `#/p/${last}` : '#/';
+}
 function drawHeader() {
   document.documentElement.lang = LANG;
   const u = STATE.user, sect = location.hash.replace(/^#\/?/, '').split('/')[0];
   $('#nav').innerHTML = `<a class="gh" href="${h(STATE.repo)}" target="_blank" rel="noopener" title="${t('Projekt auf GitHub')}">${ghIcon}<span>${STATE.version ? 'v' + h(STATE.version) : 'GitHub'}</span></a>`
-    + (u ? `<a href="#/" class="${sect === '' || sect === 'p' ? 'on' : ''}">${t('Profile')}</a><a href="#/katalog" class="${sect === 'katalog' ? 'on' : ''}">${t('Katalog')}</a><a href="#/einstellungen" class="${sect === 'einstellungen' ? 'on' : ''}">${t('Einstellungen')}</a><span class="who" title="${h(u.email)}">${h(u.email)}</span><button class="sm" data-logout>${t('Abmelden')}</button>` : '')
+    + (u ? `<a href="${homeHref()}" class="home" title="${t('Zum zuletzt geöffneten Profil')}">${homeIcon}<span>${t('Home')}</span></a><a href="#/" class="${sect === '' ? 'on' : ''}">${t('Profile')}</a><a href="#/katalog" class="${sect === 'katalog' ? 'on' : ''}">${t('Katalog')}</a><a href="#/einstellungen" class="${sect === 'einstellungen' ? 'on' : ''}">${t('Einstellungen')}</a><span class="who" title="${h(u.email)}">${h(u.email)}</span><button class="sm" data-logout>${t('Abmelden')}</button>` : '')
     + `<span class="lang" role="group" aria-label="Sprache / Language"><button data-l="de" class="${LANG === 'de' ? 'on' : ''}">DE</button><button data-l="en" class="${LANG === 'en' ? 'on' : ''}">EN</button></span>`;
   $$('#nav [data-l]').forEach(b => b.onclick = () => {
     LANG = b.dataset.l; try { localStorage.setItem('dk_lang', LANG); } catch { }
@@ -213,10 +221,16 @@ function profileDialog(title, p, ok, save) {
     { ok, onOk: f => save(fd(f)) });
 }
 
-const TABS = [['geraete', 'Geräte'], ['posteingang', 'Posteingang'], ['netzscan', 'Netzscan'], ['ipam', 'IPAM'], ['standorte', 'Standorte'], ['ausgabe', 'Ausgabe'], ['freigabe', 'Freigabe']];
+const TABS = [['geraete', 'Geräte'], ['posteingang', 'Posteingang'], ['netzscan', 'Netzscan'], ['integrationen', 'Integrationen'], ['ipam', 'IPAM'], ['standorte', 'Standorte'], ['ausgabe', 'Ausgabe'], ['freigabe', 'Freigabe']];
 async function viewProfile(pid, tab) {
   if (!TABS.some(x => x[0] === tab)) tab = 'geraete';
-  const r = await api('GET', `/api/profiles/${pid}`);
+  let r;
+  try { r = await api('GET', `/api/profiles/${pid}`); } catch (e) {
+    if (e.status === 404) { try { localStorage.removeItem('dk_last_profile'); } catch { } }
+    throw e;
+  }
+  try { localStorage.setItem('dk_last_profile', String(pid)); } catch { }
+  drawHeader();
   const p = r.profile, isOwner = p.role === 'owner', canEdit = p.role !== 'view';
   crumbs([[t('Profile'), '#/'], [p.name]]);
   app.innerHTML = `<div class="page wide">
@@ -362,9 +376,12 @@ async function renderDetection(el) {
       <div><label>${t('Herstellerliste (IEEE)')}</label><p style="margin:4px 0">${r.oui.entries ? t('{n} Einträge, Stand {d}', { n: r.oui.entries.toLocaleString(), d: h(r.oui.updated) }) : t('noch nicht geladen')}</p>
         <button type="button" class="sm" id="ouiup">${t('Jetzt aktualisieren')}</button>
         <small class="muted block">${t('Wird zur Laufzeit von der IEEE geladen und alle 30 Tage erneuert.')}</small></div>
+      <div><label>${t('Messwerte aufbewahren')}</label><select id="mdays">${[1, 2, 3, 7, 14].map(v => `<option value="${v}" ${v === r.metrics_days ? 'selected' : ''}>${t('{n} Tage', { n: v })}</option>`).join('')}</select>
+        <small class="muted block">${t('WAN- und Port-Traffic. Standard 2 Tage, höchstens 14.')}</small></div>
     </div>
     <p class="muted small" style="margin:0">${t('Hintergrunddienst')}: ${r.worker.running ? `<span class="okc">${t('läuft')}</span>` : `<span class="offc">${t('läuft nicht')}</span>`} · nmap: ${r.worker.nmap ? t('ja') : t('nein')} · ${t('Betriebssystem-Erkennung')}: ${r.worker.raw ? t('ja') : t('nein')}</p>
     <div class="row"><button class="pri">${t('Speichern')}</button></div></form>`;
+  $('#mdays', el).onchange = async ev => { try { await api('PUT', '/api/settings/metrics', { days: +ev.target.value }); toast(t('gespeichert')); } catch (e) { toast(e.message, true); } };
   $('#det', el).onsubmit = async ev => { ev.preventDefault(); try { await api('PUT', '/api/settings/detection', fd(ev.target)); toast(t('gespeichert')); renderDetection(el); } catch (e) { toast(e.message, true); } };
   $('#ouiup', el).onclick = async ev => {
     ev.target.disabled = true;

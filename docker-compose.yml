@@ -10,6 +10,7 @@ services:
     network_mode: host
     environment:
       DIKTYO_PORT: "8090"
+      TZ: "Europe/Berlin"   # Zeitzone für Uhrzeiten in der App und im PDF
     volumes:
       - diktyo-data:/data
       # - /mnt/nas/diktyo:/backup   # optional: folder for the "Folder / NAS" backup target (enter /backup in the app)

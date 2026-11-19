@@ -41,6 +41,15 @@ def backup_passphrase(c):
     return security.decrypt(enc) if enc else ""
 
 
+def _move_secret(enc, f):
+    if not enc or not f:
+        return ""
+    try:
+        return "pp:" + f.encrypt(security.decrypt(enc).encode()).decode()
+    except ValueError:
+        return ""
+
+
 def _settings_for_export(c, f):
     """Einstellungen mit umverschlüsselten Geheimnissen (f = Fernet der Passphrase oder None)."""
     def move(enc):
@@ -80,6 +89,7 @@ def export_data(c):
         port_vlans=q("SELECT * FROM port_vlans"),
         device_models=[m for m in models if m["custom"]],
         ident_rules=q("SELECT * FROM ident_rules WHERE custom=1"),
+        integrations=[dict(r, secret=_move_secret(r["secret"], f), state="{}") for r in q("SELECT * FROM integrations")],
         model_keys={str(m["id"]): [m["manufacturer"], m["model"]] for m in models if m["id"] in used_models or m["custom"]},
         settings=_settings_for_export(c, f),
     )
@@ -180,7 +190,7 @@ def _import_rules(c, exp):
             _insert(c, "ident_rules", dict(r, custom=1))
 
 
-def _import_profiles(c, exp, umap, rename):
+def _import_profiles(c, exp, umap, rename, fernet=None):
     """Importiert alle Profile samt Inhalt. umap: alte Benutzer-ID -> neue ID (oder None)."""
     mmap = _model_map(c, exp)
     _import_rules(c, exp)
@@ -219,6 +229,16 @@ def _import_profiles(c, exp, umap, rename):
         if x["profile_id"] in pmap and (x["device_id"] is None or x["device_id"] in dmap):
             _insert(c, "ip_addresses", dict(x, profile_id=pmap[x["profile_id"]], device_id=dmap.get(x["device_id"]),
                                             interface_id=imap.get(x["interface_id"])))
+    for x in exp.get("integrations", []):
+        if x["profile_id"] in pmap:
+            sec = ""
+            if x.get("secret", "").startswith("pp:") and fernet:
+                try:
+                    sec = security.encrypt(fernet.decrypt(x["secret"][3:].encode()).decode())
+                except InvalidToken:
+                    sec = ""
+            _insert(c, "integrations", dict(x, profile_id=pmap[x["profile_id"]], device_id=dmap.get(x["device_id"]), secret=sec,
+                                            state="{}", last_poll=None))
     for x in exp.get("port_vlans", []):
         if x["interface_id"] in imap and x["vlan_id"] in vmap:
             c.execute("INSERT OR IGNORE INTO port_vlans(interface_id, vlan_id, tagged) VALUES(?,?,?)",
@@ -265,7 +285,7 @@ def restore_all(c, exp, passphrase=""):
     bk = dict(st.get("backup") or {})
     bk["targets"] = [dict(t, password=back(t.get("password"), t.get("type", ""))) for t in bk.get("targets", [])]
     umap = {u["id"]: _insert(c, "users", u) for u in exp.get("users", [])}
-    res, _ = _import_profiles(c, exp, umap, rename=False)
+    res, _ = _import_profiles(c, exp, umap, rename=False, fernet=f)
     set_setting(c, "registration_open", bool(st.get("registration_open")))
     set_setting(c, "smtp", smtp)
     set_setting(c, "backup", bk)

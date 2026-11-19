@@ -39,16 +39,25 @@ async def tcp(ip, port, timeout=0.8):
         return False
 
 
-async def sweep(ips, ports, concurrency=128, progress=None):
+MAX_SOCKETS = 200  # gleichzeitig offene Verbindungen; das Dateilimit im LXC liegt oft bei 1024
+
+
+async def sweep(ips, ports, concurrency=64, progress=None):
     """Ping + TCP-Proben. -> {ip: {"alive": bool, "ports": [...]}}"""
     sem = asyncio.Semaphore(concurrency)
+    socks = asyncio.Semaphore(MAX_SOCKETS)
     out, done = {}, 0
+
+    async def probe(ip, p):
+        async with socks:
+            return await tcp(ip, p)
 
     async def one(ip):
         nonlocal done
         async with sem:
-            alive = await ping(ip)
-            open_ = [p for p, ok in zip(ports, await asyncio.gather(*(tcp(ip, p) for p in ports))) if ok]
+            async with socks:
+                alive = await ping(ip)
+            open_ = [p for p, ok in zip(ports, await asyncio.gather(*(probe(ip, p) for p in ports))) if ok]
             out[ip] = dict(alive=alive or bool(open_), ports=open_)
             done += 1
             if progress:

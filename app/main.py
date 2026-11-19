@@ -7,7 +7,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import catalog, mailer, routes_backup, routes_catalog, routes_inventory, routes_scan, security, users
+from . import catalog, mailer, routes_backup, routes_catalog, routes_integrations, routes_inventory, routes_scan, security, users
 from .scan import ident
 from .auth import (COOKIE, ROLES, client_ip, current_user, lang_of, profile_access, rate_limit, require_admin, require_user,
                    start_session, text, touch)
@@ -27,6 +27,7 @@ app.include_router(routes_catalog.router)
 app.include_router(routes_catalog.rules_router)
 app.include_router(routes_backup.router)
 app.include_router(routes_scan.router)
+app.include_router(routes_integrations.router)
 
 
 def owner_count(c, pid):
@@ -403,13 +404,19 @@ ERR_EN = {
     "Gescannt werden IPv4-Netze": "Only IPv4 networks are scanned", "Für dieses Profil läuft schon ein Scan": "A scan is already running for this profile",
     "Auftrag nicht gefunden": "Job not found", "Unbekannte Aktion": "Unknown action", "Regel nicht gefunden": "Rule not found",
     "Bezeichnung und mindestens eine Bedingung sind erforderlich": "Label and at least one condition are required",
+    "Unbekannter Treiber": "Unknown driver", "Adresse fehlt": "Address missing", "Integration nicht gefunden": "Integration not found",
+    "Gerät gehört nicht zu diesem Profil": "Device does not belong to this profile", "Ungültige Angabe": "Invalid value",
+    "Keine Antwort (Adresse, Community oder SNMP am Gerät prüfen)": "No answer (check address, community or SNMP on the device)",
+    "Die FRITZ!Box verlangt eine Anmeldung. Benutzer und Passwort angeben.": "The FRITZ!Box requires a sign-in. Enter user and password.",
 }
 # Meldungen mit Werten: Präfix übersetzen, Rest übernehmen
 ERR_EN_PREFIX = {"Ungültige MAC-Adresse: ": "Invalid MAC address: ", "Ungültige IP-Adresse: ": "Invalid IP address: ",
                  "Ungültiges Netz: ": "Invalid network: ", "Ungültige Adresse: ": "Invalid address: ",
                  "Herstellerliste konnte nicht geladen werden: ": "Vendor list could not be loaded: ", "Ungültiger Ausdruck: ": "Invalid expression: ",
+                 "FRITZ!Box nicht erreichbar: ": "FRITZ!Box not reachable: ",
                  "Versand fehlgeschlagen: ": "Sending failed: "}
 ERR_EN_RE = [(r"^Port (.+) ist schon mit (.+) belegt$", r"Port \1 is already connected to \2"),
+             (r"^Das Subnetz (.+) gibt es schon$", r"The subnet \1 already exists"),
              (r"^VLAN (\d+) gibt es schon$", r"VLAN \1 already exists"),
              (r"^Netz (.+) ist zu groß zum Scannen \(höchstens /20\)$", r"Network \1 is too large to scan (at most /20)")]
 
@@ -446,7 +453,7 @@ async def user_err(request, exc):
 def index():
     # Versionsnummer an CSS/JS hängen: nach einem Update lädt der Browser die neuen Dateien statt der zwischengespeicherten.
     html = (BASE / "static" / "index.html").read_text(encoding="utf-8")
-    for f in ("style.css", "i18n.js", "app.js", "inventory.js", "scan.js", "catalog.js"):
+    for f in ("style.css", "i18n.js", "app.js", "inventory.js", "scan.js", "integrations.js", "catalog.js"):
         html = html.replace(f'"/{f}"', f'"/{f}?v={VERSION}"')
     return Response(html, media_type="text/html; charset=utf-8", headers={"Cache-Control": "no-cache"})
 

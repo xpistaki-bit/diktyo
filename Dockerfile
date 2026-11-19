@@ -2,7 +2,7 @@
 FROM python:3.12-slim
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libcairo2 fonts-dejavu-core ca-certificates rclone iputils-ping iproute2 nmap \
+ && apt-get install -y --no-install-recommends libcairo2 fonts-dejavu-core ca-certificates rclone iputils-ping iproute2 nmap tzdata \
  && rm -rf /var/lib/apt/lists/* \
  && useradd --system --create-home --home-dir /data --uid 10001 diktyo
 
@@ -14,6 +14,7 @@ COPY install/docker-entrypoint.sh /usr/local/bin/diktyo-start
 
 ENV DIKTYO_DATA=/data \
     DIKTYO_PORT=8090 \
+    TZ=Europe/Berlin \
     PYTHONUNBUFFERED=1
 USER diktyo
 VOLUME /data

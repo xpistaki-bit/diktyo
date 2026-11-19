@@ -230,3 +230,35 @@ table.kvt td{font-size:12.5px;word-break:break-word}
 @media (max-width:720px){.inrow{grid-template-columns:auto minmax(0,1fr)}.inrow .facts,.inrow .acts{grid-column:2}.inrow .acts{justify-content:flex-start}}
 
 .inrow .guess b{font-size:15px;color:var(--ink)}
+
+/* ---- Korrekturen 0.3.1 ---- */
+.dlg-err{display:none;margin:0 20px 6px;padding:8px 12px;border:1px solid var(--err);border-radius:4px;color:var(--err);background:rgba(255,77,106,.08);font-size:13px}
+.dlg-err.on{display:block}
+#nav a.home{display:inline-flex;align-items:center;gap:5px;color:var(--ink)}
+#nav a.home:hover{color:var(--cyan)}
+td.errtxt{color:var(--err);font-size:12.5px}
+.conflicts li{display:flex;gap:10px;align-items:baseline;justify-content:space-between}
+.conflicts li button.link{font-size:12px;color:var(--mute);white-space:nowrap}
+.conflicts li button.link:hover{color:var(--cyan)}
+.conflicts li.acked{opacity:.55}
+.conflicts.quiet{border-color:var(--line)}
+.ackedlist{border-top:1px dashed var(--line);padding-top:6px}
+
+/* ---- M3: Integrationen, Diagramme ---- */
+.dot.ok{background:var(--ok);box-shadow:0 0 8px var(--ok)} .dot.warn{background:var(--warn)} .dot.err{background:var(--err)} .dot.none{background:var(--dim)}
+.warnc{color:var(--warn)}
+.integ .kv{margin-top:10px}
+.wan-now{display:flex;gap:22px;align-items:baseline;margin:6px 0 2px;font-size:18px}
+.wan-now b{color:var(--cyan)}
+.chart{width:100%;height:auto;max-height:240px;display:block;margin-top:6px}
+.chart .grid{stroke:rgba(0,229,255,.1);stroke-width:1}
+.chart .ax{fill:var(--mute);font:8.5px var(--mono)}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--mute);margin-top:2px}
+.legend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.ranges{display:inline-flex;gap:4px}
+.ranges button.on{border-color:var(--cyan);color:var(--cyan)}
+.pstrip{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+.pp{width:34px;height:28px;padding:0;justify-content:center;font:11px var(--mono);border-radius:3px}
+.pp.up{border-color:rgba(46,229,157,.6);color:var(--ok);background:rgba(46,229,157,.08)}
+.pp.down{color:var(--dim);border-color:var(--line)}
+.pp.sel{box-shadow:0 0 0 2px var(--cyan)}

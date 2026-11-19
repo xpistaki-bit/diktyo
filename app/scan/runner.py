@@ -6,7 +6,7 @@ import json
 import pathlib
 import time
 
-from .. import inventory, security
+from .. import inventory, ipam, security
 from ..db import db, get_setting, now
 from . import discover, ident, netinfo, oui
 
@@ -190,7 +190,7 @@ def _seen_summary(h):
         services=h.get("services"), os=h.get("os"), random=h.get("random")).items() if v}
 
 
-def merge(c, pid, job_id, hosts, probed=()):
+def merge(c, pid, job_id, hosts, probed=(), source="scan", record=True):
     ts = now()
     by_mac = {r["mac"]: r["device_id"] for r in c.execute(
         "SELECT i.mac, i.device_id FROM interfaces i JOIN devices d ON d.id=i.device_id WHERE d.profile_id=? AND i.mac<>''", (pid,))}
@@ -223,18 +223,18 @@ def merge(c, pid, job_id, hosts, probed=()):
                 by_mac[h["mac"]] = did
             ips = c.execute("SELECT * FROM ip_addresses WHERE device_id=?", (did,)).fetchall()
             if not ips:
-                c.execute("INSERT INTO ip_addresses(profile_id, device_id, interface_id, address, kind) VALUES(?,?,?,?,?)",
-                          (pid, did, nic["id"], h["ip"], _ip_kind(c, pid, h["ip"])))
+                c.execute("INSERT INTO ip_addresses(profile_id, device_id, interface_id, address, kind, source) VALUES(?,?,?,?,?,?)",
+                          (pid, did, nic["id"], h["ip"], _ip_kind(c, pid, h["ip"]), source))
             elif h["ip"] not in {r["address"] for r in ips}:
-                dhcp = [r for r in ips if r["kind"] == "dhcp"]
-                if len(dhcp) == 1:  # neue DHCP-Adresse übernehmen, statische Angaben bleiben unangetastet
-                    c.execute("UPDATE ip_addresses SET address=? WHERE id=?", (h["ip"], dhcp[0]["id"]))
+                auto = [r for r in ips if r["kind"] == "dhcp" or r["source"] != "manual"]
+                if len(auto) == 1:  # neue Adresse übernehmen; manuelle statische Angaben bleiben unangetastet
+                    c.execute("UPDATE ip_addresses SET address=?, kind=? WHERE id=?", (h["ip"], _ip_kind(c, pid, h["ip"]), auto[0]["id"]))
             stats["ignored" if d["status"] == "ignored" else "known"] += 1
         else:
             m = c.execute("SELECT data FROM device_models WHERE id=?", (idt["model_id"],)).fetchone() if idt["model_id"] else None
             body = dict(name=ident.suggest_name(h, idt), type=idt["type"], model_id=idt["model_id"], manufacturer=idt["manufacturer"],
                         model=idt["model"], hostname=ident.good_host(h["hostname"]), mac=h["mac"], status="discovered",
-                        ips=[dict(address=h["ip"], kind=_ip_kind(c, pid, h["ip"]))],
+                        ips=[dict(address=h["ip"], kind=_ip_kind(c, pid, h["ip"]), source=source)],
                         ports=json.loads(m["data"]).get("ports", []) if m else [])
             did = inventory.save_device(c, pid, body)
             d = c.execute("SELECT data FROM devices WHERE id=?", (did,)).fetchone()
@@ -246,18 +246,20 @@ def merge(c, pid, job_id, hosts, probed=()):
             by_ip.setdefault(h["ip"], did)
             stats["new"] += 1
         seen.add(did)
-        c.execute("INSERT INTO observations(profile_id, job_id, device_id, ip, mac, data, seen) VALUES(?,?,?,?,?,?,?)",
-                  (pid, job_id, did, h["ip"], h["mac"], discover.dumps({k: v for k, v in h.items() if k != "ident"}), ts))
-        _set_online(c, did, 1, ts)
+        if record:
+            c.execute("INSERT INTO observations(profile_id, job_id, device_id, ip, mac, data, seen) VALUES(?,?,?,?,?,?,?)",
+                      (pid, job_id, did, h["ip"], h["mac"], discover.dumps({k: v for k, v in h.items() if k != "ident"}), ts))
+        _set_online(c, did, 1, ts, source)
     # Geräte mit einer geprüften Adresse, die nicht geantwortet haben, gelten als offline
     if probed:
         for r in c.execute("SELECT DISTINCT a.device_id, a.address FROM ip_addresses a JOIN devices d ON d.id=a.device_id WHERE a.profile_id=?", (pid,)).fetchall():
             if r["device_id"] not in seen and r["address"] in probed:
                 before = c.execute("SELECT online FROM devices WHERE id=?", (r["device_id"],)).fetchone()["online"]
-                _set_online(c, r["device_id"], 0, ts)
+                _set_online(c, r["device_id"], 0, ts, source)
                 if before != 0:
                     stats["offline"] += 1
                 seen.add(r["device_id"])
+    ipam.reclassify(c, pid)
     c.execute("""DELETE FROM observations WHERE profile_id=? AND job_id NOT IN
                  (SELECT id FROM jobs WHERE profile_id=? AND kind='scan' ORDER BY id DESC LIMIT 20)""", (pid, pid))
     return stats

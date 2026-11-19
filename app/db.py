@@ -191,6 +191,41 @@ MIGRATIONS = [
         weight INTEGER NOT NULL DEFAULT 50,
         custom INTEGER NOT NULL DEFAULT 0);
     """,
+    # 4: Herkunft von IP-Adressen; Integrationen (FRITZ!Box, SNMP) und Messwerte
+    """
+    ALTER TABLE ip_addresses ADD COLUMN source TEXT NOT NULL DEFAULT 'manual';
+    CREATE TABLE integrations(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        driver TEXT NOT NULL,
+        name TEXT NOT NULL DEFAULT '',
+        host TEXT NOT NULL,
+        port INTEGER,
+        username TEXT NOT NULL DEFAULT '',
+        secret TEXT NOT NULL DEFAULT '',
+        options TEXT NOT NULL DEFAULT '{}',
+        device_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+        interval_s INTEGER NOT NULL DEFAULT 60,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        state TEXT NOT NULL DEFAULT '{}',
+        last_poll TEXT,
+        last_ok TEXT,
+        last_error TEXT NOT NULL DEFAULT '',
+        created TEXT NOT NULL);
+    CREATE TABLE series(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        key TEXT NOT NULL,
+        unit TEXT NOT NULL DEFAULT '',
+        UNIQUE(profile_id, key));
+    CREATE TABLE metrics(
+        series_id INTEGER NOT NULL REFERENCES series(id) ON DELETE CASCADE,
+        ts INTEGER NOT NULL,
+        value REAL NOT NULL);
+    CREATE INDEX metrics_series_ts ON metrics(series_id, ts);
+    UPDATE ip_addresses SET source='scan' WHERE device_id IN (SELECT id FROM devices WHERE status<>'confirmed')
+        OR id IN (SELECT a.id FROM ip_addresses a JOIN observations o ON o.device_id = a.device_id AND o.ip = a.address);
+    """,
 ]
 
 
@@ -233,7 +268,13 @@ def _migrate():
 
 
 def now():
-    return datetime.datetime.now().isoformat(timespec="seconds")
+    """Ortszeit mit Zeitzonen-Angabe, damit der Browser sie richtig umrechnet (der Container läuft oft in UTC)."""
+    return datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def parse_ts(s):
+    d = datetime.datetime.fromisoformat(s)
+    return d if d.tzinfo else d.astimezone()
 
 
 def get_setting(c, key, default=None):
