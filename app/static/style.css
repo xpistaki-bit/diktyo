@@ -414,3 +414,8 @@ ul.ov-issues li span{width:16px;text-align:center} ul.ov-issues li.bad span{colo
 .tplabel{fill:var(--cyan);font:600 13px var(--mono);paint-order:stroke;stroke:var(--bg);stroke-width:4px}
 path.tp-busy{filter:drop-shadow(0 0 3px rgba(0,229,255,.5))}
 button.on{border-color:var(--cyan);color:var(--cyan)}
+
+/* ---- ASUS Traffic Monitor ---- */
+.tmon{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px}
+.tm{border:1px solid var(--line);border-radius:8px;padding:6px 10px;display:flex;flex-direction:column;gap:1px;background:rgba(2,8,20,.5)}
+.tplabel.day{fill:var(--dim)}

@@ -8,4 +8,4 @@ ERRORS = (fritzbox.DriverError, snmp.DriverError, asuswrt.DriverError, proxmox.D
 
 
 def schema():
-    return [dict(key=k, name=m.NAME, fields=m.FIELDS, interval=m.DEFAULT_INTERVAL) for k, m in DRIVERS.items()]
+    return [dict(key=k, name=m.NAME, fields=m.FIELDS, interval=m.DEFAULT_INTERVAL, diagnose=hasattr(m, "diagnose")) for k, m in DRIVERS.items()]

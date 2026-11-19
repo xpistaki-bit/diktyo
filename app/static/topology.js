@@ -123,6 +123,11 @@ async function tabTopology(ctx) {
         return `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" class="${cls}"/>${lbl}`;
       }
       const [col, dash] = MSTYLE[e.medium] || MSTYLE.lan;
+      if (e.today_bytes) {  // WLAN: kein Live-Wert je Gerät – Verbrauch der letzten 24 Stunden (Traffic Analyzer)
+        const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+        return `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" fill="none" stroke="${col}" stroke-width="1.6" stroke-dasharray="${dash}" opacity=".85"/>
+          <text x="${cx}" y="${cy + 17}" text-anchor="middle" class="tplabel day"><title>${t('Datenmenge der letzten 24 Stunden (Traffic Analyzer)')}</title>Σ ${esc(fmtBytes(e.today_bytes))}</text>`;
+      }
       if (e.down_bps != null || e.up_bps != null) {  // Durchsatz: Linienstärke nach Last, Werte an der Linie
         const tot = (e.down_bps || 0) + (e.up_bps || 0), wdt = tot > 0 ? Math.min(7, 1.6 + Math.log10(Math.max(1, tot / 1e5)) * 1.4) : 1.6;
         const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;

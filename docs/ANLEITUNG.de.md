@@ -123,6 +123,15 @@ Angaben, bevor gespeichert wird.
 - Adresse des Hauptrouters, meist HTTPS-Port 8443, Admin-Konto des Routers.
 - ASUS erlaubt nur **eine Admin-Sitzung**. díktyo hält seine Sitzung offen; wirft dich die Weboberfläche trotzdem
   hinaus, das Abfrageintervall erhöhen.
+- **Traffic Monitor:** Die Karte zeigt WAN, LAN und jedes WLAN-Band (aktuell und gesamt) und zeichnet den WAN-Verlauf
+  auf. Er erscheint auch in der Übersicht und am Internet-Knoten der Topologie.
+- **Traffic Analyzer:** Ist er am Router eingeschaltet (*Traffic Analyzer → Statistik*), holt díktyo höchstens alle
+  15 Minuten die Datenmenge je Client der letzten 24 Stunden. Sie steht auf der Karte, als „Top-Verbraucher“ in der
+  Übersicht, im Gerätedialog und mit „Durchsatz“ als „Σ …“ an den WLAN-Linien der Topologie. Eine **Live-Rate je
+  WLAN-Client** gibt der Router nicht heraus; die Werte in der Client-Liste (z. B. 866 Mbit/s) sind die Verbindungsrate
+  (Link-Speed), nicht der Datenverkehr.
+- **Diagnose** (Knopf an der Karte) prüft Schritt für Schritt Anmeldung, Client-Liste, Traffic Monitor, Traffic Analyzer
+  und Firmware-Status und zeigt, was die Firmware tatsächlich liefert.
 
 ### Proxmox VE
 

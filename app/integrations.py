@@ -88,7 +88,8 @@ def _fail(iid, msg):
 def _slim(driver, res):
     """Was die Oberfläche anzeigen soll (ohne die vollständige Hostliste)."""
     if driver == "asuswrt":
-        return dict(info=res.get("info"), nodes=[{k: n[k] for k in ("name", "model", "ip", "online", "wired_backhaul")} for n in res.get("nodes", [])],
+        return dict(info=res.get("info"), traffic=res.get("traffic"), wan=res.get("wan"), analyzer=res.get("analyzer"),
+                    nodes=[{k: n[k] for k in ("name", "model", "ip", "online", "wired_backhaul")} for n in res.get("nodes", [])],
                     clients=len(res.get("clients", [])), online=sum(1 for x in res.get("clients", []) if x["online"]),
                     wlan=sum(1 for x in res.get("clients", []) if x["online"] and x["medium"] == "wlan"))
     if driver == "proxmox":

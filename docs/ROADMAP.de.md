@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.17.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.17.1 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt
@@ -26,6 +26,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Erreichbarkeit | Antwortzeit je Gerät, Verfügbarkeit 24 h/7/30 Tage mit Ausfällen; Firmware-Hinweise aus sechs Integrationen | 0.15 |
 | Integrationen | OPNsense (REST-API: Schnittstellen, Clients, WAN, Firmware, Backup, Internetsperre per Alias), Docker (Container als virtuelle Geräte, Starten/Stoppen) | 0.16 |
 | Übersicht | Übersichtsseite (Kennzahlen, „Braucht Aufmerksamkeit“, WAN-/Antwortzeit-/Port-Diagramme, Infrastruktur, Änderungen); Durchsatz in der Topologie | 0.17 |
+| ASUS-Traffic | Traffic Monitor (WAN/LAN/WLAN-Bänder, WAN-Verlauf), Traffic Analyzer je Client (24 h) in Karte, Übersicht, Gerätedialog und Topologie; ASUS-Diagnose | 0.17.1 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan
 

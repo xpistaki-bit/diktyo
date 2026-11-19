@@ -122,6 +122,11 @@ const fmtBpsShort = v => {
   const u = [[1e9, 'G'], [1e6, 'M'], [1e3, 'k']].find(([f]) => v >= f) || [1, ''];
   return (v / u[0]).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: v / u[0] < 10 ? 1 : 0 }) + u[1];
 };
+const fmtBytes = v => {
+  if (v == null || isNaN(v)) return '–';
+  const u = [[1e12, 'TB'], [1e9, 'GB'], [1e6, 'MB'], [1e3, 'kB']].find(([f]) => v >= f) || [1, 'B'];
+  return (v / u[0]).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: v / u[0] < 10 ? 1 : 0 }) + ' ' + u[1];
+};
 const fmtMs = v => v == null || isNaN(v) ? '–' : `${(+v).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: v < 10 ? 1 : 0 })} ms`;
 const fmtDur = s => !s ? '–' : s < 60 ? `${s} s` : s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${(s / 3600).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: 1 })} h` : t('{d} Tage {h} h', { d: Math.floor(s / 86400), h: Math.floor(s % 86400 / 3600) });
 const pctCls = p => p == null ? 'muted' : p >= 99.9 ? 'okc' : p >= 98 ? 'warnc' : 'errtxt';
@@ -209,7 +214,7 @@ async function tabIntegrations(ctx) {
     const dv = $('[data-dev]', card); if (dv) dv.onclick = ev => { ev.preventDefault(); deviceDialog(ctx, +dv.dataset.dev); };
     const ch = $('.chartbox', card);
     if (ch) {
-      const wanChart = ['fritzbox', 'unifi'].includes(i.driver);
+      const wanChart = ['fritzbox', 'unifi', 'asuswrt'].includes(i.driver);
       const keys = () => wanChart ? [`i${i.id}:wan:rx`, `i${i.id}:wan:tx`] : [`i${i.id}:port:${card.dataset.port || ch.dataset.port}:rx`, `i${i.id}:port:${card.dataset.port || ch.dataset.port}:tx`];
       const names = wanChart ? [t('Download'), t('Upload')] : [t('empfangen'), t('gesendet')];
       const draw = () => drawChart(ch, ctx.pid, keys(), names, tabIntegrations.since || 7200).catch(() => { });
@@ -257,10 +262,20 @@ function snmpCard(i) {
 }
 
 function asusCard(i) {
-  const r = i.result || {}, info = r.info || {}, s = i.summary || {};
+  const r = i.result || {}, info = r.info || {}, s = i.summary || {}, tr = r.traffic || {}, ta = r.analyzer;
+  const names = Object.fromEntries((i.devices_by_mac || []).map(x => [x.mac, x.name]));
+  const trafficHtml = Object.keys(tr).length ? `<div class="tmon">${Object.entries(tr).filter(([k]) => k !== 'bridge').map(([k, x]) => `<div class="tm"><span class="muted small">${h(t(x.name))}</span>
+      <b class="mono">↓ ${fmtBps(k === 'wan' ? x.rx_bps : x.tx_bps)}</b><b class="mono">↑ ${fmtBps(k === 'wan' ? x.tx_bps : x.rx_bps)}</b>
+      <small class="muted">${t('gesamt')} ↓ ${fmtBytes(k === 'wan' ? x.rx_total : x.tx_total)} · ↑ ${fmtBytes(k === 'wan' ? x.tx_total : x.rx_total)}</small></div>`).join('')}</div>` : '';
+  const topHtml = ta?.clients?.length ? `<div style="margin-top:8px"><b class="small">${t('Letzte 24 Stunden (Traffic Analyzer)')}</b>
+      <div class="table-wrap"><table class="compact"><tbody>${ta.clients.slice(0, 8).map(x => `<tr><td>${h(names[x.mac] || x.mac)}</td>
+        <td class="mono small">↓ ${fmtBytes(x.rx)}</td><td class="mono small">↑ ${fmtBytes(x.tx)}</td><td class="mono small"><b>${fmtBytes(x.rx + x.tx)}</b></td></tr>`).join('')}</tbody></table></div></div>` : '';
   return `<div class="kv">${info.model ? `<span>${t('Modell')}: <b>${h(info.model)}</b></span>` : ''}${info.firmware ? `<span>Firmware: <b>${h(info.firmware)}</b></span>` : ''}
       ${r.clients != null ? `<span>${t('Clients')}: <b>${r.online} ${t('online')} / ${r.clients}</b> (${t('{n} per WLAN', { n: r.wlan })})</span>` : ''}</div>
     ${r.nodes?.length ? `<div class="kv">${r.nodes.map(n => `<span><span class="dot ${n.online ? 'on' : 'off'}"></span> <b>${h(n.name)}</b> <span class="mono small">${h(n.ip)}</span> <small class="muted">${n.wired_backhaul ? t('LAN-Backhaul') : n.ip === info.ip ? t('Hauptrouter') : t('Mesh')}</small></span>`).join('')}</div>` : ''}
+    ${trafficHtml}
+    ${tr.wan ? `<div class="row between" style="margin-top:8px"><b class="small">${t('WAN-Traffic')}</b>${rangeButtons(tabIntegrations.since || 7200)}</div><div class="chartbox"></div>` : ''}
+    ${topHtml}
     ${s.links != null ? `<p class="muted small">${t('Letzte Abfrage: {n} neu im Posteingang, {l} Verbindungen gesetzt.', { n: s.new, l: s.links })}</p>` : ''}`;
 }
 
@@ -380,11 +395,12 @@ async function deviceHealth(ctx, did, el) {
   let r;
   try { r = await api('GET', `/api/profiles/${ctx.pid}/devices/${did}/health`); } catch { el.innerHTML = ''; return; }
   const a = r.availability, fw = r.firmware;
-  if (!a['24'] && !a['168'] && !fw && r.rtt_24h == null) { el.innerHTML = ''; return; }
+  if (!a['24'] && !a['168'] && !fw && r.rtt_24h == null && !r.today) { el.innerHTML = ''; return; }
   const cell = (x, label) => `<div class="hcell"><span class="muted small">${t(label)}</span><b class="mono">${fmtPct(x)}</b>${x ? `<span class="small muted">${x.outages === 1 ? t('1 Ausfall') : t('{n} Ausfälle', { n: x.outages })}${x.longest_s ? ' · ' + t('längster {d}', { d: fmtDur(x.longest_s) }) : ''}</span>` : ''}</div>`;
   el.innerHTML = `<h4>${t('Erreichbarkeit & Firmware')}</h4>
     ${fw ? `<p class="small">${t('Firmware')}: <b class="mono">${h(fw.installed || '–')}</b> ${fw.update ? `${fwBadge(fw)}${fw.info ? ` <a href="${h(fw.info)}" target="_blank" rel="noopener">${t('Hinweise des Herstellers')}</a>` : ''}`
       : fw.update === false ? `<span class="okc">${t('aktuell')}</span>` : ''} <span class="muted">· ${t('Quelle')}: ${h(fw.source)}</span></p>` : ''}
+    ${r.today ? `<p class="small">${t('Letzte 24 Stunden')}: <b class="mono">↓ ${fmtBytes(r.today.rx)} · ↑ ${fmtBytes(r.today.tx)}</b> <span class="muted">· ${h(r.today.source)}</span></p>` : ''}
     ${a['24'] || a['168'] ? `<div class="hcells">${cell(a['24'], '24 Stunden')}${cell(a['168'], '7 Tage')}${cell(a['720'], '30 Tage')}
       <div class="hcell"><span class="muted small">${t('Ø Antwortzeit (24 h)')}</span><b class="mono">${fmtMs(r.rtt_24h)}</b></div></div>` : ''}
     ${r.rtt_24h != null ? `<div class="row between" style="margin-top:8px"><b class="small">${t('Antwortzeit')}</b>${rangeButtons(deviceHealth.since || 86400)}</div><div class="chartbox"></div>` : ''}`;
@@ -546,7 +562,7 @@ async function integrationDialog(ctx, i, drv) {
       <div><label>${t('Gerät in díktyo')}</label><select name="device_id"><option value="">${t('– automatisch zuordnen –')}</option>${devices.filter(d => d.status !== 'ignored').sort((a, b) => cmp(a.name, b.name)).map(d => `<option value="${d.id}" ${d.id === i.device_id ? 'selected' : ''}>${h(d.name)}</option>`).join('')}</select></div>
       <div><label>&nbsp;</label><label class="chk"><input type="checkbox" name="enabled" ${i.enabled ? 'checked' : ''}> ${t('aktiv')}</label></div></div>
     <div class="row" style="margin-top:12px"><button type="button" class="sm" data-test>${t('Verbindung testen')}</button>
-      ${drv.key === 'snmp' ? `<button type="button" class="sm" data-diag>${t('Diagnose')}</button>` : ''}<span class="small" id="testres"></span></div>
+      ${drv.diagnose ? `<button type="button" class="sm" data-diag title="${h(t('Prüft Schritt für Schritt, was das Gerät liefert'))}">${t('Diagnose')}</button>` : ''}<span class="small" id="testres"></span></div>
     <div id="diagres"></div>`, {
     wide: true,
     onOpen: f => {

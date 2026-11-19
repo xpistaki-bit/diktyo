@@ -35,10 +35,14 @@ async function tabOverview(ctx) {
       <div class="ov-grid">
         <div class="panel"><h3>${t('Braucht Aufmerksamkeit')}</h3>${issues.length ? `<ul class="ov-issues">${issues.slice(0, 14).join('')}</ul>` : `<p class="okc">✓ ${t('Alles in Ordnung.')}</p>`}</div>
         <div class="panel"><div class="row between"><h3 style="margin:0">${w ? h(w.name) + ' · ' + t('WAN-Traffic') : t('WAN-Traffic')}</h3>${rangeButtons(since())}</div>
-          ${w ? '<div class="chartbox" data-ch="wan"></div>' : `<p class="muted small">${t('Kommt aus der FRITZ!Box-, UniFi-, MikroTik- oder OPNsense-Integration.')}</p>`}</div>
+          ${w ? '<div class="chartbox" data-ch="wan"></div>' : `<p class="muted small">${t('Kommt aus der FRITZ!Box-, ASUS-, UniFi-, MikroTik- oder OPNsense-Integration.')}</p>`}</div>
         <div class="panel"><h3>${t('Antwortzeiten Infrastruktur')}</h3>${r.rtt.length ? '<div class="chartbox" data-ch="rtt"></div>' : `<p class="muted small">${t('Entsteht mit der Online-Überwachung.')}</p>`}</div>
         <div class="panel"><h3>${t('Aktivste Ports')}</h3>${r.ports.length ? r.ports.map((p, i) => `<div class="small"><b>${h(p.device)}</b> · ${t('Port')} ${h(p.name)} · <span class="mono">↓ ${fmtBps(p.out_bps)} ↑ ${fmtBps(p.in_bps)}</span></div><div class="chartbox" data-ch="port${i}"></div>`).join('')
           : `<p class="muted small">${t('Kommt aus Switch- (SNMP), MikroTik- oder OPNsense-Integrationen.')}</p>`}</div>
+        ${r.top_today?.length ? `<div class="panel"><h3>${t('Top-Verbraucher (24 h)')}</h3><div class="table-wrap"><table class="compact"><tbody>${r.top_today.map(x => `<tr>
+            <td>${x.device_id ? `<a href="#" data-dev="${x.device_id}">${h(x.name)}</a>` : `<span class="mono small">${h(x.mac)}</span>`}</td>
+            <td class="mono small">↓ ${fmtBytes(x.rx)}</td><td class="mono small">↑ ${fmtBytes(x.tx)}</td><td class="mono small"><b>${fmtBytes(x.rx + x.tx)}</b></td></tr>`).join('')}</tbody></table></div>
+          <p class="muted small">${t('Aus dem Traffic Analyzer des ASUS-Routers.')}</p></div>` : ''}
         <div class="panel"><h3>${t('Infrastruktur')}</h3>${r.infra.length ? `<div class="table-wrap"><table class="compact"><tbody>${r.infra.map(x => `<tr>
             <td><span class="dot ${x.online === 1 ? 'on' : x.online === 0 ? 'off' : ''}"></span> <a href="#" data-dev="${x.id}">${h(x.name)}</a>${x.fw_update ? ' <span class="badge fwup">⬆</span>' : ''}</td>
             <td class="mono small">${fmtPct(x.a24)}</td><td class="mono small">${fmtMs(x.rtt)}</td></tr>`).join('')}</tbody></table></div>` : `<p class="muted small">${t('Noch keine Router, Switches oder Access Points bestätigt.')}</p>`}</div>

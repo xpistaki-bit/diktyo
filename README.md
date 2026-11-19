@@ -224,7 +224,10 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
 - **ASUS router with AiMesh** (for example ExpertWiFi EBM68): clients with name, IP, MAC, Wi-Fi band and the mesh
   node they are connected to, plus the mesh nodes with their backhaul (mesh or LAN). Sign in with the router's admin
   account (web interface, usually HTTPS port 8443). ASUS allows only one admin session at a time; díktyo keeps its
-  session open, and the default interval is 5 minutes.
+  session open, and the default interval is 5 minutes. The Traffic Monitor (WAN, LAN and each Wi-Fi band, with WAN
+  history) and, when enabled on the router, the Traffic Analyzer (data volume per client over the last 24 hours) are
+  shown on the card, the overview, the device dialog and the topology. ASUS exposes no live rate per Wi-Fi client.
+  "Diagnose" on the card checks step by step what the firmware returns.
 - **Proxmox VE** (API token, read-only): nodes, VMs and containers with status, MAC, bridge, VLAN tag and IP
   addresses (via the QEMU guest agent for VMs and the interface list for containers); they are attached to their host
   as "virtual". The token setup is shown in the dialog and in [docs/architecture.md](docs/architecture.md).

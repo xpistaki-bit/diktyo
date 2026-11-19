@@ -16,10 +16,22 @@ router = APIRouter()
 CORE = ("host", "port", "username")
 
 
+def _names_by_mac(r):
+    """Gerätenamen zu den MACs aus dem Traffic Analyzer (für die Anzeige auf der Karte)."""
+    st = json.loads(r["state"] or "{}")
+    macs = [x["mac"] for x in ((st.get("result") or {}).get("analyzer") or {}).get("clients") or []][:20]
+    if not macs:
+        return []
+    with db() as c:
+        q = f"SELECT i.mac, d.name FROM interfaces i JOIN devices d ON d.id=i.device_id WHERE d.profile_id=? AND i.mac IN ({','.join('?' * len(macs))})"
+        return [dict(mac=x["mac"], name=x["name"]) for x in c.execute(q, (r["profile_id"], *macs))]
+
+
 def _out(r):
     st = json.loads(r["state"] or "{}")
     sec = integrations.secrets_of(r)
     return dict(can_backup=configbackup.can_backup(r), cfg_result=st.get("cfg_result"), cfg_ok=st.get("cfg_ok"),
+                devices_by_mac=_names_by_mac(r) if r["driver"] == "asuswrt" else [],
                 id=r["id"], driver=r["driver"], name=r["name"], host=r["host"], port=r["port"], username=r["username"],
                 options=json.loads(r["options"] or "{}"), secrets={k: security.MASK for k, v in sec.items() if v},
                 password=security.MASK if sec.get("password") else "", device_id=r["device_id"], interval_s=r["interval_s"],

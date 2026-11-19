@@ -88,6 +88,7 @@ Phase 2:
 | P2.13 | response time and availability per device, firmware hints | done (0.15.0) |
 | P2.14 | OPNsense and Docker integrations | done (0.16.0), not yet tested on real hardware |
 | P2.15 | overview page, throughput in the topology | done (0.17.0) |
+| P2.15a | ASUS traffic monitor (netdev) and traffic analyzer per client, ASUS diagnose | done (0.17.1), endpoints not yet verified on real firmware |
  Phase 3: change history between scans, cable and patch-panel documentation,
 Prometheus endpoint, REST API with tokens.
 

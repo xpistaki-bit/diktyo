@@ -55,14 +55,14 @@ def _client(conf):
     return httpx.Client(base_url=_base(conf), verify=False, timeout=12, headers={"User-Agent": UA}, follow_redirects=False)
 
 
-def _fetch(conf, state):
+def _fetch(conf, state, hook=None):
     """appGet mit vorhandener Sitzung, bei Bedarf neu anmelden. -> (daten, token)"""
     with _client(conf) as cl:
         for attempt in (0, 1):
             token = state.get("token") if attempt == 0 else None
             if not token:
                 token = _login(cl, conf)
-            r = cl.get("/appGet.cgi", params={"hook": HOOK}, cookies={"asus_token": token},
+            r = cl.get("/appGet.cgi", params={"hook": hook or HOOK}, cookies={"asus_token": token},
                        headers={"Referer": f"{_base(conf)}/index.asp"})
             txt = r.text.strip()
             if r.status_code == 200 and txt.startswith("{"):
@@ -130,11 +130,144 @@ def normalize(data):
     return info, nodes, clients
 
 
+# ------------------------------------------------------------ Traffic (Traffic Monitor, Traffic Analyzer)
+NETDEV = {"INTERNET": ("wan", "WAN"), "WIRED": ("lan", "LAN"), "BRIDGE": ("bridge", "Bridge"), "WIRELESS0": ("wl0", "2,4 GHz"),
+          "WIRELESS1": ("wl1", "5 GHz-1"), "WIRELESS2": ("wl2", "5 GHz-2"), "WIRELESS3": ("wl3", "6 GHz")}
+ANALYZER_EVERY = 900   # Traffic Analyzer höchstens alle 15 Minuten abfragen
+
+
+def _num(v):
+    """Zähler aus netdev: meist hexadezimal („0x1a2b“), manchmal dezimal."""
+    s = str(v or "").strip()
+    try:
+        return int(s, 16) if s.lower().startswith("0x") else int(float(s))
+    except ValueError:
+        return None
+
+
+def parse_netdev(nd, prev, now):
+    """-> (traffic{key: dict(name, rx_bps, tx_bps, rx_total, tx_total)}, zähler)"""
+    out, counters = {}, {}
+    for k, (key, name) in NETDEV.items():
+        rx, tx = _num(nd.get(f"{k}_rx")), _num(nd.get(f"{k}_tx"))
+        if rx is None or tx is None:
+            continue
+        rate = (None, None)
+        p = prev.get(key)
+        if p and now > p[2] and rx >= p[0] and tx >= p[1]:  # Zählerüberlauf/Neustart: auslassen
+            dt = now - p[2]
+            rate = (round((rx - p[0]) * 8 / dt), round((tx - p[1]) * 8 / dt))
+        counters[key] = (rx, tx, now)
+        out[key] = dict(name=name, rx_bps=rate[0], tx_bps=rate[1], rx_total=rx, tx_total=tx)
+    return out, counters
+
+
+def parse_statistics(text):
+    """Antwort von getAppTraffic/getWanTraffic: „array_statistics = [[…], …];“ -> Liste"""
+    m = re.search(r"array_statistics\s*=\s*(\[.*?\])\s*;", text or "", re.S)
+    if not m:
+        return None
+    try:
+        return json.loads(m.group(1).replace("'", '"'))
+    except ValueError:
+        return None
+
+
+def traffic_analyzer(conf, token, now=None):
+    """Traffic pro Client der letzten 24 Stunden und WAN-Stundenwerte aus dem Traffic Analyzer (falls eingeschaltet).
+    -> dict(clients=[dict(mac, tx, rx)], wan_hours=[[tx, rx], …], source) oder None"""
+    import time as _t
+    now = int(now or _t.time())
+    with _client(conf) as cl:
+        for suffix in ("", "_Dns"):
+            try:
+                r = cl.get(f"/getAppTraffic{suffix}.asp", params={"client": "all", "mode": "detail", "dura": 24, "date": now},
+                           cookies={"asus_token": token}, headers={"Referer": f"{_base(conf)}/TrafficAnalyzer_Statistic.asp"})
+            except httpx.HTTPError:
+                return None
+            rows = parse_statistics(r.text) if r.status_code == 200 else None
+            if rows is None:
+                continue
+            clients = []
+            for x in rows:
+                if isinstance(x, list) and len(x) >= 3:
+                    try:
+                        clients.append(dict(mac=_mac(x[0]), tx=int(float(x[1])), rx=int(float(x[2]))))
+                    except (TypeError, ValueError):
+                        continue
+            hours = None
+            try:
+                w = cl.get(f"/getWanTraffic{suffix}.asp", params={"client": "all", "mode": "hour", "dura": 24, "date": now},
+                           cookies={"asus_token": token}, headers={"Referer": f"{_base(conf)}/TrafficAnalyzer_Statistic.asp"})
+                hours = parse_statistics(w.text) if w.status_code == 200 else None
+            except httpx.HTTPError:
+                pass
+            clients.sort(key=lambda c: -(c["tx"] + c["rx"]))
+            return dict(clients=clients[:100], wan_hours=hours if isinstance(hours, list) else None, source=f"getAppTraffic{suffix}", ts=now)
+    return None
+
+
 def poll(conf, state):
-    data, token = _fetch(conf, state)
+    import time as _t
+    data, token = _fetch(conf, state, HOOK + ";netdev(appobj)")
     info, nodes, clients = normalize(data)
     res = dict(info=info, nodes=nodes, clients=clients, keys=sorted(data.keys())[:30])
+    now = _t.time()
+    traffic, counters = parse_netdev(data.get("netdev") or {}, state.get("counters", {}), now)
+    metrics = {}
+    if traffic:
+        res["traffic"] = traffic
+        for key, t in traffic.items():
+            if t["rx_bps"] is not None:
+                metrics[f"{'wan' if key == 'wan' else 'if:' + key}:rx"], metrics[f"{'wan' if key == 'wan' else 'if:' + key}:tx"] = t["rx_bps"], t["tx_bps"]
+        w = traffic.get("wan")
+        if w:
+            res["wan"] = dict(rx_bps=w["rx_bps"], tx_bps=w["tx_bps"], connected=None, mac=info.get("mac", ""))
+    state = dict(state, counters=counters)
+    if now - state.get("ta_checked", 0) >= ANALYZER_EVERY:
+        ta = traffic_analyzer(conf, token)
+        state.update(ta_checked=now, ta=ta)
+    if state.get("ta"):
+        res["analyzer"] = state["ta"]
     flag, latest = str(data.get("webs_state_flag", "")), str(data.get("webs_state_info", "") or "")
     installed = "_".join(x for x in (str(data.get("firmver", "")).replace(".", ""), str(data.get("buildno", "")), str(data.get("extendno", ""))) if x)
     res["firmware"] = dict(installed=installed or info["firmware"], latest=latest, update=flag in ("1", "2") if flag else None)
-    return res, {}, dict(state, token=token)
+    return res, metrics, dict(state, token=token)
+
+
+def diagnose(conf, nat_hint=None):
+    """Was liefert dieser Router? Prüft Anmeldung, Client-Liste, Traffic Monitor, Traffic Analyzer und Firmware-Felder."""
+    import time as _t
+    steps = []
+
+    def step(ok, title, detail=""):
+        steps.append(dict(ok=ok, title=title, detail=detail))
+    st = {}
+    try:
+        data, token = _fetch(conf, st, HOOK + ";netdev(appobj);nvram_get(bwdpi_db_enable);nvram_get(dns_dpi_trf_analysis)")
+    except DriverError as ex:
+        step(False, "Anmeldung", str(ex))
+        return dict(steps=steps, summary="Anmeldung fehlgeschlagen – Adresse, Port und Admin-Zugang prüfen.")
+    step(True, "Anmeldung", f"{data.get('productid', '')} · Firmware {data.get('firmver', '')}.{data.get('buildno', '')}")
+    cl = (data.get("get_clientlist") or {})
+    macs = cl.get("maclist") or []
+    first = next((cl[m] for m in macs if isinstance(cl.get(m), dict)), {})
+    step(bool(macs), "Client-Liste", f"{len(macs)} Clients; Felder: {', '.join(sorted(first.keys())[:40]) or '–'}")
+    nd = data.get("netdev") or {}
+    tr, _ = parse_netdev(nd, {}, _t.time())
+    if tr:
+        step(True, "Traffic Monitor (netdev)", "Zähler für: " + ", ".join(f"{t['name']} (↓{t['rx_total']:,} ↑{t['tx_total']:,} Byte)" for t in tr.values()))
+    else:
+        step(False, "Traffic Monitor (netdev)", f"keine Zähler – Felder: {', '.join(sorted(nd.keys())[:20]) or 'keine Antwort'}")
+    enabled = str(data.get("bwdpi_db_enable", "")) == "1" or str(data.get("dns_dpi_trf_analysis", "")) == "1"
+    ta = traffic_analyzer(conf, token)
+    if ta and ta["clients"]:
+        step(True, "Traffic Analyzer (pro Client)", f"{len(ta['clients'])} Clients über {ta['source']}; WAN-Stundenwerte: {'ja' if ta['wan_hours'] else 'nein'}")
+    elif ta is not None:
+        step(None, "Traffic Analyzer (pro Client)", "Schnittstelle antwortet, aber ohne Daten" + ("" if enabled else " – Traffic Analyzer → Statistik am Router einschalten"))
+    else:
+        step(False if enabled else None, "Traffic Analyzer (pro Client)", "keine Antwort" + ("" if enabled else " – ist der Traffic Analyzer am Router eingeschaltet?"))
+    flag = data.get("webs_state_flag")
+    step(None if flag in (None, "") else True, "Firmware-Status", f"webs_state_flag={flag!r}, webs_state_info={data.get('webs_state_info')!r}")
+    ok = bool(tr) and bool(ta and ta["clients"])
+    return dict(steps=steps, summary="Alle Daten verfügbar." if ok else "Nicht alle Daten verfügbar – Details oben. Diese Ausgabe hilft bei der Anpassung an deine Firmware.")

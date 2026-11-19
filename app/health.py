@@ -54,7 +54,13 @@ def rtt_avg(c, pid, did, since_s=86400):
 def device(c, pid, did):
     d = c.execute("SELECT data FROM devices WHERE id=? AND profile_id=?", (did, pid)).fetchone()
     fw = json.loads(d["data"] or "{}").get("firmware") if d else None
-    return dict(availability={h: availability(c, did, h) for h in (24, 168, 720)}, rtt_24h=rtt_avg(c, pid, did), firmware=fw)
+    macs = {r["mac"] for r in c.execute("SELECT mac FROM interfaces WHERE device_id=? AND mac<>''", (did,))}
+    today = None
+    for r in c.execute("SELECT state FROM integrations WHERE profile_id=? AND driver='asuswrt' AND enabled=1", (pid,)):
+        for x in ((json.loads(r["state"] or "{}").get("result") or {}).get("analyzer") or {}).get("clients") or []:
+            if x["mac"] in macs:
+                today = dict(rx=x["rx"], tx=x["tx"], source="ASUS Traffic Analyzer")
+    return dict(availability={h: availability(c, did, h) for h in (24, 168, 720)}, rtt_24h=rtt_avg(c, pid, did), firmware=fw, today=today)
 
 
 def overview(c, pid):

@@ -150,8 +150,22 @@ def _add_traffic(c, edges):
             cache[r["device_id"]] = live_ports(c, r["device_id"])
         return cache[r["device_id"]].get(r["port_no"]), r
 
+    import json as _json
+    today = {}
+    for r in c.execute("SELECT state FROM integrations WHERE driver='asuswrt' AND enabled=1"):
+        for x in ((_json.loads(r["state"] or "{}").get("result") or {}).get("analyzer") or {}).get("clients") or []:
+            today[x["mac"]] = x["rx"] + x["tx"]
+    mac_of = {}
     for e in edges:
         if e.get("medium") == "wan":
+            continue
+        if e.get("medium") in ("wlan", "mesh") and today and str(e["target"]).startswith("d"):
+            did = int(e["target"][1:])
+            if did not in mac_of:
+                mac_of[did] = {r["mac"] for r in c.execute("SELECT mac FROM interfaces WHERE device_id=? AND mac<>''", (did,))}
+            vol = sum(today.get(m, 0) for m in mac_of[did])
+            if vol:
+                e["today_bytes"] = vol
             continue
         lp, _ = port(e.get("port_id"))            # Port am übergeordneten Gerät
         if lp and lp.get("in_bps") is not None:
