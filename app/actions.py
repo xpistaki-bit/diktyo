@@ -78,7 +78,7 @@ def _same_lan(ip, host, c, pid):
 
 
 def _undo_options(kind):
-    return kind in ("wlan", "internet", "port")
+    return kind in ("wlan", "internet", "port", "poe")
 
 
 def _act(kind, iid, params, label, detail="", danger=False, blocked=""):
@@ -185,6 +185,44 @@ def _port_actions(c, pid, row, port_no):
     return out
 
 
+CONTROLLER_DRIVERS = ("unifi", "omada")
+
+
+def _controller_device(c, pid, did):
+    """(Integration, Gerät beim Controller) für ein díktyo-Gerät, das ein Controller verwaltet – über die MAC."""
+    macs = {r["mac"].upper() for r in c.execute("SELECT mac FROM interfaces WHERE device_id=? AND mac<>''", (did,))}
+    if not macs:
+        return None, None
+    for drv in CONTROLLER_DRIVERS:
+        for row in _integrations(c, pid, drv):
+            for dev in (_state(row).get("result") or {}).get("devices") or []:
+                if (dev.get("mac") or "").upper() in macs and dev.get("ref"):
+                    return row, dev
+    return None, None
+
+
+def _ctrl_port_actions(c, pid, row, dev, sw_did, port_no):
+    """PoE-Aktionen an einem Port eines Controller-Switches (UniFi: Power-Cycle; Omada: PoE ein/aus, neu starten)."""
+    ports = ((_state(row).get("result") or {}).get("port_status") or {}).get(dev["mac"]) or []
+    port = next((p for p in ports if p.get("port_no") == port_no), None)
+    if not port or port.get("poe") is None:
+        return []
+    protected = port_no in _protected_ports(c, pid, sw_did, dict(result=dict(ports=ports)))
+    reason = "Über diesen Port erreicht díktyo bzw. der Router den Switch – PoE abschalten könnte die Verwaltung aussperren." if protected else ""
+    base = dict(dev["ref"], port_no=port_no)
+    out = []
+    if row["driver"] == "omada":
+        if port["poe"]:
+            out.append(_act("poe", row["id"], dict(base, on=False), f"PoE an Port {port_no} ausschalten",
+                            "Das angeschlossene Gerät (Access Point, Kamera …) verliert den Strom.", danger=True, blocked=reason))
+        else:
+            out.append(_act("poe", row["id"], dict(base, on=True), f"PoE an Port {port_no} einschalten", ""))
+    if port["poe"]:
+        out.append(_act("poe_cycle", row["id"], base, f"PoE an Port {port_no} neu starten",
+                        "Strom am Port kurz aus und wieder an (startet z. B. Access Point oder Kamera neu).", danger=True, blocked=reason))
+    return out
+
+
 def available(c, pid, did, port_no=None):
     d = c.execute("SELECT * FROM devices WHERE id=? AND profile_id=?", (did, pid)).fetchone()
     if not d:
@@ -198,6 +236,9 @@ def available(c, pid, did, port_no=None):
         for row in _integrations(c, pid, "snmp") + _integrations(c, pid, "mikrotik"):
             if row["device_id"] == did:
                 return _port_actions(c, pid, row, port_no)
+        crow, cdev = _controller_device(c, pid, did)
+        if crow:
+            return _ctrl_port_actions(c, pid, crow, cdev, did, port_no)
         return []
     # FRITZ!Box
     for row in _integrations(c, pid, "fritzbox"):
@@ -282,6 +323,19 @@ def available(c, pid, did, port_no=None):
                                 WHERE ai.device_id=? AND l.uplink=1 AND bi.device_id=? AND bi.role='port'""", (did, row["device_id"])).fetchone()
             if link and link["port_no"]:
                 out += _port_actions(c, pid, row, link["port_no"])
+    # Controller (UniFi, Omada): verwaltetes Gerät neu starten; Gerät an einem PoE-Port eines Controller-Switches
+    crow, cdev = _controller_device(c, pid, did)
+    if crow:
+        what = {"router": "Gateway", "switch": "Switch", "ap": "Access Point"}.get(cdev.get("type"), "Gerät")
+        mine = did in _path_targets(c, pid, did) or any(did == _uplink(c, t)[0] for t in _path_targets(c, pid, did))
+        out.append(_act("reboot", crow["id"], dict(cdev["ref"], name=cdev.get("name", "")), f"{what} neu starten (über {crow['name']})",
+                        "Alle Verbindungen über dieses Gerät sind ein bis zwei Minuten weg." + (" díktyo ist währenddessen nicht erreichbar." if mine else ""),
+                        danger=True))
+    up_did, up_port = _uplink(c, did)
+    if up_did and up_port:
+        srow, sdev = _controller_device(c, pid, up_did)
+        if srow:
+            out += _ctrl_port_actions(c, pid, srow, sdev, up_did, up_port)
     # Proxmox-Host: seine Gäste schalten
     px = data.get("proxmox") or {}
     if px.get("node") and not px.get("vmid"):
@@ -335,6 +389,8 @@ def inverse(kind, params):
         return dict(params, block=not params["block"])
     if kind == "port":
         return dict(params, up=not params["up"])
+    if kind == "poe":
+        return dict(params, on=not params["on"])
     return None
 
 

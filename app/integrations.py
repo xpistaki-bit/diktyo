@@ -148,7 +148,8 @@ def _slim_view(driver, res):
                     wlan=sum(1 for x in res.get("clients", []) if x["medium"] == "wlan"), fdb_size=res.get("fdb_size"))
     if driver in CONTROLLERS:
         return dict(info=res.get("info"), wan=res.get("wan"),
-                    devices=[{k: d[k] for k in ("name", "model", "type", "ip", "online", "clients")} for d in res.get("devices", [])],
+                    devices=[dict({k: d[k] for k in ("name", "model", "type", "ip", "online", "clients")}, mac=d.get("mac", ""), ref=d.get("ref") or {})
+                             for d in res.get("devices", [])],
                     clients=len(res.get("clients", [])), wlan=sum(1 for x in res.get("clients", []) if x["medium"] == "wlan"),
                     port_status={d["mac"]: d["ports"] for d in res.get("devices", []) if d.get("ports")})
     if driver == "fritzbox":

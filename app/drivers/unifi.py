@@ -55,6 +55,16 @@ class _Api:
             return j
         raise DriverError(f"Integration API nicht gefunden (HTTP {last.status_code if last else '?'}) – UniFi Network 9.0 oder neuer nötig")
 
+    def post(self, path, body):
+        """Aktion an die Integration API (gleicher Pfad-Präfix wie beim Lesen)."""
+        p = self.state.get("prefix") or PREFIXES[0]
+        r = self.cl.post(f"{p}/v1{path}", json=body)
+        if r.status_code in (401, 403):
+            raise DriverError("API-Schlüssel hat keine Berechtigung für Aktionen (Schlüssel mit Schreibrecht nötig)")
+        if r.status_code >= 400:
+            raise DriverError(f"Controller meldet HTTP {r.status_code}: {r.text[:160]}")
+        return r.json() if r.content else {}
+
     def pages(self, path):
         rows, off = [], 0
         while True:
@@ -82,6 +92,7 @@ def normalize(sites):
     """sites = [(site, devices(details), clients, stats{device_id})] -> (devices, clients, wan)"""
     devices, clients, wan = [], [], None
     for _site, devs, cls, stats in sites:
+        site_id = (_site or {}).get("id", "")
         by_id = {d.get("id"): mac(d.get("macAddress")) for d in devs}
         for d in devs:
             ports = []
@@ -90,12 +101,13 @@ def normalize(sites):
                     continue
                 ports.append(dict(port_no=int(p["idx"]), oper={"UP": "up", "DOWN": "down"}.get(p.get("state"), ""),
                                   speed=speed_text(p.get("speedMbps") or 0), max_speed=speed_text(p.get("maxSpeedMbps") or 0),
-                                  kind=CONNECTOR.get(p.get("connector"), "rj45"), in_bps=None, out_bps=None, macs=[], lldp=[]))
+                                  kind=CONNECTOR.get(p.get("connector"), "rj45"), in_bps=None, out_bps=None, macs=[], lldp=[],
+                                  poe=bool((p.get("poe") or {}).get("enabled")) if isinstance(p.get("poe"), dict) else None))
             typ = _type(d)
             dev = dict(mac=mac(d.get("macAddress")), ip=d.get("ipAddress") or "", name=d.get("name") or d.get("model") or "",
                        model=d.get("model") or "", type=typ, online=d.get("state") == "ONLINE",
                        uplink_mac=by_id.get((d.get("uplink") or {}).get("deviceId"), ""), uplink_port=None, clients=0,
-                       firmware=d.get("firmwareVersion") or "", ports=ports,
+                       firmware=d.get("firmwareVersion") or "", ports=ports, ref=dict(site=site_id, id=d.get("id", "")),
                        firmware_info=dict(installed=d.get("firmwareVersion") or "", latest="", update=bool(d.get("firmwareUpdatable"))))
             devices.append(dev)
             st = stats.get(d.get("id")) or {}
@@ -198,3 +210,19 @@ def poll(conf, state):
         if wan.get("rx_bps") is not None:
             values = {"wan:rx": wan["rx_bps"], "wan:tx": wan["tx_bps"] or 0}
     return res, values, state
+
+
+def action(conf, state, kind, params):
+    """Neustart eines Geräts bzw. PoE-Neustart eines Switch-Ports über die Integration API. -> Meldung"""
+    site, dev = params.get("site"), params.get("id")
+    if not site or not dev:
+        raise DriverError("Gerät beim Controller nicht gefunden – Integration einmal abfragen")
+    with _client(conf) as cl:
+        api = _Api(cl, dict(state))
+        if kind == "reboot":
+            api.post(f"/sites/{site}/devices/{dev}/actions", {"action": "RESTART"})
+            return f"{params.get('name') or 'Gerät'} startet neu"
+        if kind == "poe_cycle":
+            api.post(f"/sites/{site}/devices/{dev}/interfaces/ports/{int(params['port_no'])}/actions", {"action": "POWER_CYCLE"})
+            return f"PoE an Port {params['port_no']} aus- und wieder eingeschaltet"
+    raise DriverError(f"Unbekannte Aktion {kind}")

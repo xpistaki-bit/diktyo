@@ -72,6 +72,21 @@ class _Api:
                 continue
             raise DriverError(f"Controller meldet Fehler {code}: {j.get('msg', '')}".strip())
 
+    def send(self, method, path, body=None):
+        """Schreibende Anfrage (Neustart, PoE). -> result"""
+        for attempt in (0, 1):
+            r = self.cl.request(method, f'/openapi/v1/{self.conf.get("omada_id", "")}{path}', json=body, headers=self._auth(force=attempt == 1))
+            try:
+                j = r.json()
+            except ValueError:
+                raise DriverError(f"Unerwartete Antwort des Controllers (HTTP {r.status_code})")
+            code = j.get("errorCode")
+            if code == 0:
+                return j.get("result")
+            if (code in AUTH_ERRORS or r.status_code == 401) and attempt == 0:
+                continue
+            raise DriverError(f"Controller meldet Fehler {code}: {j.get('msg', '')}".strip())
+
     def pages(self, path, size=200):
         rows, page = [], 1
         while True:
@@ -102,13 +117,23 @@ def _online(d):
 def normalize(sites):
     """sites = [(site, devices, clients)] -> (devices, clients) einheitlich"""
     devices, clients = [], []
-    for _site, devs, cls in sites:
+    for site in sites:
+        _site, devs, cls = site[:3]
+        sw_ports = site[3] if len(site) > 3 else {}
+        site_id = (_site or {}).get("siteId") or (_site or {}).get("id") or ""
         for d in devs:
             port = d.get("uplinkDevicePort")
+            ports = []
+            for p in sw_ports.get(d.get("mac")) or []:
+                if str(p.get("port", "")).isdigit():
+                    pm = p.get("poe") if isinstance(p.get("poe"), bool) else (p.get("poeMode") == 1 if "poeMode" in p else None)
+                    ports.append(dict(port_no=int(p["port"]), oper="up" if p.get("linkStatus") == 1 else "down" if "linkStatus" in p else "",
+                                      speed="", kind="rj45", in_bps=None, out_bps=None, macs=[], lldp=[], poe=pm, name=p.get("name") or ""))
             devices.append(dict(mac=mac(d.get("mac")), ip=d.get("ip") or "", name=d.get("name") or d.get("model") or "", model=d.get("model") or "",
                                 type=TYPES.get(str(d.get("type", "")).lower(), "other"), online=_online(d),
                                 uplink_mac=mac(d.get("uplinkDeviceMac")), uplink_port=int(port) if str(port or "").isdigit() else None,
-                                clients=int(d.get("clientNum") or 0), firmware=d.get("firmwareVersion") or "", ports=[],
+                                clients=int(d.get("clientNum") or 0), firmware=d.get("firmwareVersion") or "", ports=ports,
+                                ref=dict(site=site_id, mac=d.get("mac") or ""),
                                 firmware_info=dict(installed=d.get("firmwareVersion") or "", latest="",
                                                    update=bool(d.get("needUpgrade")) if "needUpgrade" in d else None)))
         for x in cls:
@@ -129,14 +154,23 @@ def _collect(conf, state):
         out = []
         for s in _sites(api, conf):
             sid = s.get("siteId") or s.get("id")
-            out.append((s, api.pages(f"/sites/{sid}/devices"), api.pages(f"/sites/{sid}/clients")))
+            devs = api.pages(f"/sites/{sid}/devices")
+            sw_ports = {}
+            for d in devs:  # Ports der Switches (PoE-Status) – fehlt der Endpunkt, bleibt es bei den Geräten
+                if str(d.get("type", "")).lower() == "switch" and d.get("mac"):
+                    try:
+                        res = api.get(f"/sites/{sid}/switches/{d['mac']}/ports")
+                        sw_ports[d["mac"]] = res if isinstance(res, list) else (res or {}).get("data") or []
+                    except Exception:  # nur Zusatzinformation – darf die Abfrage nicht stören
+                        pass
+            out.append((s, devs, api.pages(f"/sites/{sid}/clients"), sw_ports))
         return out
 
 
 def test(conf):
     sites = _collect(conf, {})
     devices, clients = normalize(sites)
-    return dict(sites=", ".join(s.get("name", "") for s, _, _ in sites), devices=len(devices), clients=len(clients))
+    return dict(sites=", ".join(s[0].get("name", "") for s in sites), devices=len(devices), clients=len(clients))
 
 
 def poll(conf, state):
@@ -144,5 +178,27 @@ def poll(conf, state):
     sites = _collect(conf, state)
     devices, clients = normalize(sites)
     state["client_counters"] = counter_rates(clients, state.get("client_counters") or {}, time.time())
-    info = dict(controller="Omada", sites=[s.get("name", "") for s, _, _ in sites])
+    info = dict(controller="Omada", sites=[s[0].get("name", "") for s in sites])
     return dict(info=info, devices=devices, clients=clients), {}, state
+
+
+def action(conf, state, kind, params):
+    """Neustart eines Geräts, PoE an einem Switch-Port ein/aus bzw. neu starten (Open API). -> Meldung"""
+    site, dmac = params.get("site"), params.get("mac")
+    if not site or not dmac:
+        raise DriverError("Gerät beim Controller nicht gefunden – Integration einmal abfragen")
+    with _client(conf) as cl:
+        api = _Api(cl, conf, dict(state))
+        if kind == "reboot":
+            api.send("POST", f"/sites/{site}/devices/{dmac}/reboot")
+            return f"{params.get('name') or 'Gerät'} startet neu"
+        path = f"/sites/{site}/switches/{dmac}/ports/{int(params['port_no'])}/poe-mode"
+        if kind == "poe":
+            api.send("PUT", path, {"poeMode": 1 if params["on"] else 0})
+            return f"PoE an Port {params['port_no']} {'eingeschaltet' if params['on'] else 'ausgeschaltet'}"
+        if kind == "poe_cycle":
+            api.send("PUT", path, {"poeMode": 0})
+            time.sleep(5)
+            api.send("PUT", path, {"poeMode": 1})
+            return f"PoE an Port {params['port_no']} aus- und wieder eingeschaltet"
+    raise DriverError(f"Unbekannte Aktion {kind}")
