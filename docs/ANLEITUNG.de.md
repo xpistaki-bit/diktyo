@@ -110,7 +110,20 @@ Angaben, bevor gespeichert wird.
 - Unter *Service Access* SNMP erlauben; sind *Trusted Hosts* gesetzt, die Absenderadresse von díktyo eintragen. Steht
   díktyo hinter einem Router, ist das dessen WAN-Adresse.
 - Mit *Save* dauerhaft speichern.
-- Für das Konfigurations-Backup zusätzlich SSH-Benutzer und -Passwort eintragen.
+- **Konfigurations-Backup per SSH:** unter *SSH-Anmeldung* wählen:
+
+  | Anmeldung | So geht's |
+  |---|---|
+  | Benutzer und Passwort | SSH-Benutzer und -Passwort des Switches eintragen |
+  | Schlüssel von díktyo | díktyo zeigt seinen öffentlichen Schlüssel (RSA 4096) mit *Kopieren* bzw. *Als Datei*. Am Zyxel unter *Maintenance → SSH Authorized Keys* importieren (Firmware ab 4.90), danach *Save*. Benutzer meist `admin`. Der private Schlüssel bleibt verschlüsselt in díktyo. |
+  | eigener privater Schlüssel | Inhalt der privaten Schlüsseldatei einfügen (RSA, ECDSA oder Ed25519; Zyxel kann kein Ed25519), ggf. Passphrase |
+
+  *Abruf* „automatisch“ versucht zuerst den Einzelbefehl und wechselt sonst in eine interaktive Sitzung, die bei
+  „-- More --“ weiterblättert. Ältere Switches, die RSA-Schlüssel nur mit `ssh-rsa` annehmen, bedient díktyo mit
+  einem zweiten Versuch.
+- **Ports:** Manche Switches melden neben den Frontports logische Schnittstellen (Trunk, VLAN, CPU). díktyo
+  übernimmt nur echte Ports und höchstens so viele, wie das Katalogmodell hat; die *Diagnose* nennt die
+  ausgelassenen. Ports mit Link unter 1 Gbit/s sind **orange**, ab 2,5 Gbit/s **blau**.
 - Antwortet der Switch gar nicht („Keine Antwort“), blockiert er die Anfragen – meist fehlt die Freigabe unter Service
   Access oder Trusted Hosts.
 - **Diagnose** im Dialog prüft Schritt für Schritt: Netzweg, Erreichbarkeit, ob der SNMP-Dienst überhaupt antwortet
@@ -237,7 +250,10 @@ an echter Hardware.
 
 ## 5. Überwachung und Ereignisse
 
-- *Integrationen → Online-Überwachung:* alle bestätigten Geräte werden alle 30 s, 1 min oder 5 min gepingt.
+- *Integrationen → Online-Überwachung:* alle bestätigten Geräte werden alle 30 s, 1 min oder 5 min gepingt. Antwortet
+  ein Gerät nicht, prüft díktyo einen bekannten offenen Port (sonst 80) und pingt noch einmal mit mehr Geduld. Ein
+  Gerät, das online war, gilt erst nach **zwei Runden ohne Antwort** als offline – WLAN-Geräte im Stromsparmodus
+  (z. B. Shellys) verschlucken gern einen einzelnen Ping.
 - Statuswechsel und neue Geräte erscheinen unter *Letzte Ereignisse* und gehen – falls eingerichtet – an Home Assistant.
 - Messwerte (WAN- und Port-Traffic) werden 2 Tage aufbewahrt, einstellbar bis 14 (*Einstellungen → Erkennung*).
 

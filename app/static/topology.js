@@ -232,11 +232,13 @@ async function tabTopology(ctx) {
     tabTopology.sel = did;
     $$('.tn', vp).forEach(g => g.classList.toggle('sel', +g.dataset.dev === did));
     const d = await api('GET', `${P}/devices/${did}`);
+    const node = byId[`d${did}`];
+    if (node && node.online !== d.online) { node.online = d.online; draw(); }  // neuerer Status: Topologie gleich mitziehen
     const el = $('#side', ctx.el);
     el.hidden = false;
     el.innerHTML = `<div class="row between"><b>${esc(d.name)}</b><button class="sm link" data-close>✕</button></div>
       <p class="muted small" style="margin:2px 0 8px">${esc(typeName(d.type))}${d.manufacturer || d.model ? ' · ' + esc(`${d.manufacturer} ${d.model}`.trim()) : ''}</p>
-      <div class="kvt2">${[[t('Status'), `${onlineDot(d)} ${d.online ? t('online') : d.online === 0 ? t('offline') : t('noch nicht geprüft')}`],
+      <div class="kvt2">${[[t('Status'), `<span id="sidestat">${onlineDot(d)} ${d.online ? t('online') : d.online === 0 ? t('offline') : t('noch nicht geprüft')}</span>`],
         [t('IP'), d.ips.map(i => esc(i.address)).join('<br>')], [t('MAC'), esc(d.mac)], [t('Standort'), esc(d.location)],
         [t('Anschluss'), d.uplink ? `${esc(uplinkText(d.uplink))} <span class="badge">${t(MEDIUM_SHORT[d.uplink.medium])}</span>` : ''],
         [t('zuletzt gesehen'), d.last_seen ? esc(fmtDate(d.last_seen)) : '']].filter(r => r[1]).map(([k, v]) => `<div><span>${k}</span><span class="mono">${v}</span></div>`).join('')}</div>
@@ -262,6 +264,8 @@ async function tabTopology(ctx) {
       fresh.nodes.forEach(n => { if (byId[n.id]) Object.assign(byId[n.id], { online: n.online, online_count: n.online_count, rx_bps: n.rx_bps, tx_bps: n.tx_bps }); });
       fresh.edges.forEach(e => { const o = data.edges.find(x => x.source === e.source && x.target === e.target); if (o) Object.assign(o, e); });
       draw();
+      const ss = $('#sidestat', ctx.el), sn = tabTopology.sel && byId[`d${tabTopology.sel}`];
+      if (ss && sn) ss.innerHTML = `${onlineDot(sn)} ${sn.online ? t('online') : sn.online === 0 ? t('offline') : t('noch nicht geprüft')}`;
       $('#stamp', ctx.el).textContent = t('Stand {d}', { d: new Date().toLocaleTimeString(LANG === 'en' ? 'en-GB' : 'de-DE') });
     } catch { }
   }
@@ -323,7 +327,8 @@ async function topoDetail(ctx, did) {
     cards.push({ p, x, y, px: ps.x + w / 2, py: ps.top ? (ps.upper ? ps.y : ps.y - PG) : (ps.upper ? ps.y + PH + PG : ps.y + PH) });
   });
   const live = ports.some(p => p.live);
-  const portCls = p => p.peer ? 'conn' : p.live ? (p.live.oper === 'up' ? 'up' : 'down') : 'free';
+  const portCls = p => (p.peer ? 'conn' : p.live ? (p.live.oper === 'up' ? 'up' : 'down') : 'free') + (p.live?.oper === 'up' ? ' ' + speedCls(p.live.speed) : '');
+  const speeds = new Set(ports.filter(p => p.live?.oper === 'up').map(p => speedCls(p.live.speed)));
   const wired = d.connected.filter(k => k.medium === 'lan' && !k.port_name), wl = d.connected.filter(k => k.medium === 'wlan' || k.medium === 'mesh'),
     vm = d.connected.filter(k => k.medium === 'virtual');
   const svgBody = `
@@ -344,7 +349,8 @@ async function topoDetail(ctx, did) {
   ctx.el.innerHTML = `<div class="topo-box" id="tbox"><div class="toolbar"><a class="btn sm" href="#/p/${ctx.pid}/topologie">← ${t('Gesamtansicht')}</a><b>${esc(d.name)}</b>
       <span class="muted small">${ports.length ? t('{n} Ports, {m} belegt', { n: ports.length, m: ports.filter(p => p.peer).length }) : ''}${live ? ' · ' + t('Status per SNMP') : ''}</span>
       <span class="grow"></span><button class="pri sm" id="pingall">${t('Schnell-Ping')}</button><button class="sm" id="fs">${t('Vollbild')}</button>
-      <span class="legend topo-legend"><span><i class="lg conn"></i>${t('belegt')}</span>${live ? `<span><i class="lg up"></i>${t('Link, Gerät unbekannt')}</span><span><i class="lg down"></i>${t('kein Link')}</span>` : `<span><i class="lg free"></i>${t('frei')}</span>`}</span></div>
+      <span class="legend topo-legend"><span><i class="lg conn"></i>${t('belegt')}</span>${live ? `<span><i class="lg up"></i>${t('Link, Gerät unbekannt')}</span><span><i class="lg down"></i>${t('kein Link')}</span>` : `<span><i class="lg free"></i>${t('frei')}</span>`}
+      ${speeds.has('sp-slow') ? `<span><i class="lg sp-slow"></i>${t('10/100 Mbit/s')}</span>` : ''}${speeds.has('sp-fast') ? `<span><i class="lg sp-fast"></i>${t('ab 2,5 Gbit/s')}</span>` : ''}</span></div>
     <div class="topo-wrap detail">${ports.length ? `<svg viewBox="0 0 ${VW} ${VH}" class="topo face">${svgBody}</svg>` : `<div class="panel empty-box">${t('Dieses Gerät hat keine Ports. Ports kommen aus dem Katalogmodell oder lassen sich im Gerätedialog anlegen.')}</div>`}
       <aside class="topo-side panel" id="side">${d.uplink && !d.uplink.local_port_id ? `<p class="small"><b>${t('Uplink')}:</b> ${esc(uplinkText(d.uplink))}</p>` : ''}
         ${[[t('WLAN / Mesh'), wl], [t('Virtuell'), vm], [t('LAN ohne Port'), wired]].filter(([, l]) => l.length).map(([n, l]) => `<details open><summary>${n} (${l.length})</summary>
@@ -365,7 +371,7 @@ async function topoDetail(ctx, did) {
     const pe = p.peer, lv = p.live;
     $('#pinfo', ctx.el).innerHTML = `<h4>${t('Port')} ${esc(p.name)}</h4><div class="kvt2">
       ${[[t('Art'), `${esc(p.kind.toUpperCase())} ${esc(p.speed)}${p.poe ? ' · PoE' : ''}`],
-        lv ? [t('Link'), lv.admin === 'down' ? `<span class="offc">${t('abgeschaltet')}</span>` : lv.oper === 'up' ? `<span class="okc">${lv.speed >= 1000 ? lv.speed / 1000 + ' Gbit/s' : lv.speed + ' Mbit/s'}</span>` : `<span class="offc">${t('kein Link')}</span>`] : null,
+        lv ? [t('Link'), lv.admin === 'down' ? `<span class="offc">${t('abgeschaltet')}</span>` : lv.oper === 'up' ? `<span class="${speedCls(lv.speed) ? 'sp-txt-' + speedCls(lv.speed).slice(3) : 'okc'}">${fmtLink(lv.speed)}</span>` : `<span class="offc">${t('kein Link')}</span>`] : null,
         lv && lv.in_bps != null ? ['↓ / ↑', `${fmtBps(lv.in_bps)} / ${fmtBps(lv.out_bps)}`] : null,
         lv && lv.macs ? [t('gelernt'), t('{n} MAC-Adressen', { n: lv.macs })] : null,
         lv && lv.lldp ? ['LLDP', `${esc(lv.lldp.name)}${lv.lldp.port ? ' · ' + esc(lv.lldp.port) : ''}`] : null,

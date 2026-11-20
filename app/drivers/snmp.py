@@ -3,6 +3,7 @@
 Liest System, Ports (Status, Tempo, Traffic aus 64-Bit-Zählern), gelernte MAC-Adressen je Port (Q-BRIDGE, sonst BRIDGE-MIB)
 und LLDP-Nachbarn. Physische Ports sind die Ethernet-Schnittstellen in der Reihenfolge ihres ifIndex (Port 1, 2, …).
 """
+import re
 import time
 
 from . import snmplib
@@ -22,9 +23,17 @@ FIELDS = [
     dict(key="priv_pass", label="Privacy-Passwort", type="password", default="", secret=True, show=V3),
     dict(key="cfg_schedule", label="Konfiguration sichern", type="select", default="weekly", options=[
         ["weekly", "wöchentlich"], ["daily", "täglich"], ["no", "nein"]]),
-    dict(key="ssh_user", label="SSH-Benutzer (für Konfigurations-Backup)", type="text", default=""),
-    dict(key="ssh_pass", label="SSH-Passwort", type="password", default="", secret=True),
+    dict(key="ssh_auth", label="SSH-Anmeldung (für Konfigurations-Backup)", type="select", default="password", options=[
+        ["password", "Benutzer und Passwort"], ["key_diktyo", "Schlüssel von díktyo"], ["key_own", "eigener privater Schlüssel"]]),
+    dict(key="ssh_user", label="SSH-Benutzer", type="text", default="", placeholder="z. B. admin"),
+    dict(key="ssh_pass", label="SSH-Passwort", type="password", default="", secret=True, show=dict(ssh_auth="password")),
+    dict(key="ssh_pub", label="Öffentlicher Schlüssel von díktyo (auf das Gerät laden)", type="sshpub", default="", show=dict(ssh_auth="key_diktyo"), wide=True),
+    dict(key="ssh_key", label="Privater Schlüssel (Inhalt der Datei, z. B. id_rsa)", type="textarea", default="", secret=True, show=dict(ssh_auth="key_own"), wide=True,
+         placeholder="-----BEGIN OPENSSH PRIVATE KEY----- …"),
+    dict(key="ssh_key_pass", label="Passphrase des Schlüssels (falls vergeben)", type="password", default="", secret=True, show=dict(ssh_auth="key_own")),
     dict(key="ssh_port", label="SSH-Port", type="number", default=22),
+    dict(key="ssh_mode", label="Abruf", type="select", default="auto", options=[
+        ["auto", "automatisch"], ["exec", "Einzelbefehl (ssh … \"Befehl\")"], ["shell", "interaktive Sitzung (mit Blättern bei -- More --)"]]),
     dict(key="ssh_command", label="Befehl für die Konfiguration", type="text", default="show running-config"),
 ]
 CAN_BACKUP = True
@@ -40,6 +49,34 @@ QFDB_PORT, FDB_PORT = "1.3.6.1.2.1.17.7.1.2.2.1.2", "1.3.6.1.2.1.17.4.3.1.2"
 LLDP_NAME, LLDP_PORTID, LLDP_PORTDESC, LLDP_CHASSIS = ("1.0.8802.1.1.2.1.4.1.1.9", "1.0.8802.1.1.2.1.4.1.1.7",
                                                        "1.0.8802.1.1.2.1.4.1.1.8", "1.0.8802.1.1.2.1.4.1.1.5")
 PHYS_TYPES = {6, 62, 69, 117}  # ethernetCsmacd, fastEther, fastEtherFX, gigabitEthernet
+# Logische Schnittstellen, die manche Switches trotzdem als Ethernet melden (Trunk/LAG, VLAN, CPU, Management …)
+LOGICAL = re.compile(r"trunk|\blag|port-?channel|^po\d|^ae\d|vlan|cpu|mgmt|management|loopback|bond|^br\d|tunnel|stack|null|internal", re.I)
+
+
+def physical_ports(types, names, descr, bridge_ifs=(), expected=None):
+    """Die echten Frontports: (ifIndex-Liste, ausgelassen [(ifIndex, Name, Grund)]).
+    1. Typ Ethernet; 2. Name nicht logisch; 3. als Bridge-Port bekannt (falls die Tabelle da ist);
+    4. höchstens so viele wie das Katalogmodell Ports hat (erste nach ifIndex)."""
+    skipped = []
+    name = lambda k: snmplib.text(names.get(k)) or snmplib.text(descr.get(k))  # noqa: E731
+    cand = []
+    for k, t in sorted(types.items(), key=lambda x: int(x[0])):
+        if t not in PHYS_TYPES:
+            continue
+        if LOGICAL.search(name(k) or ""):
+            skipped.append((int(k), name(k), "logische Schnittstelle"))
+            continue
+        cand.append(int(k))
+    bridge = set(bridge_ifs or ())
+    if bridge:
+        inb = [i for i in cand if i in bridge]
+        if len(inb) >= len(cand) / 2:  # nur anwenden, wenn die Tabelle plausibel ist
+            skipped += [(i, name(str(i)), "kein Bridge-Port") for i in cand if i not in bridge]
+            cand = inb
+    if expected and len(cand) > expected:
+        skipped += [(i, name(str(i)), f"mehr als die {expected} Ports des Katalogmodells") for i in cand[expected:]]
+        cand = cand[:expected]
+    return cand, skipped
 
 
 class DriverError(Exception):
@@ -70,12 +107,23 @@ def _col(c, base):
 
 def backup(conf, state):
     """Laufende Konfiguration per SSH lesen (z. B. Zyxel, Cisco-artige CLI). Host-Schlüssel wird beim ersten Mal gemerkt."""
-    if not conf.get("ssh_user") or not conf.get("ssh_pass"):
-        raise DriverError("Für das Konfigurations-Backup SSH-Benutzer und -Passwort des Switches angeben")
     from .. import sshcfg
+    auth = conf.get("ssh_auth") or "password"
+    if not conf.get("ssh_user"):
+        raise DriverError("Für das Konfigurations-Backup den SSH-Benutzer des Switches angeben")
+    if auth == "password" and not conf.get("ssh_pass"):
+        raise DriverError("Für das Konfigurations-Backup SSH-Benutzer und -Passwort des Switches angeben – oder unter „SSH-Anmeldung“ einen Schlüssel wählen")
     try:
-        text, fp = sshcfg.run(conf["host"], int(conf.get("ssh_port") or 22), conf["ssh_user"], conf["ssh_pass"],
-                              conf.get("ssh_command") or "show running-config", known=state.get("ssh_hostkey"))
+        pkey = None
+        if auth == "key_diktyo":
+            from ..db import db
+            with db() as c:
+                pkey, _ = sshcfg.own_key(c)
+        elif auth == "key_own":
+            pkey = sshcfg.load_key(conf.get("ssh_key"), conf.get("ssh_key_pass"))
+        text, fp = sshcfg.run(conf["host"], int(conf.get("ssh_port") or 22), conf["ssh_user"], conf.get("ssh_pass") if pkey is None else None,
+                              conf.get("ssh_command") or "show running-config", known=state.get("ssh_hostkey"), pkey=pkey,
+                              mode=conf.get("ssh_mode") or "auto")
     except sshcfg.SSHError as ex:
         raise DriverError(str(ex))
     state["ssh_hostkey"] = fp
@@ -169,6 +217,16 @@ def diagnose(conf, nat_hint=None):
         r = _client(conf).get(SYS["descr"], SYS["name"])
         step(True, "Abfrage mit Zugangsdaten erfolgreich", f"{snmplib.text(r.get(SYS['name']))} · {snmplib.text(r.get(SYS['descr']))[:80]}")
         summary = "SNMP funktioniert."
+        try:
+            cl = _client(conf)
+            types, names, descr = _col(cl, IF_TYPE), _col(cl, IF_NAME), _col(cl, IF_DESCR)
+            bridge = {int(v) for v in _col(cl, BASE_PORT_IF).values() if isinstance(v, int)}
+            phys, skipped = physical_ports(types, names, descr, bridge, conf.get("expected_ports"))
+            other = sum(1 for t in types.values() if t not in PHYS_TYPES)
+            step(True, "Schnittstellen", f"{len(phys)} Ports übernommen (ifIndex {phys[0] if phys else '–'}–{phys[-1] if phys else '–'}), "
+                 f"{other} andere Schnittstellen" + ("; ausgelassen: " + "; ".join(f"ifIndex {i} „{n}“ ({g})" for i, n, g in skipped[:12]) if skipped else ""))
+        except Exception as ex:  # nur Zusatzinfo
+            step(None, "Schnittstellen", f"nicht lesbar: {ex}"[:160])
     except (snmplib.SNMPError, DriverError) as ex:
         msg = str(ex)
         if conf.get("version") != "v3" and "Keine Antwort" in msg:
@@ -234,7 +292,11 @@ def poll(conf, state):
     names, descr = _col(c, IF_NAME), _col(c, IF_DESCR)
     speed, alias = _col(c, IF_SPEED), _col(c, IF_ALIAS)
     hc_in, hc_out = _col(c, IF_IN), _col(c, IF_OUT)
-    phys = sorted((int(i) for i, t in types.items() if t in PHYS_TYPES), key=int)
+    try:
+        bridge_ifs = {int(v) for v in _col(c, BASE_PORT_IF).values() if isinstance(v, int)}
+    except Exception:
+        bridge_ifs = set()
+    phys, skipped = physical_ports(types, names, descr, bridge_ifs, conf.get("expected_ports"))
     now = time.time()
     prev = state.get("counters", {})
     counters, metrics, ports = {}, {}, []

@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.18.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.18.1 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt
@@ -28,6 +28,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Übersicht | Übersichtsseite (Kennzahlen, „Braucht Aufmerksamkeit“, WAN-/Antwortzeit-/Port-Diagramme, Infrastruktur, Änderungen); Durchsatz in der Topologie | 0.17 |
 | ASUS-Traffic | Traffic Monitor (WAN/LAN/WLAN-Bänder, WAN-Verlauf), Traffic Analyzer je Client (24 h) in Karte, Übersicht, Gerätedialog und Topologie; ASUS-Diagnose | 0.17.1 |
 | Traffic je Gerät | Live-Raten je Client aus Omada, UniFi, MikroTik, OPNsense und Proxmox in Topologie (auch Gruppen), Gerätedialog und Übersicht („Gerade aktiv“); bebilderte Einstiegsanleitung (DE/EN); Anzeigefehler Port-Ansicht und Übersicht behoben | 0.18 |
+| Switch | nur echte Frontports (logische Schnittstellen, Bridge-Tabelle, Katalog), Port-Farben nach Geschwindigkeit, SSH-Backup mit Schlüssel (díktyo-Schlüssel oder eigener) und wählbarem Abruf; Online-Überwachung tolerant gegen einzelne verlorene Pings | 0.18.1 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan
 

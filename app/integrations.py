@@ -52,8 +52,14 @@ def poll(iid, log=print):
     drv = DRIVERS.get(row["driver"])
     state = json.loads(row["state"] or "{}")
     before = json.loads(row["state"] or "{}")
+    conf = conf_of(row)
+    if row["driver"] == "snmp" and row["device_id"]:
+        with db() as c:  # Portzahl des Katalogmodells: begrenzt die Frontports (Switches melden oft zusätzliche logische Schnittstellen)
+            n = c.execute("SELECT COUNT(*) FROM interfaces WHERE device_id=? AND port_no IS NOT NULL", (row["device_id"],)).fetchone()[0]
+        if n:
+            conf["expected_ports"] = n
     try:
-        res, values, new_state = drv.poll(conf_of(row), state)
+        res, values, new_state = drv.poll(conf, state)
     except ERRORS as ex:
         return _fail(iid, str(ex))
     except Exception as ex:  # unerwartete Antworten des Geräts

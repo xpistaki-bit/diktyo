@@ -419,3 +419,14 @@ button.on{border-color:var(--cyan);color:var(--cyan)}
 .tmon{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px}
 .tm{border:1px solid var(--line);border-radius:8px;padding:6px 10px;display:flex;flex-direction:column;gap:1px;background:rgba(2,8,20,.5)}
 .tplabel.day{fill:var(--dim)}
+
+/* ---- Port-Geschwindigkeit (wie die Zyxel-Ansicht): unter 1G orange, ab 2,5G blau ---- */
+.pp.up.sp-slow{border-color:rgba(255,159,28,.8);color:#FFB347;background:rgba(255,159,28,.12)}
+.pp.up.sp-fast{border-color:rgba(77,140,255,.85);color:#8FB4FF;background:rgba(77,140,255,.14)}
+.port.sp-slow rect:first-child{fill:rgba(255,159,28,.28);stroke:#FF9F1C}
+.port.sp-fast rect:first-child{fill:rgba(77,140,255,.3);stroke:#4D8CFF}
+i.lg.sp-slow{background:rgba(255,159,28,.35);border-color:#FF9F1C} i.lg.sp-fast{background:rgba(77,140,255,.35);border-color:#4D8CFF}
+.sp-txt-slow{color:#FFB347} .sp-txt-fast{color:#8FB4FF}
+
+.sshpub textarea{width:100%;resize:vertical;word-break:break-all}
+textarea.mono.small{font-size:12px}

@@ -54,7 +54,7 @@ def _body(body, old=None):
     secrets, options = {}, {}
     for f in DRIVERS[drv].FIELDS:
         k = f["key"]
-        if k in CORE:
+        if k in CORE or f.get("type") == "sshpub":  # reine Anzeige, wird nicht gespeichert
             continue
         v = body.get(k)
         if f.get("secret"):
@@ -73,6 +73,15 @@ def _body(body, old=None):
                 username=text(body, "username", 80), secret=security.encrypt(json.dumps(secrets)) if secrets else "",
                 options=json.dumps(options), interval_s=interval, enabled=1 if body.get("enabled", True) else 0,
                 device_id=int(body["device_id"]) if body.get("device_id") else None, _secrets=secrets, _options=options)
+
+
+@router.get("/api/ssh-key")
+def ssh_key(user=Depends(require_user)):
+    """Öffentlicher Teil von díktyos SSH-Schlüssel (für Konfigurations-Backups ohne Passwort). Wird beim ersten Abruf erzeugt."""
+    from . import sshcfg
+    with db() as c:
+        _, pub = sshcfg.own_key(c)
+    return dict(public=pub, type="RSA 4096")
 
 
 @router.get("/api/profiles/{pid}/integrations")
@@ -178,7 +187,10 @@ def diagnose(pid: int, body: dict = Body(...), user=Depends(require_user)):
                     break
         except ValueError:
             pass
-    conf = {**v["_options"], **v["_secrets"], "host": v["host"], "port": v["port"], "username": v["username"]}
+        expected = None
+        if old and old["device_id"] and v["driver"] == "snmp":
+            expected = c.execute("SELECT COUNT(*) FROM interfaces WHERE device_id=? AND port_no IS NOT NULL", (old["device_id"],)).fetchone()[0] or None
+    conf = {**v["_options"], **v["_secrets"], "host": v["host"], "port": v["port"], "username": v["username"], "expected_ports": expected}
     try:
         return drv.diagnose(conf, hint)
     except ERRORS as ex:

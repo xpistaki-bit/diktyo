@@ -7,6 +7,8 @@ from .scan import discover, runner
 
 INTERVALS = (30, 60, 300)
 DEFAULTS = dict(enabled=True, interval_s=60)
+OFFLINE_AFTER = 2   # so viele Runden ohne Antwort hintereinander, bevor ein Gerät als offline gilt
+_misses = {}        # device_id -> Runden ohne Antwort (lebt im Hintergrunddienst)
 
 
 def settings(profile_row):
@@ -27,10 +29,13 @@ async def _check(targets, concurrency=64):
         async with sem:
             rtt = await discover.ping_rtt(ip, 1.0)
             ok = rtt is not None
-            if not ok and port:  # Geräte, die Ping verwerfen, über einen bekannten offenen Port prüfen
+            if not ok:  # Geräte, die Ping verwerfen, über einen bekannten offenen Port prüfen (sonst Weboberfläche)
                 t0 = time.perf_counter()
-                ok = await discover.tcp(ip, port, 1.0)
+                ok = await discover.tcp(ip, port or 80, 1.5)
                 rtt = round((time.perf_counter() - t0) * 1000, 1) if ok else None
+            if not ok:  # WLAN-Geräte im Stromsparmodus verschlucken gern einen einzelnen Ping: noch einmal mit mehr Geduld
+                rtt = await discover.ping_rtt(ip, 2.0)
+                ok = rtt is not None
             prev = out.get(did)
             if not prev or not prev[0] or (ok and rtt is not None and (prev[1] is None or rtt < prev[1])):
                 out[did] = (ok or bool(prev and prev[0]), rtt if ok else (prev[1] if prev else None))
@@ -53,7 +58,15 @@ def run(pid):
     ts = now()
     from . import metrics
     with db() as c:
+        was = {r["id"]: r["online"] for r in c.execute("SELECT id, online FROM devices WHERE profile_id=?", (pid,))}
         for did, (ok, _) in res.items():
-            runner._set_online(c, did, 1 if ok else 0, ts, "ping")
+            if ok:
+                _misses.pop(did, None)
+                runner._set_online(c, did, 1, ts, "ping")
+                continue
+            _misses[did] = _misses.get(did, 0) + 1
+            # war es online, erst nach mehreren Runden ohne Antwort als offline melden (einzelne verlorene Pings bei WLAN)
+            if was.get(did) != 1 or _misses[did] >= OFFLINE_AFTER:
+                runner._set_online(c, did, 0, ts, "ping")
         metrics.put(c, pid, {f"d{did}:rtt": rtt for did, (ok, rtt) in res.items() if ok and rtt is not None}, unit="ms")
     return dict(checked=len(res), online=sum(1 for ok, _ in res.values() if ok))

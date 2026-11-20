@@ -22,7 +22,7 @@ const DRIVER_STEPS = {
     'Am Switch SNMP einschalten, beim Zyxel unter <b>Management → Access Control → SNMP</b>: <b>v3</b> mit Benutzer (Sicherheitsstufe „priv“, SHA/AES, Gruppe „read-only“) oder <b>v2c</b> mit eigener Community.',
     'Unter <b>Service Access</b> muss SNMP erlaubt sein. Sind <b>Trusted Hosts</b> gesetzt, die Absenderadresse von díktyo erlauben – steht díktyo hinter einem Router, ist das dessen <b>WAN-Adresse</b>.',
     'Einstellungen am Switch mit <b>Save</b> dauerhaft speichern, dann hier Adresse, Version und Zugangsdaten eintragen.',
-    'Für Konfigurations-Backups zusätzlich SSH-Benutzer und -Passwort des Switches eintragen (díktyo liest „show running-config“).',
+    'Für Konfigurations-Backups SSH einrichten (díktyo liest „show running-config“): mit <b>Benutzer und Passwort</b> oder ohne Passwort mit <b>Schlüssel</b> – „Schlüssel von díktyo“ zeigt einen öffentlichen Schlüssel, den du am Switch hinterlegst (Zyxel: <b>Maintenance → SSH Authorized Keys</b> → Import, dann Save).',
   ],
   asuswrt: [
     'Adresse des Hauptrouters eintragen (bei AiMesh der Knoten mit dem Internetanschluss), z. B. <b>192.168.50.1</b>.',
@@ -122,6 +122,9 @@ const fmtBpsShort = v => {
   const u = [[1e9, 'G'], [1e6, 'M'], [1e3, 'k']].find(([f]) => v >= f) || [1, ''];
   return (v / u[0]).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: v / u[0] < 10 ? 1 : 0 }) + u[1];
 };
+/* Geschwindigkeitsklasse eines Ports mit Link (Mbit/s): unter 1 Gbit/s langsam, ab 2,5 Gbit/s schnell */
+const speedCls = mbps => !mbps ? '' : mbps < 1000 ? 'sp-slow' : mbps >= 2500 ? 'sp-fast' : '';
+const fmtLink = mbps => !mbps ? '' : mbps >= 1000 ? (mbps / 1000).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE') + ' Gbit/s' : mbps + ' Mbit/s';
 const fmtBytes = v => {
   if (v == null || isNaN(v)) return '–';
   const u = [[1e12, 'TB'], [1e9, 'GB'], [1e6, 'MB'], [1e3, 'kB']].find(([f]) => v >= f) || [1, 'B'];
@@ -255,8 +258,9 @@ function snmpCard(i) {
       ${info.uptime ? `<span>${t('läuft seit')}: <b>${fmtUptime(info.uptime)}</b></span>` : ''}
       ${ports.length ? `<span>${t('Ports')}: <b>${ports.filter(p => p.oper === 'up').length} ${t('aktiv')} / ${ports.length}</b></span>` : ''}
       ${res.fdb_size != null ? `<span>${t('gelernte MAC-Adressen')}: <b>${res.fdb_size}</b></span>` : ''}</div>
-    ${ports.length ? `<div class="pstrip">${ports.map(p => `<button type="button" class="pp ${p.oper}${p.port_no === first ? ' sel' : ''}" data-port="${p.port_no}"
+    ${ports.length ? `<div class="pstrip">${ports.map(p => `<button type="button" class="pp ${p.oper} ${p.oper === 'up' ? speedCls(p.speed) : ''}${p.port_no === first ? ' sel' : ''}" data-port="${p.port_no}"
         title="${t('Port')} ${p.port_no}${p.alias ? ' · ' + h(p.alias) : ''} · ${p.oper === 'up' ? (p.speed >= 1000 ? p.speed / 1000 + ' Gbit/s' : p.speed + ' Mbit/s') : t('kein Link')}${p.macs.length ? ' · ' + t('{n} MAC-Adressen', { n: p.macs.length }) : ''}${p.lldp ? ' · LLDP: ' + h(p.lldp.name) : ''}">${p.port_no}</button>`).join('')}</div>
+      ${ports.some(p => p.oper === 'up' && speedCls(p.speed)) ? `<div class="legend topo-legend small" style="margin-top:6px"><span><i class="lg up"></i>1 Gbit/s</span>${ports.some(p => p.oper === 'up' && speedCls(p.speed) === 'sp-slow') ? `<span><i class="lg sp-slow"></i>${t('10/100 Mbit/s')}</span>` : ''}${ports.some(p => p.oper === 'up' && speedCls(p.speed) === 'sp-fast') ? `<span><i class="lg sp-fast"></i>${t('ab 2,5 Gbit/s')}</span>` : ''}</div>` : ''}
       <div class="row between" style="margin-top:8px"><b class="small">${t('Traffic')} · <span class="pname">${t('Port')} ${first}</span></b>${rangeButtons(tabIntegrations.since || 7200)}</div>
       <div class="chartbox" data-port="${first}"></div>` : ''}`;
 }
@@ -552,8 +556,10 @@ async function integrationDialog(ctx, i, drv) {
   const val = f => f.secret ? (i.secrets?.[f.key] || (i.id ? '' : f.default ?? '')) : (i[f.key] ?? i.options?.[f.key] ?? (i.id && f.type !== 'select' ? '' : f.default ?? ''));
   const show = f => f.show ? Object.entries(f.show).map(([k, v]) => `data-show-k="${k}" data-show-v="${h(v)}"`).join(' ') : '';
   const steps = DRIVER_STEPS[drv.key];
-  const fields = drv.fields.map(f => `<div ${show(f)}><label>${t(f.label)}</label>${f.type === 'select'
+  const fields = drv.fields.map(f => `<div ${show(f)} ${f.wide ? 'style="grid-column:1/-1"' : ''}><label>${t(f.label)}</label>${f.type === 'select'
     ? `<select name="${f.key}">${f.options.map(([k, n]) => `<option value="${h(k)}" ${k === val(f) ? 'selected' : ''}>${h(t(n))}</option>`).join('')}</select>`
+    : f.type === 'textarea' ? `<textarea name="${f.key}" rows="5" class="mono small" autocomplete="off" spellcheck="false" ${f.placeholder ? `placeholder="${h(f.placeholder)}"` : ''}>${h(val(f))}</textarea>`
+    : f.type === 'sshpub' ? `<div class="sshpub" data-sshpub><p class="muted small">${t('wird erzeugt …')}</p></div>`
     : `<input name="${f.key}" type="${f.type === 'password' ? 'password' : f.type === 'number' ? 'number' : 'text'}" autocomplete="off" value="${h(val(f))}" ${f.placeholder ? `placeholder="${h(f.placeholder)}"` : ''} ${f.required ? 'required' : ''}>`}</div>`).join('');
   const res = await dialog(i.id ? i.name : t(drv.name), `
     ${steps ? `<ol class="steps">${steps.map(x => `<li>${t(x)}</li>`).join('')}</ol>` : ''}
@@ -570,6 +576,22 @@ async function integrationDialog(ctx, i, drv) {
       const vis = () => $$('[data-show-k]', f).forEach(el => { const sel = $(`[name=${el.dataset.showK}]`, f); el.style.display = !sel || sel.value === el.dataset.showV ? '' : 'none'; });
       $$('select', f).forEach(sel => sel.addEventListener('change', vis));
       vis();
+      // díktyos öffentlicher SSH-Schlüssel zum Hochladen auf das Gerät
+      const pubBox = $('[data-sshpub]', f);
+      const loadPub = async () => {
+        if (!pubBox || pubBox.dataset.done) return;
+        pubBox.dataset.done = '1';
+        try {
+          const k = await api('GET', '/api/ssh-key');
+          pubBox.innerHTML = `<textarea readonly rows="3" class="mono small" spellcheck="false">${h(k.public)}</textarea>
+            <div class="row" style="margin-top:6px"><button type="button" class="sm" data-copy>${t('Kopieren')}</button>
+              <a class="btn sm" download="diktyo.pub" href="data:text/plain;charset=utf-8,${encodeURIComponent(k.public + '\n')}">${t('Als Datei (diktyo.pub)')}</a></div>
+            <p class="muted small">${t('Am Gerät als „authorized key“ hinterlegen (Zyxel: Maintenance → SSH Authorized Keys → Import, danach Save). Benutzer wie oben, meist admin. Der private Schlüssel bleibt verschlüsselt in díktyo.')}</p>`;
+          $('[data-copy]', pubBox).onclick = () => { navigator.clipboard?.writeText(k.public).then(() => toast(t('kopiert')), () => { $('textarea', pubBox).select(); }); };
+        } catch (e) { pubBox.innerHTML = `<p class="errtxt small">${h(e.message)}</p>`; delete pubBox.dataset.done; }
+      };
+      const authSel = $('[name=ssh_auth]', f);
+      if (authSel) { authSel.addEventListener('change', () => authSel.value === 'key_diktyo' && loadPub()); if (authSel.value === 'key_diktyo') loadPub(); }
       // MQTT-Broker aus der HA-Adresse vorschlagen
       const hostIn = $('[name=host]', f), mq = $('[name=mqtt_host]', f);
       if (hostIn && mq) hostIn.addEventListener('change', () => {

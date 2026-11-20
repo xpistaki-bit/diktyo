@@ -301,8 +301,8 @@ switch, does not block infrastructure from the internet and does not shut down i
 
 Integrations that can read a device's configuration back it up weekly or daily (setting in the integration) or on
 demand ("Back up configuration"): the FRITZ!Box export (needs the FRITZ!Box user), the settings file of ASUS routers,
-and the running configuration of switches via SSH (`show running-config`, SSH user and password in the switch
-integration). Unchanged configurations are not stored twice; the last 30 versions per device are kept, encrypted on
+and the running configuration of switches via SSH (`show running-config`; sign-in with user and password, with
+díktyo's own key – its public key is shown in the dialog to upload to the switch – or with your own private key). Unchanged configurations are not stored twice; the last 30 versions per device are kept, encrypted on
 disk. The device dialog lists them for download and shows the changes between two text configurations. With a backup
 passphrase, the newest configuration of each device is included in díktyo backups (encrypted with the passphrase).
 
