@@ -19,6 +19,21 @@ def settings(profile_row):
     return out
 
 
+async def recheck(targets):
+    """Einzeln und nacheinander noch einmal prüfen (nach einer Lastspitze verwerfen manche Router/Mesh-Knoten Pings).
+    targets: [(device_id, ip, port)] -> {device_id: (online, rtt)}"""
+    out = {}
+    for did, ip, port in targets[:30]:
+        rtt = await discover.ping_rtt(ip, 2.0)
+        if rtt is None:
+            rtt = await discover.ping_rtt(ip, 3.0)
+        if rtt is None and await discover.tcp(ip, port or 80, 2.0):
+            rtt = 0.0
+        if rtt is not None or did not in out:
+            out[did] = (rtt is not None, rtt)
+    return out
+
+
 async def _check(targets, concurrency=64):
     """targets: [(device_id, ip, fallback_port|None)] -> {device_id: (online, antwortzeit_ms|None)}"""
     import time
@@ -45,10 +60,17 @@ async def _check(targets, concurrency=64):
 
 
 def seen_by_others(c, pid, grace):
-    """Geräte, die eine andere Quelle als der Ping (FRITZ!Box, Router, SNMP, Scan …) innerhalb von grace Sekunden online sah."""
+    """Geräte, die eine andere Quelle als der Ping (FRITZ!Box, Router, SNMP, Scan …) kürzlich online sah. „Kürzlich“ richtet
+    sich nach dem Abfrageintervall der Integration (2,5 Intervalle), mindestens grace Sekunden – sonst fiele z. B. ein
+    ASUS mit 15-Minuten-Intervall zwischen zwei Abfragen aus der Frist."""
     import time as _t
-    return {r["device_id"] for r in c.execute("""SELECT s.device_id FROM device_seen s JOIN devices d ON d.id=s.device_id
-                                                  WHERE d.profile_id=? AND s.source<>'ping' AND s.ts>?""", (pid, _t.time() - grace))}
+    per = {}
+    for r in c.execute("SELECT driver, MAX(interval_s) AS iv FROM integrations WHERE profile_id=? AND enabled=1 GROUP BY driver", (pid,)):
+        per[r["driver"]] = max(grace, 2.5 * (r["iv"] or 0))
+    t = _t.time()
+    return {r["device_id"] for r in c.execute("""SELECT s.device_id, s.source, s.ts FROM device_seen s JOIN devices d ON d.id=s.device_id
+                                                  WHERE d.profile_id=? AND s.source<>'ping'""", (pid,))
+            if t - r["ts"] < per.get(r["source"], grace)}
 
 
 def settings_of(pid):

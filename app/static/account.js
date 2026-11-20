@@ -40,11 +40,12 @@ async function accountSecurity(el) {
       ok: t('Weiter'), onOk: f => api('POST', '/api/auth/2fa/setup', fd(f)),
     });
     if (!setup) return;
-    const codes = await dialog(t('Zweiten Faktor einrichten'), `<ol class="steps"><li>${t('QR-Code mit der Authenticator-App scannen – oder den Schlüssel von Hand eingeben.')}</li>
-        <li>${t('Den 6-stelligen Code aus der App eingeben.')}</li></ol>
-      <div class="totp-setup"><div class="qr">${setup.qr}</div><div><label>${t('Schlüssel')}</label><div class="secret">${h(setup.secret)}</div>
+    const codes = await dialog(t('Zweiten Faktor einrichten'), `<div class="totp-setup"><div class="qr">${setup.qr}</div>
+      <div><p style="margin-top:0">${t('1. QR-Code mit der Authenticator-App scannen – oder den Schlüssel von Hand eingeben.')}</p>
+        <label>${t('Schlüssel')}</label><div class="secret">${h(setup.secret)}</div>
+        <p>${t('2. Den 6-stelligen Code aus der App eingeben.')}</p>
         <label>${t('Code aus der App')}</label><input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required pattern="[0-9 ]{6,8}"></div></div>`, {
-      ok: t('Einschalten'), onOk: async f => (await api('POST', '/api/auth/2fa/enable', fd(f))).recovery,
+      ok: t('Einschalten'), wide: true, onOk: async f => (await api('POST', '/api/auth/2fa/enable', fd(f))).recovery,
     });
     if (!codes) return;
     STATE.user.totp = true;

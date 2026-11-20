@@ -69,3 +69,33 @@ def test_ping_failure_ignored_when_other_source_saw_device(monkeypatch):
     with db() as c:
         n = c.execute("SELECT COUNT(*) FROM status_events WHERE device_id=?", (sw,)).fetchone()[0]
     assert n == 2  # einmal online, einmal offline – kein Flattern
+
+
+def test_grace_follows_integration_interval_and_quick_ping_rechecks(monkeypatch):
+    cl, pid, P, mk = _setup("Mesh-Knoten")
+    node = mk("EBM68 Küche", "mesh", "192.0.2.95")
+    with db() as c:
+        c.execute("UPDATE devices SET status='confirmed' WHERE id=?", (node,))
+        runner._set_online(c, node, 1, now(), "asuswrt")
+        c.execute("INSERT INTO integrations(profile_id, driver, name, host, options, interval_s, created) VALUES(?,?,?,?,?,?,?)",
+                  (pid, "asuswrt", "ASUS", "192.0.2.1", "{}", 900, now()))
+        # ASUS fragt nur alle 15 Minuten ab: eine 12 Minuten alte Sichtung zählt noch
+        c.execute("UPDATE device_seen SET ts=? WHERE device_id=?", (time.time() - 720, node))
+        assert node in monitor.seen_by_others(c, pid, 600)
+        c.execute("UPDATE device_seen SET ts=? WHERE device_id=?", (time.time() - 3000, node))
+        assert node not in monitor.seen_by_others(c, pid, 600)
+    calls = []
+
+    async def flaky(ip, timeout=1.0):  # in der Lastspitze keine Antwort, einzeln mit Geduld schon
+        calls.append(timeout)
+        return 4.2 if timeout >= 3.0 else None
+
+    async def no_tcp(*a, **k):
+        return False
+    monkeypatch.setattr(discover, "ping_rtt", flaky)
+    monkeypatch.setattr(discover, "tcp", no_tcp)
+    r = cl.post(f"{P}/ping", json={"device_ids": [node]}, headers=H).json()
+    assert r["online"] == 1 and 3.0 in calls
+    assert cl.get(f"{P}/devices/{node}").json()["online"] == 1
+    with db() as c:
+        assert c.execute("SELECT COUNT(*) FROM status_events WHERE device_id=? AND online=0", (node,)).fetchone()[0] == 0

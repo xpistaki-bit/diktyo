@@ -558,6 +558,8 @@ window.I18N_EN = {
   'Testnachricht senden': 'Send test message',
   'Bitte E-Mail oder ntfy einschalten': 'Please enable e-mail or ntfy',
   'sende …': 'sending …',
+  '1. QR-Code mit der Authenticator-App scannen – oder den Schlüssel von Hand eingeben.': '1. Scan the QR code with the authenticator app – or enter the key by hand.',
+  '2. Den 6-stelligen Code aus der App eingeben.': '2. Enter the 6-digit code from the app.',
   'Topologie': 'Topology', 'Topologie-Grafik': 'Topology graphic', 'Gesamtbaum und Detailansicht mit Switch-Frontplatte und Ports.': 'Overall tree and detail view with switch front panel and ports.',
   'Netzscan': 'Network scan', 'Automatische Erkennung mit Vorschlag, was ein unbekanntes Gerät sein könnte.': 'Automatic discovery with a suggestion of what an unknown device might be.',
   'Der Hintergrunddienst (diktyo-worker) meldet sich seit über einer Minute nicht. Er führt Scans, Integrationen und die Online-Überwachung aus; solange er nicht läuft, bleiben Scans in der Warteschlange. Im LXC prüfen mit: systemctl status diktyo-worker': 'The background service (diktyo-worker) has not reported for over a minute. It runs scans, integrations and online monitoring; while it is not running, scans stay queued. Check in the LXC with: systemctl status diktyo-worker',

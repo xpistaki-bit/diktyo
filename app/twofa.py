@@ -18,7 +18,7 @@ from . import security
 STEP, DIGITS, WINDOW = 30, 6, 1          # ±1 Zeitschritt Toleranz für ungenaue Uhren
 TICKET_SECONDS, TICKET_TRIES = 300, 5
 RECOVERY_COUNT = 10
-ISSUER = "díktyo"
+ISSUER = "diktyo"  # ASCII: manche Authenticator-Apps zeigen Sonderzeichen im Aussteller falsch an
 
 
 class TwoFAError(Exception):
@@ -62,7 +62,7 @@ def qr_svg(text):
     import io
     import segno
     buf = io.BytesIO()
-    segno.make(text, error="m").save(buf, kind="svg", scale=5, border=2, dark="#0b1d38", light="#ffffff", xmldecl=False, svgns=True)
+    segno.make(text, error="m").save(buf, kind="svg", scale=5, border=3, dark="#0b1d38", light="#ffffff", xmldecl=False, svgns=True, omitsize=True)
     return buf.getvalue().decode()
 
 

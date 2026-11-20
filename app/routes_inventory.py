@@ -360,6 +360,14 @@ def quick_ping(pid: int, body: dict = Body(default={}), user=Depends(require_use
         ports = (_json.loads(r["data"] or "{}").get("seen") or {}).get("ports") or []
         targets.append((r["id"], r["address"], ports[0] if ports else None))
     full = asyncio.run(monitor._check(targets)) if targets else {}
+    # Wer online war und in der Lastspitze nicht antwortete, wird einzeln mit mehr Geduld nachgeprüft
+    with db() as c:
+        was = {r["id"]: r["online"] for r in c.execute("SELECT id, online FROM devices WHERE profile_id=?", (pid,))}
+    again = [tg for tg in targets if not full.get(tg[0], (True,))[0] and was.get(tg[0]) == 1]
+    if again:
+        for did, res in asyncio.run(monitor.recheck(again)).items():
+            if res[0]:
+                full[did] = res
     res = {did: ok for did, (ok, _) in full.items()}
     rtt = {did: r for did, (ok, r) in full.items() if ok and r is not None}
     ts = now()
