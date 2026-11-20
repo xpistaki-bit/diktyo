@@ -74,6 +74,14 @@ def overview(c, pid):
     return out
 
 
+def _same_version(a, b):
+    """Gleiche Version in anderer Schreibweise (z. B. „161.08.25“ und „8.25“, „3006_102_46475-g…“ und „3.0.0.6.102_46475“)?"""
+    import re
+    da, db_ = re.sub(r"\D", "", a), re.sub(r"\D", "", b)
+    short, long_ = sorted((da, db_), key=len)
+    return bool(short) and (long_.startswith(short) or long_.endswith(short))
+
+
 def apply_firmware(c, pid, did, fw, source):
     """Firmware-Angaben am Gerät ablegen; Versionswechsel in den Verlauf, neues Update als Ereignis."""
     if not did or not fw or not (fw.get("installed") or fw.get("update") is not None):
@@ -87,7 +95,7 @@ def apply_firmware(c, pid, did, fw, source):
     old = data.get("firmware") or {}
     new = dict(installed=str(fw.get("installed") or "")[:60], latest=str(fw.get("latest") or "")[:60], update=bool(fw.get("update")),
                info=str(fw.get("info") or "")[:200], source=source, checked=now())
-    if old.get("installed") and new["installed"] and old["installed"] != new["installed"]:
+    if old.get("installed") and new["installed"] and old["installed"] != new["installed"] and not _same_version(old["installed"], new["installed"]):
         changes.record(c, pid, did, "changed", "firmware", old["installed"], new["installed"], source)
     if new["update"] and (not old.get("update") or old.get("latest") != new["latest"]):
         runner.event(c, pid, "firmware_update", did, name=r["name"], installed=new["installed"], latest=new["latest"], source=source)

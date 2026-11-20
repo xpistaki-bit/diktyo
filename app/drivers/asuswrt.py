@@ -136,6 +136,18 @@ NETDEV = {"INTERNET": ("wan", "WAN"), "WIRED": ("lan", "LAN"), "BRIDGE": ("bridg
 ANALYZER_EVERY = 900   # Traffic Analyzer höchstens alle 15 Minuten abfragen
 
 
+def fw_version(s):
+    """ASUS-Firmware lesbar: „3006_102_46475-ga27e679_498-g0e4e1_sec“, „3.0.0.6_102_46475“ oder „3.0.0.6.102_46475“
+    -> „3.0.0.6.102_46475“. Unbekanntes Format bleibt (gekürzt) stehen."""
+    import re
+    s = str(s or "").strip()
+    m = re.match(r"(\d)\.?(\d)\.?(\d)\.?(\d)[._](\d+)(?:[._](\d+))?", s)
+    if not m:
+        return s[:40]
+    base = ".".join(m.group(i) for i in range(1, 5)) + "." + m.group(5)
+    return f"{base}_{m.group(6)}" if m.group(6) else base
+
+
 def _num(v):
     """Zähler aus netdev: meist hexadezimal („0x1a2b“), manchmal dezimal."""
     s = str(v or "").strip()
@@ -229,9 +241,10 @@ def poll(conf, state):
         state.update(ta_checked=now, ta=ta)
     if state.get("ta"):
         res["analyzer"] = state["ta"]
-    flag, latest = str(data.get("webs_state_flag", "")), str(data.get("webs_state_info", "") or "")
-    installed = "_".join(x for x in (str(data.get("firmver", "")).replace(".", ""), str(data.get("buildno", "")), str(data.get("extendno", ""))) if x)
-    res["firmware"] = dict(installed=installed or info["firmware"], latest=latest, update=flag in ("1", "2") if flag else None)
+    flag = str(data.get("webs_state_flag", ""))
+    installed = fw_version(f'{data.get("firmver", "")}_{data.get("buildno", "")}_{data.get("extendno", "")}') or info["firmware"]
+    latest = fw_version(data.get("webs_state_info")) if flag in ("1", "2") else ""
+    res["firmware"] = dict(installed=installed, latest=latest, update=flag in ("1", "2") if flag else None)
     return res, metrics, dict(state, token=token)
 
 

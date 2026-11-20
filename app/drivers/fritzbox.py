@@ -401,15 +401,23 @@ def test(conf):
     return res
 
 
+def fw_version(s):
+    """FRITZ!OS lesbar: „161.08.25“ -> „8.25“, „161.07.57-114812“ -> „7.57-114812“; sonst unverändert."""
+    import re
+    s = str(s or "").strip()
+    m = re.fullmatch(r"\d+\.(\d{2})\.(\d{2})(.*)", s)
+    return f"{int(m.group(1))}.{m.group(2)}{m.group(3)}" if m else s
+
+
 def poll(conf, state):
     fc = _connect(conf)
     res = dict(info=_info(fc), wan=_wan(fc), auth=False, mesh={}, wlan=[])
     try:  # Firmware: prüft die FRITZ!Box selbst; hier nur deren Ergebnis lesen
         u = _call(fc, "UserInterface1", "X_AVM-DE_GetInfo")
-        res["firmware"] = dict(installed=res["info"].get("firmware", ""), latest=u.get("NewX_AVM-DE_Version") or "",
+        res["firmware"] = dict(installed=fw_version(res["info"].get("firmware", "")), latest=fw_version(u.get("NewX_AVM-DE_Version") or ""),
                                update=str(u.get("NewUpgradeAvailable")) in ("1", "True", "true"), info=u.get("NewX_AVM-DE_InfoURL") or "")
     except Exception:
-        res["firmware"] = dict(installed=res["info"].get("firmware", ""), latest="", update=None)
+        res["firmware"] = dict(installed=fw_version(res["info"].get("firmware", "")), latest="", update=None)
     try:
         res["hosts"] = _hosts_basic(fc)
     except PermissionError:

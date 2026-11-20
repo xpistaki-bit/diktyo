@@ -409,6 +409,13 @@ def apply_asus(c, row, res):
                 did = _new_device(c, pid, n["name"] or n["model"] or "AiMesh-Knoten", "mesh", n["mac"], [n["ip"]], "asuswrt", n["model"], "ASUS")
                 new_nodes += 1
             runner._set_online(c, did, 1 if n["online"] else 0, now(), "asuswrt")
+            if n.get("firmware"):  # AiMesh aktualisiert Knoten gleichen Modells mit dem Hauptrouter
+                from . import health
+                from .drivers.asuswrt import fw_version
+                mfw = res.get("firmware") or {}
+                same = (n.get("model") or "").replace("ExpertWiFi ", "") == (info.get("model") or "").replace("ExpertWiFi ", "")
+                health.apply_firmware(c, pid, did, dict(installed=fw_version(n["firmware"]), latest=mfw.get("latest", "") if same else "",
+                                                        update=mfw.get("update") if same else None), "asuswrt")
         for m in n["aps"] + [n["mac"]]:
             ap_owner[m] = did
         node_dev.append((n, did))
