@@ -4,7 +4,7 @@ import json
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from . import speedtest
+from . import notify, speedtest
 from .auth import profile_access, require_user, touch
 from .db import audit, db
 from .routes_scan import _job_out
@@ -53,6 +53,33 @@ def run(pid: int, user=Depends(require_user)):
         jid = speedtest.enqueue(c, pid, "internet", user["id"])
         audit(c, "speedtest.run", user["id"], pid, {})
         return dict(job=_job_out(c.execute("SELECT * FROM jobs WHERE id=?", (jid,)).fetchone()), worker=worker_status(c)["running"])
+
+
+@router.get("/api/profiles/{pid}/notify")
+def notify_get(pid: int, user=Depends(require_user)):
+    from . import mailer
+    with db() as c:
+        p, _ = profile_access(c, user, pid)
+        return dict(settings=notify.settings(p), kinds=list(notify.KINDS), mail_enabled=mailer.enabled(c), **notify.state(c, pid))
+
+
+@router.put("/api/profiles/{pid}/notify")
+def notify_put(pid: int, body: dict = Body(...), user=Depends(require_user)):
+    with db() as c:
+        p, _ = profile_access(c, user, pid, "edit")
+        try:
+            s = notify.save_settings(c, p, body)
+        except notify.NotifyError as ex:
+            raise HTTPException(400, str(ex))
+        touch(c, pid, user)
+        return s
+
+
+@router.post("/api/profiles/{pid}/notify/test")
+def notify_test(pid: int, body: dict = Body(...), user=Depends(require_user)):
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        return notify.test(c, pid, body)
 
 
 @router.get("/api/profiles/{pid}/devices/{did}/iperf")

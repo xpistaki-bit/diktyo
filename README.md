@@ -180,6 +180,15 @@ integrations: FRITZ!Box, ASUS, MikroTik (RouterOS and RouterBOOT), UniFi and Oma
 package updates. Devices with an update are marked in the topology, version changes appear in the history, and new
 updates can be reported to Home Assistant. An overview lists problems first.
 
+## Notifications
+
+Integrations → Notifications sends the events of a profile by **e-mail** (via the SMTP settings) and/or **ntfy**
+(push to the phone; ntfy.sh or your own server, optional access token) – independently of Home Assistant. Choose the
+events: device offline/online (optionally infrastructure only), new device, quarantine, firmware update, failed undo
+or schedule, internet slow (speed test below half the line rate), configuration backup failed, integration failing
+(for 15 minutes). Events are bundled into one message at most once a minute; enabling starts from now, without old
+events. "Send test message" checks each channel. The ntfy token is stored encrypted.
+
 ## Speed tests
 
 - **Internet:** "Measure now" in the overview (or Integrations → Speedtest) measures ping, jitter, download and upload

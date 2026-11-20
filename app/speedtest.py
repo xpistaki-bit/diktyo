@@ -225,9 +225,23 @@ def run_job(job_id, log=print):
         res = internet(streams=s["streams"], seconds=s["seconds"], progress=progress)
     with db() as c:
         sid = save(c, j["profile_id"], params.get("kind") or "internet", res, params.get("device_id"), params.get("scheduled"))
+        if (params.get("kind") or "internet") == "internet":
+            line = line_rate(c, j["profile_id"])
+            if line and res["down_bps"] < 0.5 * line:
+                from .scan import runner
+                runner.event(c, j["profile_id"], "speed_slow", None, down=f"{res['down_bps'] / 1e6:.0f} Mbit/s", line=f"{line / 1e6:.0f} Mbit/s")
         c.execute("DELETE FROM speedtests WHERE profile_id=? AND ts<?", (j["profile_id"], _days_ago(KEEP_DAYS)))
     log(f"Messung {sid}: ↓ {res['down_bps'] / 1e6:.1f} Mbit/s ↑ {res['up_bps'] / 1e6:.1f} Mbit/s")
     return dict(id=sid, **{k: res[k] for k in ("down_bps", "up_bps", "ping_ms", "jitter_ms", "server")})
+
+
+def line_rate(c, pid):
+    """Gebuchte/synchronisierte Download-Rate laut Router (FRITZ!Box u. a.) oder None."""
+    for r in c.execute("SELECT state FROM integrations WHERE profile_id=? AND enabled=1 ORDER BY driver<>'fritzbox', id", (pid,)):
+        w = (json.loads(r["state"] or "{}").get("result") or {}).get("wan") or {}
+        if w.get("max_down"):
+            return w["max_down"]
+    return None
 
 
 def _days_ago(n):

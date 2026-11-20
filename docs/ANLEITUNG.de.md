@@ -288,6 +288,30 @@ an echter Hardware.
   Assistant gemeldet werden; ein Versionswechsel steht im Verlauf.
 - *Integrationen → Erreichbarkeit & Firmware* zeigt alles auf einen Blick – Geräte mit Problemen zuerst.
 
+### Benachrichtigungen (E-Mail, ntfy)
+
+*Integrationen → Benachrichtigungen* meldet Ereignisse des Profils per **E-Mail** (über den E-Mail-Versand unter
+*Einstellungen*) und/oder **ntfy** (Push aufs Handy) – unabhängig von Home Assistant.
+
+1. ntfy: die App installieren (Android/iOS) und ein **Thema** abonnieren, z. B. `diktyo-k7x2q9` – bei ntfy.sh kann jeder
+   ein Thema lesen, der den Namen kennt, also einen schwer erratbaren Namen wählen oder einen eigenen ntfy-Server
+   nutzen (dann Server-Adresse und ggf. Zugangstoken eintragen).
+2. In díktyo ntfy und/oder E-Mail einschalten (Empfänger leer = Besitzer des Profils), die gewünschten Ereignisse
+   ankreuzen, *Testnachricht senden*, *Speichern*.
+
+| Ereignis | Wann |
+|---|---|
+| Gerät offline / wieder online | nach der Online-Überwachung (zwei Runden ohne Antwort); wahlweise nur Infrastruktur |
+| Neues Gerät, Quarantäne | wenn der Scan oder eine Integration ein unbekanntes Gerät findet |
+| Firmware-Update | wenn eine Integration ein Update meldet |
+| Zurückschalten / Zeitplan fehlgeschlagen | bei Schaltaktionen |
+| Internet langsam | Speedtest unter der Hälfte der Leitung (laut FRITZ!Box) |
+| Konfigurations-Backup fehlgeschlagen | beim automatischen Backup |
+| Integration gestört | wenn eine Integration seit 15 Minuten nicht mehr antwortet (einmal, bis sie wieder klappt) |
+
+Mehrere Ereignisse werden höchstens einmal pro Minute zu einer Nachricht gebündelt. Beim Einschalten zählen nur neue
+Ereignisse, nicht die bisherigen.
+
 ### Geschwindigkeit messen
 
 - **Internet:** *Jetzt messen* in der Übersicht (oder *Integrationen → Speedtest*) misst Ping, Jitter, Download und

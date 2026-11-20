@@ -80,14 +80,28 @@ def poll(iid, log=print):
         changed = {k: v for k, v in new_state.items() if before.get(k, object()) != v}  # nur Änderungen des Treibers
         new_state = {**json.loads(row["state"] or "{}"), **changed}
         new_state.update(summary=summary, result=_slim(row["driver"], res), ts=time.time())
+        new_state.pop("fail_since", None)
+        new_state.pop("fail_notified", None)
         c.execute("UPDATE integrations SET state=?, last_ok=?, last_error=? WHERE id=?",
                   (json.dumps(new_state, ensure_ascii=False), now(), res.get("warning", ""), iid))
     return summary
 
 
+FAIL_NOTIFY_S = 900  # so lange muss eine Integration gestört sein, bevor eine Meldung rausgeht
+
+
 def _fail(iid, msg):
     with db() as c:
         c.execute("UPDATE integrations SET last_error=? WHERE id=?", (msg[:500], iid))
+        r = c.execute("SELECT * FROM integrations WHERE id=?", (iid,)).fetchone()
+        st = json.loads(r["state"] or "{}")
+        since = st.get("fail_since") or time.time()
+        if not st.get("fail_since"):
+            st["fail_since"] = since
+        if not st.get("fail_notified") and time.time() - since >= FAIL_NOTIFY_S:
+            runner.event(c, r["profile_id"], "integration_failed", r["device_id"], name=r["name"], message=msg[:160])
+            st["fail_notified"] = True
+        c.execute("UPDATE integrations SET state=? WHERE id=?", (json.dumps(st, ensure_ascii=False), iid))
     return None
 
 
@@ -575,7 +589,7 @@ def _publish_ha(c, row, conf):
     msgs.append((f"{disc}/event/diktyo_{pid}_events/config", dict(
         name="Ereignis", unique_id=f"diktyo_{pid}_events", state_topic=f"{base}/event", device=hub, icon="mdi:bell-ring",
         event_types=["device_offline", "device_online", "new_device", "action_undo_failed", "quarantined", "schedule_failed",
-                     "firmware_update"]), True))
+                     "firmware_update", "speed_slow", "backup_failed", "integration_failed"]), True))
     evs = c.execute("SELECT * FROM events WHERE profile_id=? AND delivered='' ORDER BY id LIMIT 200", (pid,)).fetchall()
     for e in evs:
         d = json.loads(e["data"] or "{}")

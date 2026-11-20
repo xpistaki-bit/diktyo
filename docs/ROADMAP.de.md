@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.20.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.21.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt
@@ -32,6 +32,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Stabilität | Verbindungen: genauere Quelle hat Vorrang (kein Wechsel Proxmox ↔ Router mehr); Online-Status: andere Quellen schlagen einen gescheiterten Ping; Scroll-Position bleibt beim Speichern und automatischen Neuladen | 0.18.2 |
 | Geschwindigkeit | Internet-Speedtest (Cloudflare) von Hand oder nach Zeitplan mit Verlauf und Hinweis bei langsamer Leitung; iperf3 zwischen díktyo und einem Gerät | 0.19 |
 | Sicherheit | Anmeldung mit zweitem Faktor (TOTP, QR lokal erzeugt, Wiederherstellungscodes, Einmal-Codes, Versuchsgrenze), Sitzungsverwaltung, Zurücksetzen durch Admin/CLI | 0.20 |
+| Benachrichtigungen | E-Mail und ntfy je Profil, Ereignisse wählbar, gebündelt; neue Ereignisse: Internet langsam, Backup fehlgeschlagen, Integration gestört | 0.21 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan
 
@@ -99,7 +100,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 | TLS-Zertifikate: Warnung vor Ablauf (Daten aus dem Dienste-Scan) | ★★ | S |
 | ~~Speedtest bzw. iperf zwischen Geräten, Verlauf~~ – erledigt in 0.19 (díktyo ↔ Gerät) | ★★ | M |
 | iperf zwischen zwei beliebigen Geräten (per SSH auf einem der beiden), díktyo als iperf3-Gegenstelle für Handy-Apps | ★ | S |
-| Benachrichtigungen auch per E-Mail, ntfy, Telegram (zusätzlich zu Home Assistant) | ★★ | S |
+| ~~Benachrichtigungen per E-Mail und ntfy~~ – erledigt in 0.21 (Telegram/Gotify/Webhook offen) | ★★ | S |
 
 ### Sicherheit
 
@@ -162,8 +163,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 ## 6. Vorschlag für die nächsten Schritte
 
 1. ~~Anmeldung mit zweitem Faktor (TOTP) und Sitzungsverwaltung~~ – erledigt in 0.20.
-2. **Benachrichtigungen per E-Mail und ntfy** (Gerät offline, neues Gerät, Internet langsam, Backup fehlgeschlagen) –
-   unabhängig von Home Assistant. Aufwand S.
+2. ~~Benachrichtigungen per E-Mail und ntfy~~ – erledigt in 0.21.
 3. **Übersicht anpassbar** (Diagramme anheften) und **Verfügbarkeitsbericht als PDF**.
 4. **Quarantäne und Internetsperre auch über OPNsense/MikroTik** (bisher Quarantäne nur über die FRITZ!Box).
 5. Rückmeldungen der Tester (UniFi, MikroTik, OPNsense, Docker) einarbeiten; weitere Integrationen nach Bedarf

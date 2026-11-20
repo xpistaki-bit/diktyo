@@ -90,6 +90,10 @@ def run(iid, interactive=False, totp=None):
             c.execute("UPDATE integrations SET state=? WHERE id=?", (json.dumps(st, ensure_ascii=False), iid))
             return res
         st.update(cfg_try=time.time(), cfg_result=dict(res, ts=now()))
+        if res["status"] == "error" and not interactive:
+            from .scan import runner
+            full = c.execute("SELECT * FROM integrations WHERE id=?", (iid,)).fetchone()
+            runner.event(c, full["profile_id"], "backup_failed", full["device_id"], name=full["name"], message=res.get("message", "")[:160])
         if res["status"] != "error":
             st["cfg_ok"] = now()
         c.execute("UPDATE integrations SET state=? WHERE id=?", (json.dumps(st, ensure_ascii=False), iid))

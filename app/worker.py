@@ -137,6 +137,12 @@ def poller():
             for iid in cfg_due:
                 res = configbackup.run(iid)
                 log(f"Konfigurations-Backup Integration {iid}: {res['status']} {res.get('message', '')}".strip())
+            try:
+                from . import notify
+                for p in profiles:
+                    notify.deliver(p["id"], log)
+            except Exception as ex:  # Benachrichtigungen dürfen den Dienst nicht anhalten
+                log(f"Benachrichtigungen: {type(ex).__name__}: {ex}")
             for p in profiles:
                 ms = monitor.settings(p)
                 if ms["enabled"] and t - last_mon.get(p["id"], 0) >= ms["interval_s"]:

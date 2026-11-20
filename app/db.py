@@ -375,6 +375,14 @@ MIGRATIONS = [
         expires REAL NOT NULL,
         tries INTEGER NOT NULL DEFAULT 0);
     """,
+    # Benachrichtigungen (E-Mail, ntfy): bis zu welchem Ereignis schon verschickt
+    """
+    CREATE TABLE notify_state(
+        profile_id INTEGER PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+        last_id INTEGER NOT NULL DEFAULT 0,
+        last_sent REAL NOT NULL DEFAULT 0,
+        last_error TEXT NOT NULL DEFAULT '');
+    """,
 ]
 
 
