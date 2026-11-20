@@ -360,6 +360,21 @@ MIGRATIONS = [
         scheduled INTEGER NOT NULL DEFAULT 0);
     CREATE INDEX speedtests_profile ON speedtests(profile_id, kind, ts);
     """,
+    # Zweiter Faktor (TOTP) und Sitzungsverwaltung
+    """
+    ALTER TABLE users ADD COLUMN totp_secret TEXT NOT NULL DEFAULT '';
+    ALTER TABLE users ADD COLUMN totp_pending TEXT NOT NULL DEFAULT '';
+    ALTER TABLE users ADD COLUMN totp_last INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE users ADD COLUMN recovery TEXT NOT NULL DEFAULT '[]';
+    ALTER TABLE sessions ADD COLUMN ip TEXT NOT NULL DEFAULT '';
+    ALTER TABLE sessions ADD COLUMN user_agent TEXT NOT NULL DEFAULT '';
+    ALTER TABLE sessions ADD COLUMN last_seen REAL NOT NULL DEFAULT 0;
+    CREATE TABLE login_tickets(
+        token_hash TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        expires REAL NOT NULL,
+        tries INTEGER NOT NULL DEFAULT 0);
+    """,
 ]
 
 

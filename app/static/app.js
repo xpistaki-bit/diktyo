@@ -176,7 +176,11 @@ function viewLogin(mode) {
       ${STATE.registration_open ? `<p class="hint">${t('Noch kein Konto?')} <a href="#/registrieren">${t('Konto anlegen')}</a></p>` : ''}`);
     $('#f').onsubmit = async ev => {
       ev.preventDefault();
-      try { afterAuth((await api('POST', '/api/auth/login', fd(ev.target))).user); } catch (e) { toast(e.message, true); }
+      try {
+        const r = await api('POST', '/api/auth/login', fd(ev.target));
+        if (r.totp_required) return viewTotp(r.ticket);
+        afterAuth(r.user);
+      } catch (e) { toast(e.message, true); }
     };
   }
   const first = $('input', app); first && first.focus();
@@ -308,13 +312,14 @@ async function viewSettings() {
       <div><label>${t('Neues Passwort')}</label><input name="password" type="password" autocomplete="new-password" minlength="${STATE.min_pw}" required placeholder="${h(pwHint())}"></div>
       <div><label>${t('Passwort wiederholen')}</label><input name="password2" type="password" autocomplete="new-password" required></div>
     </div><div class="row" style="margin-top:14px"><button class="pri">${t('Passwort ändern')}</button><span class="muted">${t('Andere Sitzungen werden dabei abgemeldet.')}</span></div></form>
+    <div id="acctsec" style="margin-top:14px"></div>
     ${u.is_admin ? `
     <h2>${t('Konten')}</h2>
     <div class="table-wrap"><table><thead><tr><th>${t('E-Mail-Adresse')}</th><th>${t('Rolle')}</th><th>${t('Profile')}</th><th>${t('Letzte Anmeldung')}</th><th></th></tr></thead><tbody>
       ${ul.users.map(x => `<tr data-uid="${x.id}"><td>${h(x.email)}${x.id === u.id ? ` <span class="muted">(${t('du')})</span>` : ''}</td>
-        <td>${x.is_admin ? `<span class="badge admin">${t('Administrator')}</span>` : `<span class="badge">${t('Benutzer')}</span>`}</td>
+        <td>${x.is_admin ? `<span class="badge admin">${t('Administrator')}</span>` : `<span class="badge">${t('Benutzer')}</span>`}${x.totp ? ` <span class="badge ok" title="${h(t('Zweiter Faktor eingeschaltet'))}">2FA</span>` : ''}</td>
         <td class="mono">${x.profiles}</td><td class="mono">${fmtDate(x.last_login)}</td>
-        <td class="act">${x.id !== u.id ? `<button class="sm" data-admin="${x.is_admin ? 0 : 1}">${x.is_admin ? t('Admin entziehen') : t('Zum Admin machen')}</button><button class="sm" data-newpw>${t('Neues Passwort')}</button><button class="sm danger" data-deluser>${t('Löschen')}</button>` : ''}</td></tr>`).join('')}
+        <td class="act">${x.id !== u.id ? `<button class="sm" data-admin="${x.is_admin ? 0 : 1}">${x.is_admin ? t('Admin entziehen') : t('Zum Admin machen')}</button><button class="sm" data-newpw>${t('Neues Passwort')}</button>${x.totp ? `<button class="sm" data-reset2fa>${t('2FA zurücksetzen')}</button>` : ''}<button class="sm danger" data-deluser>${t('Löschen')}</button>` : ''}</td></tr>`).join('')}
     </tbody></table></div>
     <div class="row" style="margin-top:12px"><button class="pri" data-adduser>${t('+ Konto anlegen')}</button>
       <label class="chk" style="margin:0"><input type="checkbox" id="regopen" ${st.registration_open ? 'checked' : ''}> ${t('Selbstregistrierung erlauben')}</label></div>
@@ -336,6 +341,7 @@ async function viewSettings() {
     <h2>${t('Sicherung')}</h2><div id="backup"></div>` : ''}
   </div>`;
 
+  accountSecurity($('#acctsec', app));
   $('#pw').onsubmit = async ev => {
     ev.preventDefault(); const v = fd(ev.target);
     if (v.password !== v.password2) return toast(t('Die Passwörter stimmen nicht überein'), true);
@@ -349,6 +355,10 @@ async function viewSettings() {
   $$('[data-newpw]', app).forEach(b => b.onclick = async () => {
     if (!await confirmDlg(t('Neues Passwort'), t('Für {e} wird ein neues Passwort erzeugt. Alle Sitzungen dieses Kontos werden abgemeldet.', { e: h(emailOf(b)) }), t('Erzeugen'))) return;
     try { const r = await api('PUT', `/api/users/${uidOf(b)}`, { new_password: true }); await showSecret(t('Neues Passwort'), emailOf(b), r.password); } catch (e) { toast(e.message, true); }
+  });
+  $$('[data-reset2fa]', app).forEach(b => b.onclick = async () => {
+    if (!await confirmDlg(t('2FA zurücksetzen'), t('Den zweiten Faktor von {e} ausschalten (z. B. Handy verloren)? Alle Sitzungen dieses Kontos werden abgemeldet; danach meldet es sich nur mit Passwort an und kann den zweiten Faktor neu einrichten.', { e: h(emailOf(b)) }), t('Zurücksetzen'))) return;
+    try { await api('PUT', `/api/users/${uidOf(b)}`, { reset_2fa: true }); toast(t('gespeichert')); reload(); } catch (e) { toast(e.message, true); }
   });
   $$('[data-deluser]', app).forEach(b => b.onclick = async () => {
     if (!await confirmDlg(t('Konto löschen'), t('{e} endgültig löschen? Profile, deren einziger Besitzer dieses Konto ist, gehen an dich über.', { e: h(emailOf(b)) }), t('Löschen'))) return;

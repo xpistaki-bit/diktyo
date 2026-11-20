@@ -36,10 +36,12 @@ def rate_limit(key, limit=10, window=900):
         raise HTTPException(429, "Zu viele Versuche. Bitte einige Minuten warten.")
 
 
-def start_session(c, response, uid):
+def start_session(c, response, uid, request=None):
     tok, th = security.new_token()
-    c.execute("INSERT INTO sessions(token_hash, user_id, created, expires) VALUES(?,?,?,?)",
-              (th, uid, time.time(), time.time() + SESSION_DAYS * 86400))
+    ip = client_ip(request) if request is not None else ""
+    ua = (request.headers.get("user-agent", "") if request is not None else "")[:200]
+    c.execute("INSERT INTO sessions(token_hash, user_id, created, expires, ip, user_agent, last_seen) VALUES(?,?,?,?,?,?,?)",
+              (th, uid, time.time(), time.time() + SESSION_DAYS * 86400, ip, ua, time.time()))
     c.execute("UPDATE users SET last_login=? WHERE id=?", (now(), uid))
     response.set_cookie(COOKIE, tok, httponly=True, samesite="lax", max_age=SESSION_DAYS * 86400, path="/")
 
@@ -48,10 +50,16 @@ def current_user(request: Request):
     tok = request.cookies.get(COOKIE)
     if not tok:
         return None
+    th = security.sha256(tok)
     with db() as c:
-        r = c.execute("SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash=? AND s.expires>?",
-                      (security.sha256(tok), time.time())).fetchone()
-    return users.public(r)
+        r = c.execute("SELECT u.*, s.last_seen AS s_seen FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash=? AND s.expires>?",
+                      (th, time.time())).fetchone()
+        if r and time.time() - (r["s_seen"] or 0) > 300:  # „zuletzt aktiv“ der Sitzung, höchstens alle 5 Minuten schreiben
+            c.execute("UPDATE sessions SET last_seen=? WHERE token_hash=?", (time.time(), th))
+    u = users.public(r)
+    if u:
+        u["sid"] = th[:16]
+    return u
 
 
 def require_user(request: Request):

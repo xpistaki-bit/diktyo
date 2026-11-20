@@ -58,6 +58,20 @@ Der Container nutzt das Host-Netzwerk (für den Netzscan), Port und Zeitzone ste
 (z. B. ASUS im Router-Modus hinter der FRITZ!Box), sieht der Scan das FRITZ!Box-Netz nur per Ping/TCP. Die Namen fragt
 díktyo dann beim DNS des Subnetzes ab (Gateway bzw. DNS-Angabe im IPAM), die MAC-Adressen liefert die FRITZ!Box-Integration.
 
+### Konto absichern: zweiter Faktor und Sitzungen
+
+díktyo speichert Zugangsdaten für Router, Switches und Server und kann Ports abschalten – deshalb lohnt sich der
+**zweite Faktor**: *Einstellungen → Mein Konto → Zweiter Faktor → Einrichten*, Passwort eingeben, QR-Code mit einer
+Authenticator-App scannen (Aegis, 2FAS, Google Authenticator, Bitwarden …) und den Code bestätigen. Danach zeigt díktyo
+einmalig **10 Wiederherstellungscodes** – sicher aufbewahren, jeder ersetzt einmal den Code aus der App.
+
+- Anmeldung: erst Passwort, dann der 6-stellige Code (oder ein Wiederherstellungscode). Jeder Code gilt nur einmal,
+  nach 5 falschen Codes beginnt die Anmeldung von vorn.
+- *Angemeldete Sitzungen* listet alle Browser mit Adresse und letzter Aktivität; einzelne oder alle anderen lassen sich
+  abmelden. Ein neues Passwort meldet alle anderen Sitzungen ab.
+- **Handy verloren:** Ein Administrator setzt den zweiten Faktor in der Kontenliste zurück (*2FA zurücksetzen*), oder
+  auf dem Server: `diktyo reset-2fa deine@adresse.de` (Docker: `docker compose exec diktyo python -m app.cli reset-2fa …`).
+
 ### Übersicht
 
 Beim Öffnen eines Profils erscheint die **Übersicht**: Geräte online/offline, Internet mit aktuellem Traffic,
@@ -425,3 +439,4 @@ pveum acl modify / --tokens 'diktyo@pve!diktyo' --roles DiktyoPower
 | ASUS meldet dich ständig ab | Abfrageintervall der ASUS-Integration erhöhen |
 | Uhrzeit falsch | Update ausführen (übernimmt die Zeitzone des Proxmox-Hosts) |
 | Passwort vergessen | Im Container: `diktyo reset-password deine@adresse.de` |
+| Authenticator-App weg, keine Wiederherstellungscodes | Admin: *Einstellungen → Konten → 2FA zurücksetzen*; oder im Container `diktyo reset-2fa deine@adresse.de` |

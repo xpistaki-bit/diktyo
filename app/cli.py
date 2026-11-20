@@ -33,6 +33,8 @@ def main(argv=None):
     p.add_argument("state", choices=["on", "off"])
     p = sub.add_parser("delete-user", help="Konto löschen (Profile gehen an einen Administrator über)")
     p.add_argument("email")
+    p = sub.add_parser("reset-2fa", help="zweiten Faktor eines Kontos ausschalten (z. B. Handy verloren)")
+    p.add_argument("email")
     a = ap.parse_args(argv)
 
     migrate()
@@ -57,6 +59,12 @@ def main(argv=None):
                 u = need(c, a.email)
                 users.set_admin(c, u["id"], a.state == "on")
                 print(f"{u['email']} ist {'jetzt' if a.state == 'on' else 'nicht mehr'} Administrator.")
+            elif a.cmd == "reset-2fa":
+                from . import twofa
+                u = need(c, a.email)
+                twofa.disable(c, u["id"])
+                c.execute("DELETE FROM sessions WHERE user_id=?", (u["id"],))
+                print(f"Zweiter Faktor für {u['email']} ausgeschaltet, alle Sitzungen abgemeldet. Anmeldung jetzt nur mit Passwort.")
             elif a.cmd == "delete-user":
                 u = need(c, a.email)
                 heir = c.execute("SELECT id FROM users WHERE is_admin=1 AND id<>? ORDER BY id LIMIT 1", (u["id"],)).fetchone()

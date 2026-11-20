@@ -371,8 +371,14 @@ become the owner, and members whose e-mail address exists keep their role.
 
 ## Security
 
-- Passwords are stored as scrypt hashes. Stored secrets (SMTP, backup targets, later device credentials) are
+- Passwords are stored as scrypt hashes. Stored secrets (SMTP, backup targets, device credentials, SSH key) are
   encrypted with a key in `/var/lib/diktyo/secret.key`. The key is never included in backups.
+- **Second factor (TOTP):** Settings → My account → Second factor. Scan the QR code with an authenticator app, confirm
+  a code and keep the 10 recovery codes. Sign-in then asks for the code after the password (each code works once,
+  5 attempts per sign-in). The QR code is generated locally. Lost phone: an administrator resets it in the account
+  list, or on the server `diktyo reset-2fa <email>`.
+- **Sessions:** Settings → My account lists signed-in browsers (address, last activity); sign out single sessions or
+  all others.
 - The app speaks plain HTTP and is meant for the local network. Put a reverse proxy with TLS in front if needed.
 
 ## Technology

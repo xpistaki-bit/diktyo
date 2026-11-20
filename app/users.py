@@ -34,7 +34,9 @@ def check_new_pw(pw):
 def public(r):
     if r is None:
         return None
-    return dict(id=r["id"], email=r["email"], is_admin=bool(r["is_admin"]), lang=r["lang"], created=r["created"], last_login=r["last_login"])
+    keys = r.keys()
+    return dict(id=r["id"], email=r["email"], is_admin=bool(r["is_admin"]), lang=r["lang"], created=r["created"], last_login=r["last_login"],
+                totp=bool(r["totp_secret"]) if "totp_secret" in keys else False)
 
 
 def by_email(c, email):

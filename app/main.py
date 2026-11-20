@@ -2,12 +2,13 @@
 import pathlib
 import re
 import threading
+import time
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import catalog, mailer, routes_actions, routes_backup, routes_catalog, routes_integrations, routes_inventory, routes_scan, routes_speed, security, users
+from . import catalog, mailer, twofa, routes_actions, routes_backup, routes_catalog, routes_integrations, routes_inventory, routes_scan, routes_speed, security, users
 from .scan import ident
 from .auth import (COOKIE, ROLES, client_ip, current_user, lang_of, profile_access, rate_limit, require_admin, require_user,
                    start_session, text, touch)
@@ -78,7 +79,7 @@ def register(request: Request, response: Response, body: dict = Body(...)):
             raise HTTPException(403, "Die Registrierung ist geschlossen. Bitte einen Administrator um ein Konto bitten.")
         u = users.create(c, body.get("email"), body.get("password"), is_admin=first)
         c.execute("UPDATE users SET lang=? WHERE id=?", (lang_of(request), u["id"]))
-        start_session(c, response, u["id"])
+        start_session(c, response, u["id"], request)
         return dict(user=users.public(c.execute("SELECT * FROM users WHERE id=?", (u["id"],)).fetchone()))
 
 
@@ -90,9 +91,117 @@ def login(request: Request, response: Response, body: dict = Body(...)):
         ok = security.check_pw(body.get("password") or "", u["pw_hash"] if u else security.DUMMY_HASH)
         if not u or not ok:
             raise HTTPException(401, "E-Mail-Adresse oder Passwort ist falsch")
-        start_session(c, response, u["id"])
+        if twofa.enabled(u):  # zweiter Schritt: Code aus der Authenticator-App
+            return dict(totp_required=True, ticket=twofa.new_ticket(c, u["id"]))
+        start_session(c, response, u["id"], request)
         users.cleanup(c)
+        audit(c, "auth.login", u["id"], None, dict(ip=client_ip(request)))
         return dict(user=users.public(u))
+
+
+@app.post("/api/auth/login/totp")
+def login_totp(request: Request, response: Response, body: dict = Body(...)):
+    rate_limit(f"totp:{client_ip(request)}", 20)
+    err = None
+    with db() as c:
+        try:
+            u, kind = twofa.use_ticket(c, body.get("ticket"), body.get("code"))
+        except twofa.TwoFAError as ex:
+            err = str(ex)  # Fehlversuch zählt: erst nach dem Speichern melden
+        else:
+            start_session(c, response, u["id"], request)
+            users.cleanup(c)
+            audit(c, "auth.login", u["id"], None, dict(ip=client_ip(request), factor=kind))
+            left = twofa.recovery_left(c.execute("SELECT * FROM users WHERE id=?", (u["id"],)).fetchone())
+            return dict(user=users.public(u), recovery_used=kind == "recovery", recovery_left=left)
+    raise HTTPException(401, err)
+
+
+# ------------------------------------------------------------------ Zweiter Faktor und Sitzungen (eigenes Konto)
+def _me(c, user):
+    return c.execute("SELECT * FROM users WHERE id=?", (user["id"],)).fetchone()
+
+
+def _check_pw(row, pw):
+    if not security.check_pw(pw or "", row["pw_hash"]):
+        raise HTTPException(400, "Das Passwort stimmt nicht")
+
+
+@app.get("/api/auth/2fa")
+def twofa_state(user=Depends(require_user)):
+    with db() as c:
+        r = _me(c, user)
+        return dict(enabled=twofa.enabled(r), recovery_left=twofa.recovery_left(r))
+
+
+@app.post("/api/auth/2fa/setup")
+def twofa_setup(body: dict = Body(...), user=Depends(require_user)):
+    with db() as c:
+        r = _me(c, user)
+        _check_pw(r, body.get("password"))
+        if twofa.enabled(r):
+            raise HTTPException(400, "Der zweite Faktor ist schon eingeschaltet")
+        return twofa.start_setup(c, user["id"], user["email"])
+
+
+@app.post("/api/auth/2fa/enable")
+def twofa_enable(request: Request, body: dict = Body(...), user=Depends(require_user)):
+    rate_limit(f"totp-setup:{user['id']}", 10)
+    with db() as c:
+        try:
+            codes = twofa.finish_setup(c, _me(c, user), body.get("code"))
+        except twofa.TwoFAError as ex:
+            raise HTTPException(400, str(ex))
+        audit(c, "auth.2fa_on", user["id"], None, dict(ip=client_ip(request)))
+        return dict(enabled=True, recovery=codes)
+
+
+@app.post("/api/auth/2fa/disable")
+def twofa_disable(request: Request, body: dict = Body(...), user=Depends(require_user)):
+    rate_limit(f"totp-off:{user['id']}", 10)
+    err = None
+    with db() as c:
+        r = _me(c, user)
+        _check_pw(r, body.get("password"))
+        if not twofa.verify_user(c, r, body.get("code")):
+            err = "Code falsch"
+        else:
+            twofa.disable(c, user["id"])
+            audit(c, "auth.2fa_off", user["id"], None, dict(ip=client_ip(request)))
+            return dict(enabled=False)
+    raise HTTPException(400, err)
+
+
+@app.post("/api/auth/2fa/recovery")
+def twofa_recovery(body: dict = Body(...), user=Depends(require_user)):
+    with db() as c:
+        r = _me(c, user)
+        _check_pw(r, body.get("password"))
+        if not twofa.enabled(r):
+            raise HTTPException(400, "Der zweite Faktor ist nicht eingeschaltet")
+        return dict(recovery=twofa.regenerate_recovery(c, user["id"]))
+
+
+@app.get("/api/auth/sessions")
+def sessions_list(user=Depends(require_user)):
+    with db() as c:
+        rows = c.execute("SELECT * FROM sessions WHERE user_id=? AND expires>? ORDER BY last_seen DESC, created DESC", (user["id"], time.time())).fetchall()
+    return dict(sessions=[dict(id=r["token_hash"][:16], created=r["created"], last_seen=r["last_seen"] or r["created"], ip=r["ip"],
+                               user_agent=r["user_agent"], current=r["token_hash"][:16] == user["sid"]) for r in rows])
+
+
+@app.delete("/api/auth/sessions/{sid}")
+def sessions_delete(sid: str, user=Depends(require_user)):
+    """sid = Sitzung abmelden; „others“ = alle außer der aktuellen."""
+    with db() as c:
+        if sid == "others":
+            n = c.execute("DELETE FROM sessions WHERE user_id=? AND substr(token_hash, 1, 16)<>?", (user["id"], user["sid"])).rowcount
+        else:
+            if len(sid) != 16 or sid == user["sid"]:
+                raise HTTPException(400, "Die aktuelle Sitzung bitte über „Abmelden“ beenden")
+            n = c.execute("DELETE FROM sessions WHERE user_id=? AND substr(token_hash, 1, 16)=?", (user["id"], sid)).rowcount
+        audit(c, "auth.sessions_revoked", user["id"], None, dict(count=n))
+    return dict(removed=n)
 
 
 @app.post("/api/auth/logout")
@@ -138,13 +247,13 @@ def reset(request: Request, body: dict = Body(...)):
 
 
 @app.post("/api/auth/password")
-def change_password(response: Response, body: dict = Body(...), user=Depends(require_user)):
+def change_password(request: Request, response: Response, body: dict = Body(...), user=Depends(require_user)):
     with db() as c:
         r = c.execute("SELECT pw_hash FROM users WHERE id=?", (user["id"],)).fetchone()
         if not security.check_pw(body.get("current") or "", r["pw_hash"]):
             raise HTTPException(400, "Das aktuelle Passwort stimmt nicht")
         users.set_password(c, user["id"], body.get("password"), actor=user["id"])
-        start_session(c, response, user["id"])  # alle anderen Sitzungen wurden abgemeldet
+        start_session(c, response, user["id"], request)  # alle anderen Sitzungen wurden abgemeldet
     return dict(ok=True)
 
 
@@ -189,6 +298,10 @@ def user_update(uid: int, body: dict = Body(...), admin=Depends(require_admin)):
         if body.get("new_password"):
             pw = security.generate_password()
             users.set_password(c, uid, pw, actor=admin["id"])
+        if body.get("reset_2fa") and uid != admin["id"]:  # ausgesperrt (Handy verloren): zweiten Faktor zurücksetzen
+            twofa.disable(c, uid)
+            c.execute("DELETE FROM sessions WHERE user_id=?", (uid,))
+            audit(c, "auth.2fa_reset", admin["id"], None, dict(user=uid))
         return dict(users=_user_list(c), password=pw)
 
 

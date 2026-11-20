@@ -436,3 +436,9 @@ textarea.mono.small{font-size:12px}
 .speed-now b{font-size:17px;color:var(--cyan)}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 14px}
 @media (max-width:700px){.grid3{grid-template-columns:1fr}}
+
+/* ---- Zweiter Faktor ---- */
+.totp-setup{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:start}
+.totp-setup .qr svg{width:190px;height:190px;border-radius:6px;display:block}
+.secret.recovery{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 18px;font-family:var(--mono)}
+@media (max-width:600px){.totp-setup{grid-template-columns:1fr}}

@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.19.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.20.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt
@@ -31,6 +31,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Switch | nur echte Frontports (logische Schnittstellen, Bridge-Tabelle, Katalog), Port-Farben nach Geschwindigkeit, SSH-Backup mit Schlüssel (díktyo-Schlüssel oder eigener) und wählbarem Abruf; Online-Überwachung tolerant gegen einzelne verlorene Pings | 0.18.1 |
 | Stabilität | Verbindungen: genauere Quelle hat Vorrang (kein Wechsel Proxmox ↔ Router mehr); Online-Status: andere Quellen schlagen einen gescheiterten Ping; Scroll-Position bleibt beim Speichern und automatischen Neuladen | 0.18.2 |
 | Geschwindigkeit | Internet-Speedtest (Cloudflare) von Hand oder nach Zeitplan mit Verlauf und Hinweis bei langsamer Leitung; iperf3 zwischen díktyo und einem Gerät | 0.19 |
+| Sicherheit | Anmeldung mit zweitem Faktor (TOTP, QR lokal erzeugt, Wiederherstellungscodes, Einmal-Codes, Versuchsgrenze), Sitzungsverwaltung, Zurücksetzen durch Admin/CLI | 0.20 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan
 
@@ -106,7 +107,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 |---|---|---|
 | ~~Neue unbekannte Geräte automatisch in „Quarantäne“~~ – erledigt in 0.13 | ★★★ | S |
 | ~~Vergleich offener Ports über die Zeit~~ – im Verlauf seit 0.14 | ★★ | S |
-| Anmeldung an díktyo mit 2FA (TOTP) oder Passkey, Sitzungsverwaltung | ★★★ | M |
+| ~~Anmeldung an díktyo mit 2FA (TOTP), Sitzungsverwaltung~~ – erledigt in 0.20; Passkeys (WebAuthn) und „2FA für alle Pflicht“ offen | ★★★ | M |
 | Audit-Log-Ansicht in der Oberfläche | ★ | S |
 
 ### Dokumentation
@@ -160,9 +161,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 
 ## 6. Vorschlag für die nächsten Schritte
 
-1. **Anmeldung mit zweitem Faktor (TOTP)** und Sitzungsverwaltung: díktyo speichert inzwischen Zugangsdaten für Router,
-   Switch und Proxmox, einen SSH-Schlüssel und den Claude-API-Schlüssel und kann Ports abschalten – ein Passwort allein
-   ist dafür zu wenig. Aufwand M.
+1. ~~Anmeldung mit zweitem Faktor (TOTP) und Sitzungsverwaltung~~ – erledigt in 0.20.
 2. **Benachrichtigungen per E-Mail und ntfy** (Gerät offline, neues Gerät, Internet langsam, Backup fehlgeschlagen) –
    unabhängig von Home Assistant. Aufwand S.
 3. **Übersicht anpassbar** (Diagramme anheften) und **Verfügbarkeitsbericht als PDF**.
