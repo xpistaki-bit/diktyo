@@ -44,6 +44,19 @@ async def _check(targets, concurrency=64):
     return out
 
 
+def seen_by_others(c, pid, grace):
+    """Geräte, die eine andere Quelle als der Ping (FRITZ!Box, Router, SNMP, Scan …) innerhalb von grace Sekunden online sah."""
+    import time as _t
+    return {r["device_id"] for r in c.execute("""SELECT s.device_id FROM device_seen s JOIN devices d ON d.id=s.device_id
+                                                  WHERE d.profile_id=? AND s.source<>'ping' AND s.ts>?""", (pid, _t.time() - grace))}
+
+
+def settings_of(pid):
+    with db() as c:
+        r = c.execute("SELECT * FROM profiles WHERE id=?", (pid,)).fetchone()
+    return settings(r) if r else dict(DEFAULTS)
+
+
 def run(pid):
     with db() as c:
         rows = c.execute("""SELECT d.id, d.data, a.address FROM devices d JOIN ip_addresses a ON a.device_id=d.id
@@ -57,12 +70,19 @@ def run(pid):
     res = asyncio.run(_check(targets))
     ts = now()
     from . import metrics
+    grace = max(600, 3 * settings_of(pid)["interval_s"])
     with db() as c:
         was = {r["id"]: r["online"] for r in c.execute("SELECT id, online FROM devices WHERE profile_id=?", (pid,))}
+        # Andere Quellen, die das Gerät gerade erst gesehen haben: dann ist es online, auch wenn der Ping nicht durchkommt
+        # (z. B. Gerät hinter NAT oder einer Firewall, die ICMP verwirft)
+        others = seen_by_others(c, pid, grace)
         for did, (ok, _) in res.items():
             if ok:
                 _misses.pop(did, None)
                 runner._set_online(c, did, 1, ts, "ping")
+                continue
+            if did in others:
+                _misses.pop(did, None)
                 continue
             _misses[did] = _misses.get(did, 0) + 1
             # war es online, erst nach mehreren Runden ohne Antwort als offline melden (einzelne verlorene Pings bei WLAN)

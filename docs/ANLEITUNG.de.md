@@ -253,7 +253,13 @@ an echter Hardware.
 - *Integrationen → Online-Überwachung:* alle bestätigten Geräte werden alle 30 s, 1 min oder 5 min gepingt. Antwortet
   ein Gerät nicht, prüft díktyo einen bekannten offenen Port (sonst 80) und pingt noch einmal mit mehr Geduld. Ein
   Gerät, das online war, gilt erst nach **zwei Runden ohne Antwort** als offline – WLAN-Geräte im Stromsparmodus
-  (z. B. Shellys) verschlucken gern einen einzelnen Ping.
+  (z. B. Shellys) verschlucken gern einen einzelnen Ping. Hat eine andere Quelle (FRITZ!Box, Router, SNMP, Scan) das
+  Gerät in den letzten 10 Minuten gesehen, bleibt es online, auch wenn der Ping nicht durchkommt (z. B. Switch hinter
+  NAT oder mit ICMP-Filter).
+- **Verbindungen aus mehreren Integrationen:** Die genauere Angabe gewinnt – „läuft auf Host“ (Proxmox, Docker) oder ein
+  bestimmter Switch-Port vor „WLAN am Access Point“ vor „irgendwo im LAN des Routers“. Erst wenn die genauere Quelle
+  eine Verbindung 30 Minuten lang nicht mehr bestätigt, darf eine ungenauere sie ändern. Von Hand gesetzte Verbindungen
+  haben immer Vorrang.
 - Statuswechsel und neue Geräte erscheinen unter *Letzte Ereignisse* und gehen – falls eingerichtet – an Home Assistant.
 - Messwerte (WAN- und Port-Traffic) werden 2 Tage aufbewahrt, einstellbar bis 14 (*Einstellungen → Erkennung*).
 

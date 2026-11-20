@@ -364,8 +364,10 @@ def quick_ping(pid: int, body: dict = Body(default={}), user=Depends(require_use
     rtt = {did: r for did, (ok, r) in full.items() if ok and r is not None}
     ts = now()
     with db() as c:
+        others = monitor.seen_by_others(c, pid, max(600, 3 * monitor.settings_of(pid)["interval_s"]))
         for did, ok in res.items():
-            runner._set_online(c, did, 1 if ok else 0, ts, "ping")
+            if ok or did not in others:  # von einer anderen Quelle gerade gesehen: Ping kommt nur nicht durch
+                runner._set_online(c, did, 1 if ok else 0, ts, "ping")
     with db() as c:
         from . import metrics
         metrics.put(c, pid, {f"d{did}:rtt": v for did, v in rtt.items()}, unit="ms")

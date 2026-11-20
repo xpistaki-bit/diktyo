@@ -38,7 +38,9 @@ function dialog(title, html, { ok = t('Speichern'), onOk, onOpen, wide, danger }
     const d = $('#dlg'), f = $('#dlgform');
     d.classList.toggle('wide', !!wide);
     f.innerHTML = `<h3>${h(title)}</h3><div class="c">${html}</div><div class="dlg-err" role="alert"></div><div class="f"><button type="button" data-x>${ok ? t('Abbrechen') : t('Schließen')}</button>${ok ? `<button class="${danger ? 'danger' : 'pri'}" type="submit">${h(ok)}</button>` : ''}</div>`;
-    const close = v => { d.close(); f.onsubmit = null; res(v); };
+    const sc = document.querySelector('main'), y0 = sc ? sc.scrollTop : 0;
+    // beim Schließen gibt der Browser den Fokus an den auslösenden Knopf zurück und scrollt dorthin – Position halten
+    const close = v => { d.close(); if (sc) sc.scrollTop = y0; f.onsubmit = null; res(v); };
     $('[data-x]', f).onclick = () => close(null);
     d.oncancel = () => res(null);
     f.onsubmit = async ev => {
@@ -222,7 +224,7 @@ function profileDialog(title, p, ok, save) {
 }
 
 const TABS = [['uebersicht', 'Übersicht'], ['geraete', 'Geräte'], ['topologie', 'Topologie'], ['verlauf', 'Verlauf'], ['posteingang', 'Posteingang'], ['netzscan', 'Netzscan'], ['integrationen', 'Integrationen'], ['ipam', 'IPAM'], ['standorte', 'Standorte'], ['ausgabe', 'Ausgabe'], ['freigabe', 'Freigabe']];
-async function viewProfile(pid, tab, sub) {
+async function viewProfile(pid, tab, sub, keep = null) {
   if (!TABS.some(x => x[0] === tab)) tab = 'uebersicht';
   let r;
   try { r = await api('GET', `/api/profiles/${pid}`); } catch (e) {
@@ -249,8 +251,16 @@ async function viewProfile(pid, tab, sub) {
     if (!await confirmDlg(t('Profil löschen'), t('Profil „{n}“ mit allen Daten endgültig löschen?', { n: h(p.name) }), t('Löschen'))) return;
     await api('DELETE', `/api/profiles/${pid}`); toast(t('Profil gelöscht')); location.hash = '#/';
   };
-  const ctx = { pid, p, members: r.members, canEdit, isOwner, sub, el: $('#tab'), reload: () => viewProfile(pid, tab, sub) };
+  // Neu laden (nach dem Speichern, automatische Aktualisierung) ohne Sprung nach oben: Höhe halten, bis Diagramme da sind
+  const scroller = () => document.querySelector('main') || document.scrollingElement;  // gescrollt wird <main>, nicht das Fenster
+  const reload = () => viewProfile(pid, tab, sub, { y: scroller().scrollTop, h: ($('#tab') || {}).offsetHeight || 0 });
+  const ctx = { pid, p, members: r.members, canEdit, isOwner, sub, el: $('#tab'), reload };
+  if (keep) { ctx.el.style.minHeight = keep.h + 'px'; scroller().scrollTop = keep.y; }
   if (tab === 'freigabe') renderSharing(ctx); else await window.INV[tab](ctx);
+  if (keep) {
+    scroller().scrollTop = keep.y;
+    setTimeout(() => { if (document.body.contains(ctx.el)) ctx.el.style.minHeight = ''; }, 2500);
+  }
 }
 
 function renderSharing(ctx) {

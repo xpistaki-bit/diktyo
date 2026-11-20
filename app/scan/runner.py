@@ -188,6 +188,9 @@ def _set_online(c, did, online, ts, source="scan"):
             event(c, r["profile_id"], "device_online" if online else "device_offline", did, name=r["name"], source=source)
     if online:
         c.execute("UPDATE devices SET online=1, last_seen=? WHERE id=?", (ts, did))
+        import time as _t
+        c.execute("INSERT INTO device_seen(device_id, source, ts) VALUES(?,?,?) ON CONFLICT(device_id, source) DO UPDATE SET ts=excluded.ts",
+                  (did, source, _t.time()))
     else:
         c.execute("UPDATE devices SET online=0 WHERE id=?", (did,))
 

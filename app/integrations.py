@@ -174,9 +174,20 @@ def _own_device(c, row, name, model_text="", mac="", typ="other", vendor=""):
     return did
 
 
+STALE_LINK = 1800  # so lange (s) hat eine genauere Verbindung Vorrang, nachdem ihre Quelle sie zuletzt bestätigt hat
+
+
+def _link_rank(medium, has_port):
+    """Wie genau eine Verbindung ist: läuft auf Host / bestimmter Port (3) > WLAN/Mesh am Access Point (2) > irgendwo im LAN (1)."""
+    return 3 if medium == "virtual" or has_port else 2 if medium in ("wlan", "mesh") else 1
+
+
 def set_auto_uplink(c, pid, did, target, medium="lan", port_name=None, port_id=None, local_port_id=None, source="auto"):
-    """Verbindung aus einer Integration setzen. Von Hand gesetzte Verbindungen haben immer Vorrang."""
-    cur = c.execute("""SELECT l.*, bi.device_id AS target FROM links l JOIN interfaces ai ON ai.id=l.a_if JOIN interfaces bi ON bi.id=l.b_if
+    """Verbindung aus einer Integration setzen. Von Hand gesetzte Verbindungen haben immer Vorrang; eine ungenauere Quelle
+    (z. B. Router: „VM hängt im LAN“) überschreibt keine genauere (Proxmox: „VM läuft auf Host“), solange diese sie bestätigt."""
+    import time as _t
+    cur = c.execute("""SELECT l.*, bi.device_id AS target, ai.role AS a_role, bi.role AS b_role FROM links l
+                       JOIN interfaces ai ON ai.id=l.a_if JOIN interfaces bi ON bi.id=l.b_if
                        WHERE ai.device_id=? AND l.uplink=1""", (did,)).fetchone()
     if cur and cur["source"] == "manual":
         return False
@@ -185,8 +196,14 @@ def set_auto_uplink(c, pid, did, target, medium="lan", port_name=None, port_id=N
         port_id = r["id"] if r else None
     b_if = port_id or inventory.nic_of(c, target)["id"]
     a_if = local_port_id or inventory.nic_of(c, did)["id"]
+    ts = _t.time()
     if cur and cur["b_if"] == b_if and cur["a_if"] == a_if and cur["medium"] == medium:
+        if cur["source"] == source or _link_rank(medium, bool(port_id or local_port_id)) >= _link_rank(cur["medium"], "port" in (cur["a_role"], cur["b_role"])):
+            c.execute("UPDATE links SET confirmed=? WHERE id=?", (ts, cur["id"]))  # bestätigt
         return False
+    if cur and cur["source"] != source and ts - (cur["confirmed"] or 0) < STALE_LINK \
+            and _link_rank(cur["medium"], "port" in (cur["a_role"], cur["b_role"])) > _link_rank(medium, bool(port_id or local_port_id)):
+        return False  # genauere Angabe einer anderen Quelle ist noch aktuell
     for iface in {x for x in (port_id, local_port_id) if x}:
         used = c.execute("SELECT 1 FROM links WHERE (a_if=? OR b_if=?) AND NOT (a_if IN (SELECT id FROM interfaces WHERE device_id=?))",
                          (iface, iface, did)).fetchone()
@@ -200,7 +217,7 @@ def set_auto_uplink(c, pid, did, target, medium="lan", port_name=None, port_id=N
         seen.add(x)
         x = inventory._uplink_parent(c, x)
     c.execute("DELETE FROM links WHERE uplink=1 AND a_if IN (SELECT id FROM interfaces WHERE device_id=?)", (did,))
-    c.execute("INSERT INTO links(profile_id, a_if, b_if, medium, uplink, source) VALUES(?,?,?,?,1,?)", (pid, a_if, b_if, medium, source))
+    c.execute("INSERT INTO links(profile_id, a_if, b_if, medium, uplink, source, confirmed) VALUES(?,?,?,?,1,?,?)", (pid, a_if, b_if, medium, source, ts))
     return True
 
 

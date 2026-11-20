@@ -337,6 +337,15 @@ MIGRATIONS = [
         profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
         data TEXT NOT NULL);
     """,
+    # Verbindungen: wann die Quelle sie zuletzt bestätigt hat (Vorrang genauerer Quellen); wer ein Gerät zuletzt online sah
+    """
+    ALTER TABLE links ADD COLUMN confirmed REAL NOT NULL DEFAULT 0;
+    CREATE TABLE device_seen(
+        device_id INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+        source TEXT NOT NULL,
+        ts REAL NOT NULL,
+        PRIMARY KEY(device_id, source));
+    """,
 ]
 
 
