@@ -346,6 +346,20 @@ MIGRATIONS = [
         ts REAL NOT NULL,
         PRIMARY KEY(device_id, source));
     """,
+    # Geschwindigkeitsmessungen (Internet-Speedtest, iperf3) – dauerhaft, unabhängig von den kurzlebigen Messwerten
+    """
+    CREATE TABLE speedtests(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL,
+        device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+        ts TEXT NOT NULL,
+        down_bps REAL, up_bps REAL, ping_ms REAL, jitter_ms REAL,
+        server TEXT NOT NULL DEFAULT '',
+        detail TEXT NOT NULL DEFAULT '{}',
+        scheduled INTEGER NOT NULL DEFAULT 0);
+    CREATE INDEX speedtests_profile ON speedtests(profile_id, kind, ts);
+    """,
 ]
 
 

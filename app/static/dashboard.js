@@ -20,6 +20,7 @@ async function tabOverview(ctx) {
       ...r.failed.map(x => `<li class="bad"><span>⚡</span>${h(t(x.label))}: ${h(x.message || '')}</li>`),
       ...r.firmware.map(x => `<li class="warn"><span>⬆</span><a href="#" data-dev="${x.id}">${h(x.name)}</a>: ${t('Firmware {a} → {b}', { a: h(x.installed || '?'), b: h(x.latest || t('neue Version')) })}</li>`),
       ...(c.inbox ? [`<li class="info"><span>✚</span><a href="#/p/${ctx.pid}/posteingang">${c.inbox === 1 ? t('1 neues Gerät im Posteingang') : t('{n} neue Geräte im Posteingang', { n: c.inbox })}</a></li>`] : []),
+      ...(r.speed?.slow ? [`<li class="warn"><span>⇣</span>${t('Internet langsam: zuletzt ↓ {d}, Leitung ↓ {l}', { d: fmtMbit(r.speed.last.down_bps), l: fmtMbit(r.speed.line_down) })}</li>`] : []),
       ...(c.quarantine ? [`<li class="warn"><span>⛔</span><a href="#/p/${ctx.pid}/integrationen">${t('{n} in Quarantäne', { n: c.quarantine })}</a></li>`] : []),
     ];
     const sm = r.summary;
@@ -38,6 +39,7 @@ async function tabOverview(ctx) {
         <div class="panel"><h3>${t('Braucht Aufmerksamkeit')}</h3>${issues.length ? `<ul class="ov-issues">${issues.slice(0, 14).join('')}</ul>` : `<p class="okc">✓ ${t('Alles in Ordnung.')}</p>`}</div>
         <div class="panel"><div class="row between"><h3 style="margin:0">${w ? h(w.name) + ' · ' + t('WAN-Traffic') : t('WAN-Traffic')}</h3>${rangeButtons(since())}</div>
           ${w ? '<div class="chartbox" data-ch="wan"></div>' : `<p class="muted small">${t('Kommt aus der FRITZ!Box-, ASUS-, UniFi-, MikroTik- oder OPNsense-Integration.')}</p>`}</div>
+        ${speedPanel(r.speed, ctx.canEdit, ctx.pid)}
         <div class="panel"><h3>${t('Antwortzeiten Infrastruktur')}</h3>${r.rtt.length ? '<div class="chartbox" data-ch="rtt"></div>' : `<p class="muted small">${t('Entsteht mit der Online-Überwachung.')}</p>`}</div>
         <div class="panel"><h3>${t('Aktivste Ports')}</h3>${r.ports.length ? r.ports.map((p, i) => `<div class="small"><b>${h(p.device)}</b> · ${t('Port')} ${h(p.name)} · <span class="mono">↓ ${fmtBps(p.out_bps)} ↑ ${fmtBps(p.in_bps)}</span></div><div class="chartbox" data-ch="port${i}"></div>`).join('')
           : `<p class="muted small">${t('Kommt aus Switch- (SNMP), MikroTik- oder OPNsense-Integrationen.')}</p>`}</div>
@@ -65,6 +67,7 @@ async function tabOverview(ctx) {
         ...r.ports.map((p, i) => drawChart($(`[data-ch=port${i}]`, box), ctx.pid, p.keys, [t('empfangen'), t('gesendet')], s, { height: 90 })),
       ]);
     };
+    bindSpeedRun(ctx, box, () => render());
     $$('[data-range]', box).forEach(b => b.onclick = () => { tabOverview.since = +b.dataset.range; $$('[data-range]', box).forEach(x => x.classList.toggle('on', x === b)); charts(); });
     await charts();
     const ov = $('#ov', ctx.el);

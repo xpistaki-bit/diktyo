@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.18.2 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.19.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt
@@ -30,6 +30,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Traffic je Gerät | Live-Raten je Client aus Omada, UniFi, MikroTik, OPNsense und Proxmox in Topologie (auch Gruppen), Gerätedialog und Übersicht („Gerade aktiv“); bebilderte Einstiegsanleitung (DE/EN); Anzeigefehler Port-Ansicht und Übersicht behoben | 0.18 |
 | Switch | nur echte Frontports (logische Schnittstellen, Bridge-Tabelle, Katalog), Port-Farben nach Geschwindigkeit, SSH-Backup mit Schlüssel (díktyo-Schlüssel oder eigener) und wählbarem Abruf; Online-Überwachung tolerant gegen einzelne verlorene Pings | 0.18.1 |
 | Stabilität | Verbindungen: genauere Quelle hat Vorrang (kein Wechsel Proxmox ↔ Router mehr); Online-Status: andere Quellen schlagen einen gescheiterten Ping; Scroll-Position bleibt beim Speichern und automatischen Neuladen | 0.18.2 |
+| Geschwindigkeit | Internet-Speedtest (Cloudflare) von Hand oder nach Zeitplan mit Verlauf und Hinweis bei langsamer Leitung; iperf3 zwischen díktyo und einem Gerät | 0.19 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan
 
@@ -44,13 +45,19 @@ der technische Aufbau in [architecture.md](architecture.md).
 
 ## 3. An echter Hardware noch zu testen
 
-| Integration | Stand | Wer |
+| Integration / Funktion | Stand | Wer |
 |---|---|---|
-| UniFi | nach offizieller OpenAPI gebaut, gegen nachgebildeten Controller getestet | Tester |
-| MikroTik | nach REST-Doku gebaut, gegen nachgebildete RouterOS-API getestet | Tester |
-| Omada | nach Open-API-Doku gebaut, gegen nachgebildeten Controller getestet | offen |
+| UniFi (inkl. Live-Raten je Client über stat/sta) | nach offizieller OpenAPI gebaut, gegen nachgebildeten Controller getestet | Tester |
+| MikroTik (inkl. Live-Raten: WLAN-Registrierungen, Kid Control) | nach REST-Doku gebaut, gegen nachgebildete RouterOS-API getestet | Tester |
+| Omada (inkl. Live-Raten je Client) | nach Open-API-Doku gebaut, gegen nachgebildeten Controller getestet | offen |
+| OPNsense (inkl. Top Talkers), Docker | gegen nachgebildete APIs getestet | Tester |
+| Proxmox: Live-Raten je VM | gegen nachgebildete API getestet | Nutzer (Proxmox vorhanden) |
+| iperf3 zu einem Gerät | gegen nachgebildete iperf3-Ausgabe getestet | Nutzer |
 | Switch-Aktionen (SNMP-SET) | gegen Test-Agent getestet; Zyxel mit Schreibrechten offen | Tester |
 | Proxmox-Aktionen | gebaut, Token mit `VM.PowerMgmt` offen | Tester |
+
+Am echten Gerät bestätigt: FRITZ!Box (inkl. 2FA, Backup, Schaltaktionen), ASUS EBM68 (Traffic Monitor/Analyzer),
+Zyxel XGS1935 (SNMP v3, Port-Filter, SSH-Backup mit díktyo-Schlüssel), Proxmox (Gäste), Internet-Speedtest.
 
 Offene Punkte aus den Tests: Bei UniFi ist die Einheit der WAN-Rate (Bit/Byte) nicht dokumentiert; bei MikroTik
 heißen WLAN-Felder je Paket (wifi, wifiwave2, wireless) leicht unterschiedlich.
@@ -89,7 +96,8 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 | ~~Latenz je Gerät, Ausfallzeiten/Verfügbarkeit~~ – erledigt in 0.15 (Bericht als PDF noch offen) | ★★★ | M |
 | ~~Hinweise auf Firmware-Updates~~ – erledigt in 0.15 (Zyxel-Switch per SNMP liefert dazu nichts) | ★★★ | M |
 | TLS-Zertifikate: Warnung vor Ablauf (Daten aus dem Dienste-Scan) | ★★ | S |
-| Speedtest bzw. iperf zwischen Geräten, Verlauf | ★★ | M |
+| ~~Speedtest bzw. iperf zwischen Geräten, Verlauf~~ – erledigt in 0.19 (díktyo ↔ Gerät) | ★★ | M |
+| iperf zwischen zwei beliebigen Geräten (per SSH auf einem der beiden), díktyo als iperf3-Gegenstelle für Handy-Apps | ★ | S |
 | Benachrichtigungen auch per E-Mail, ntfy, Telegram (zusätzlich zu Home Assistant) | ★★ | S |
 
 ### Sicherheit
@@ -152,7 +160,12 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 
 ## 6. Vorschlag für die nächsten Schritte
 
-1. Rückmeldungen der Tester (UniFi, MikroTik, OPNsense, Docker) einarbeiten.
-2. **Übersicht anpassbar** (Diagramme anheften) und **Verfügbarkeitsbericht als PDF**.
-3. **Quarantäne und Internetsperre auch über OPNsense/MikroTik** (bisher Quarantäne nur über die FRITZ!Box).
-4. Weitere Integrationen nach Bedarf (Pi-hole/AdGuard, NAS-Systeme, OpenWrt).
+1. **Anmeldung mit zweitem Faktor (TOTP)** und Sitzungsverwaltung: díktyo speichert inzwischen Zugangsdaten für Router,
+   Switch und Proxmox, einen SSH-Schlüssel und den Claude-API-Schlüssel und kann Ports abschalten – ein Passwort allein
+   ist dafür zu wenig. Aufwand M.
+2. **Benachrichtigungen per E-Mail und ntfy** (Gerät offline, neues Gerät, Internet langsam, Backup fehlgeschlagen) –
+   unabhängig von Home Assistant. Aufwand S.
+3. **Übersicht anpassbar** (Diagramme anheften) und **Verfügbarkeitsbericht als PDF**.
+4. **Quarantäne und Internetsperre auch über OPNsense/MikroTik** (bisher Quarantäne nur über die FRITZ!Box).
+5. Rückmeldungen der Tester (UniFi, MikroTik, OPNsense, Docker) einarbeiten; weitere Integrationen nach Bedarf
+   (Pi-hole/AdGuard, NAS-Systeme, OpenWrt).

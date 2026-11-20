@@ -430,3 +430,9 @@ i.lg.sp-slow{background:rgba(255,159,28,.35);border-color:#FF9F1C} i.lg.sp-fast{
 
 .sshpub textarea{width:100%;resize:vertical;word-break:break-all}
 textarea.mono.small{font-size:12px}
+
+/* ---- Geschwindigkeitsmessungen ---- */
+.speed-now{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px;font-size:14px}
+.speed-now b{font-size:17px;color:var(--cyan)}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 14px}
+@media (max-width:700px){.grid3{grid-template-columns:1fr}}

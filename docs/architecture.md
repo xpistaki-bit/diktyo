@@ -89,6 +89,7 @@ Phase 2:
 | P2.14 | OPNsense and Docker integrations | done (0.16.0), not yet tested on real hardware |
 | P2.15 | overview page, throughput in the topology | done (0.17.0) |
 | P2.15a | ASUS traffic monitor (netdev) and traffic analyzer per client, ASUS diagnose | done (0.17.1) |
+| P3.2 | speed tests: internet (Cloudflare, scheduled, history, slow-line hint) and iperf3 to a device | done (0.19.0) |
 | P2.16 | live traffic per client (Omada, UniFi stat/sta, MikroTik registrations/Kid Control, OPNsense top talkers, Proxmox guests) in topology, device dialog and overview; illustrated getting-started guide | done (0.18.0), client rates not yet tested on real hardware |
  Phase 3: change history between scans, cable and patch-panel documentation,
 Prometheus endpoint, REST API with tokens.

@@ -46,6 +46,11 @@ def enqueue_scheduled():
             c.execute("INSERT INTO jobs(profile_id, kind, params, created) VALUES(?, 'scan', ?, ?)",
                       (p["id"], json.dumps(dict(scheduled=True, mode=s["mode"], targets=runner.resolve_targets(c, p["id"], s))), now()))
             log(f"geplanter Scan für Profil {p['id']} eingereiht")
+        from . import speedtest
+        for p in c.execute("SELECT * FROM profiles").fetchall():
+            if speedtest.due(c, p):
+                speedtest.enqueue(c, p["id"], "internet", scheduled=True)
+                log(f"geplante Internet-Messung für Profil {p['id']} eingereiht")
 
 
 def next_job():
@@ -65,6 +70,9 @@ def run_job(j):
         elif j["kind"] == "services":
             from .scan import services
             res = services.run(j["id"], log)
+        elif j["kind"] == "speedtest":
+            from . import speedtest
+            res = speedtest.run_job(j["id"], log)
         else:
             raise RuntimeError(f"unbekannter Auftrag {j['kind']}")
         with db() as c:

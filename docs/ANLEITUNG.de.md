@@ -274,6 +274,19 @@ an echter Hardware.
   Assistant gemeldet werden; ein Versionswechsel steht im Verlauf.
 - *Integrationen → Erreichbarkeit & Firmware* zeigt alles auf einen Blick – Geräte mit Problemen zuerst.
 
+### Geschwindigkeit messen
+
+- **Internet:** *Jetzt messen* in der Übersicht (oder *Integrationen → Speedtest*) misst Ping, Jitter, Download und
+  Upload des díktyo-Rechners gegen `speed.cloudflare.com`: mehrere parallele Verbindungen für einige Sekunden je
+  Richtung, höchstens 600 MB herunter und 150 MB hoch je Messung. Unter *Automatisch messen* lässt sich alle 3, 6, 12
+  oder 24 Stunden messen (voreingestellt: aus). Der Verlauf bleibt zwei Jahre, die Übersicht zeigt ihn als Diagramm
+  und meldet unter *Braucht Aufmerksamkeit*, wenn der Download unter die Hälfte der Leitung fällt, die die FRITZ!Box
+  meldet. Gemessen wird díktyos Weg ins Internet – steht díktyo hinter einem weiteren Router (z. B. ASUS hinter der
+  FRITZ!Box), zählt dessen Anbindung mit.
+- **iperf3 zu einem Gerät:** im Gerätedialog *Durchsatz messen (iperf3)*. Auf dem Gerät muss ein iperf3-Server laufen
+  (`iperf3 -s`, Port 5201; z. B. NAS, Proxmox-Host, Linux-Rechner). díktyo misst in beide Richtungen und führt den
+  Verlauf je Gerät. Der Installer bringt den iperf3-Client mit (ab 0.19; er läuft nicht als Server).
+
 ## 6. Topologie
 
 - Gesamtbaum von links nach rechts mit Port-Namen an den Linien; WLAN-Geräte und VMs sind zu aufklappbaren Gruppen

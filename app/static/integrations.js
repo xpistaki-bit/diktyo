@@ -162,6 +162,7 @@ async function tabIntegrations(ctx) {
           <button class="pri" data-add="mikrotik">${t('+ MikroTik')}</button><button class="pri" data-add="opnsense">${t('+ OPNsense')}</button>
           <button class="pri" data-add="docker">${t('+ Docker')}</button></div>` : ''}</div>
     </div>
+    <div id="speedbox" style="margin-top:16px"></div>
     <div id="ints" class="stack" style="margin-top:16px">${r.integrations.map(i => `<div class="panel integ" data-id="${i.id}">
         <div class="row between"><div class="row"><span class="dot ${st(i)}"></span><b>${h(i.name)}</b><span class="muted mono small">${h(i.host)}</span>
           ${i.name !== drv[i.driver]?.name ? `<span class="badge">${h(drv[i.driver]?.name || i.driver)}</span>` : ''}${i.enabled ? '' : `<span class="badge">${t('pausiert')}</span>`}</div>
@@ -232,6 +233,7 @@ async function tabIntegrations(ctx) {
   { const sb = document.createElement('div'); sb.className = 'panel'; sb.style.marginTop = '16px'; sb.innerHTML = `<h3>${t('Zeitpläne')}</h3><div></div>`; ctx.el.appendChild(sb); scheduleList(ctx, sb.lastElementChild); }
   { const box = document.createElement('div'); box.id = 'recentact'; box.style.marginTop = '16px'; ctx.el.appendChild(box); recentActions(ctx, box); }
   clearTimeout(tabIntegrations.timer);
+  speedSettings(ctx, $('#speedbox', ctx.el));
   tabIntegrations.timer = setTimeout(() => { if (document.body.contains(ctx.el) && location.hash.endsWith('/integrationen') && !$('#dlg').open) ctx.reload(); }, 60000);
   void since;
 }

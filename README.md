@@ -180,6 +180,17 @@ integrations: FRITZ!Box, ASUS, MikroTik (RouterOS and RouterBOOT), UniFi and Oma
 package updates. Devices with an update are marked in the topology, version changes appear in the history, and new
 updates can be reported to Home Assistant. An overview lists problems first.
 
+## Speed tests
+
+- **Internet:** "Measure now" in the overview (or Integrations → Speedtest) measures ping, jitter, download and upload
+  of the díktyo host against `speed.cloudflare.com` – parallel connections for a few seconds per direction, at most
+  600 MB down and 150 MB up per run. Optionally automatic every 3, 6, 12 or 24 hours. The history is kept for two
+  years, shown as a chart, and the overview warns when the download falls below half of the line rate reported by the
+  router (FRITZ!Box). The result covers díktyo's path to the internet, including any router in between.
+- **iperf3 to a device:** in the device dialog, "Measure throughput (iperf3)" measures both directions between díktyo
+  and a device running an iperf3 server (`iperf3 -s`, port 5201), with history per device. The installer includes the
+  iperf3 client (it is not started as a server).
+
 ## History
 
 The **History** tab shows what changed when and why: devices added or removed, name, type, status, model, location, IP

@@ -17,8 +17,10 @@ APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=25 -o Acquire::https::
 echo "==> [1/4] Updating package lists"
 apt-get "${APT_OPTS[@]}" update
 echo "==> [2/4] Installing system packages"
-apt-get "${APT_OPTS[@]}" install -y --no-install-recommends \
-  python3 python3-venv python3-pip ca-certificates curl rclone libcairo2 fonts-dejavu-core iputils-ping iproute2 nmap
+# iperf3 nur als Client (Durchsatzmessung zu Geräten), nicht als dauerhaft laufender Server
+echo "iperf3 iperf3/start_daemon boolean false" | debconf-set-selections 2>/dev/null || true
+DEBIAN_FRONTEND=noninteractive apt-get "${APT_OPTS[@]}" install -y --no-install-recommends \
+  python3 python3-venv python3-pip ca-certificates curl rclone libcairo2 fonts-dejavu-core iputils-ping iproute2 nmap iperf3
 python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' || { echo "Python 3.11 or newer is required."; exit 1; }
 
 id diktyo >/dev/null 2>&1 || useradd --system --create-home --home-dir /var/lib/diktyo --shell /usr/sbin/nologin diktyo

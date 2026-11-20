@@ -153,7 +153,7 @@ async function deviceDialog(ctx, did) {
     <label>${t('Tags (durch Komma getrennt)')}</label><input name="tags" value="${h((v.tags || []).join(', '))}" ${dis}>
     ${d && d.ports.length ? portTable(d) : ''}
     ${d && d.configs?.length ? configTable(d) : ''}
-    ${d && d.ips?.length ? `<div id="svcbox">${servicesBox(d, ctx.canEdit)}</div>` : ''}
+    ${d && d.ips?.length ? `<div id="svcbox">${servicesBox(d, ctx.canEdit)}</div><div id="iperfbox"></div>` : ''}
     ${d && ctx.isOwner ? '<div id="actbox"></div>' : ''}
     ${d ? '<div id="healthbox"></div><div id="histbox"></div>' : ''}
     ${d && d.connected.length ? `<h4>${t('Verbundene Geräte')} (${d.connected.length})</h4><div class="table-wrap"><table class="compact"><thead><tr><th>${t('Name')}</th><th>${t('Verbindung')}</th><th>${t('IP')}</th><th>${t('MAC')}</th></tr></thead><tbody>
@@ -170,6 +170,7 @@ async function deviceDialog(ctx, did) {
       $$('[data-dl]', f).forEach(a => { a.href = `${P}/configs/${a.dataset.dl}/download`; a.setAttribute('download', ''); });
       $$('[data-diff]', f).forEach(b => b.onclick = () => showDiff(ctx.pid, b.dataset.diff, b.dataset.prev));
       if (d && $('#svcbox', f)) bindServices(ctx, d, $('#svcbox', f));
+      if (d && $('#iperfbox', f)) iperfBox(ctx, d, $('#iperfbox', f));
       if (d && $('#actbox', f)) actionsBox(ctx, d.id, $('#actbox', f));
       if (d && $('#healthbox', f)) deviceHealth(ctx, d.id, $('#healthbox', f));
       if (d && $('#histbox', f)) deviceHistory(ctx, d.id, $('#histbox', f));
