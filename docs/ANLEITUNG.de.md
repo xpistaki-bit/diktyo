@@ -251,6 +251,18 @@ sich zwischen zwei Ständen geändert hat.
 díktyo liest Schnittstellen (Status, Adressen, Traffic), Clients aus DHCP-Leases und ARP, WAN-Status und -Traffic
 (Internet-Leitung in der Topologie) und den Firmware-Stand.
 
+### Shelly / Tasmota (direkt, ohne Cloud)
+
+- *+ Shelly / Tasmota*, unter *Adressen* „auto“ lassen: díktyo fragt alle Geräte ab, die der Netzscan als Shelly oder
+  Tasmota erkannt hat, und probiert ESP-Module von Espressif (tragen oft Tasmota). Weitere IPs mit Komma ergänzen,
+  z. B. `auto, 192.168.50.40`. Was nicht antwortet, wird einige Stunden übersprungen.
+- Unterstützt: Shelly Gen1, Gen2/3/4 (z. B. Pro 3EM, 1PM Mini Gen3, Plus-Serie) und Tasmota. Ist am Gerät eine
+  Anmeldung eingeschaltet, Passwort eintragen (Shelly Gen2+: Benutzer `admin`).
+- Die Karte zeigt jedes Gerät mit Ausgängen (an/aus), Leistung, Energie, WLAN-Signal und Firmware (mit Update-Hinweis);
+  im Gerätedialog stehen Leistung, Energie, Spannung und der Leistungsverlauf als Diagramm.
+- *Aktionen* im Gerätedialog: Ausgang ein/aus (mit automatischem Zurückschalten) und *Firmware aktualisieren*, wenn
+  das Gerät ein Update meldet. Vorsicht bei Steckdosen, an denen Server oder Netzwerktechnik hängen.
+
 ### Docker
 
 Den Docker-Socket nie direkt freigeben, sondern auf dem Docker-Host einen **Socket-Proxy** starten, der nur das Nötige
@@ -404,6 +416,9 @@ Topologie-Seitenleiste und in der Frontplatte beim angeklickten Port:
 | MikroTik | Port ab-/einschalten, PoE neu starten, WLAN ein/aus, Wake-on-LAN, Neustart | Benutzergruppe mit write, reboot, test |
 | OPNsense | Internetzugang je Gerät (über den Alias), Neustart | Alias + Block-Regel, Recht *Firewall: Alias: Edit* |
 | Docker | Container starten, stoppen, neu starten | Socket-Proxy mit POST und ALLOW_* |
+| UniFi | verwaltetes Gerät (Gateway, Switch, AP) neu starten; PoE an einem Switch-Port neu starten | API-Schlüssel mit Schreibrecht |
+| Omada | verwaltetes Gerät neu starten; PoE an einem Switch-Port ein/aus (mit Zurückschalten) und neu starten | Open-API-App mit Schreibrecht (Rolle Administrator) |
+| Shelly / Tasmota | Ausgang ein/aus (mit Zurückschalten), Firmware aktualisieren | ggf. Passwort der Geräte in der Integration |
 
 - Vor jeder Aktion kommt eine **Vorschau mit Bestätigung**. Bei WLAN, Internetsperre und Switch-Port lässt sich
   **automatisch zurückschalten** (nach 15 min, 1 h, 2 h oder morgen um 6:00) – praktisch etwa für eine Internetpause.

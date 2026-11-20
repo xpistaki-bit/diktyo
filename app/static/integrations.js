@@ -11,6 +11,12 @@ Object.assign(DRIVER_HELP, {
 });
 // Schritt-für-Schritt-Hinweise oben im Dialog
 const DRIVER_STEPS = {
+  shelly: [
+    'Unter <b>Adressen</b> „auto“ lassen: díktyo nimmt alle Geräte, die der Netzscan als Shelly oder Tasmota erkannt hat (und ESP-Module von Espressif). Weitere IPs mit Komma ergänzen.',
+    'Shelly: Die lokale HTTP-Schnittstelle ist ab Werk an. Ist am Shelly „Authentifizierung“ eingeschaltet, hier das Passwort eintragen (Gen2+: Benutzer <b>admin</b>).',
+    'Tasmota: läuft ohne Einstellung; ist ein Web-Passwort gesetzt, Benutzer <b>admin</b> und das Passwort eintragen.',
+    'díktyo liest Leistung, Energie, Ausgänge und Firmware. Schalten und Firmware-Update gibt es im Gerätedialog unter „Aktionen“.',
+  ],
   fritzbox: [
     'Adresse der FRITZ!Box eintragen, meist <b>192.168.178.1</b>.',
     'In der FRITZ!Box unter <b>Heimnetz → Netzwerk → Netzwerkeinstellungen</b> „Zugriff für Anwendungen zulassen“ einschalten.',
@@ -125,6 +131,9 @@ const fmtBpsShort = v => {
 /* Geschwindigkeitsklasse eines Ports mit Link (Mbit/s): unter 1 Gbit/s langsam, ab 2,5 Gbit/s schnell */
 const speedCls = mbps => !mbps ? '' : mbps < 1000 ? 'sp-slow' : mbps >= 2500 ? 'sp-fast' : '';
 const fmtLink = mbps => !mbps ? '' : mbps >= 1000 ? (mbps / 1000).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE') + ' Gbit/s' : mbps + ' Mbit/s';
+const fmtW = v => v == null || isNaN(v) ? '–' : Math.abs(v) >= 1000
+  ? `${(v / 1000).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: 2 })} kW`
+  : `${(+v).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: v < 10 ? 1 : 0 })} W`;
 const fmtBytes = v => {
   if (v == null || isNaN(v)) return '–';
   const u = [[1e12, 'TB'], [1e9, 'GB'], [1e6, 'MB'], [1e3, 'kB']].find(([f]) => v >= f) || [1, 'B'];
@@ -160,7 +169,7 @@ async function tabIntegrations(ctx) {
           <button class="pri" data-add="asuswrt">${t('+ ASUS (AiMesh)')}</button><button class="pri" data-add="proxmox">${t('+ Proxmox')}</button><button class="pri" data-add="homeassistant">${t('+ Home Assistant')}</button>
           <button class="pri" data-add="omada">${t('+ Omada')}</button><button class="pri" data-add="unifi">${t('+ UniFi')}</button>
           <button class="pri" data-add="mikrotik">${t('+ MikroTik')}</button><button class="pri" data-add="opnsense">${t('+ OPNsense')}</button>
-          <button class="pri" data-add="docker">${t('+ Docker')}</button></div>` : ''}</div>
+          <button class="pri" data-add="docker">${t('+ Docker')}</button><button class="pri" data-add="shelly">${t('+ Shelly / Tasmota')}</button></div>` : ''}</div>
     </div>
     <div class="grid-out" style="margin-top:16px"><div id="speedbox"></div><div id="notifybox"></div></div>
     <div id="ints" class="stack" style="margin-top:16px">${r.integrations.map(i => `<div class="panel integ" data-id="${i.id}">
@@ -173,7 +182,7 @@ async function tabIntegrations(ctx) {
         ${i.can_backup ? `<p class="small cfgline"><b>${t('Konfiguration')}:</b> ${i.cfg_ok ? t('zuletzt gesichert {d}', { d: h(ago(i.cfg_ok)) }) : t('noch nicht gesichert')}
           ${i.cfg_result?.status === 'error' ? ` · <span class="${i.cfg_result.second_factor ? 'warnc' : 'errtxt'}">${h(t(i.cfg_result.message))}</span>` : i.cfg_result?.status === 'unchanged' ? ` · <span class="muted">${t('unverändert')}</span>` : ''}
           ${ctx.canEdit ? `<button class="sm" data-cfg>${t('Konfiguration sichern')}</button>` : ''}</p>` : ''}
-        ${i.driver === 'fritzbox' ? fritzCard(i) : i.driver === 'snmp' ? snmpCard(i) : i.driver === 'asuswrt' ? asusCard(i) : i.driver === 'proxmox' ? pveCard(i) : ['omada', 'unifi'].includes(i.driver) ? ctrlCard(i) : ['mikrotik', 'opnsense'].includes(i.driver) ? mtCard(i) : i.driver === 'docker' ? dockerCard(i) : haCard(i)}
+        ${i.driver === 'fritzbox' ? fritzCard(i) : i.driver === 'snmp' ? snmpCard(i) : i.driver === 'asuswrt' ? asusCard(i) : i.driver === 'proxmox' ? pveCard(i) : ['omada', 'unifi'].includes(i.driver) ? ctrlCard(i) : ['mikrotik', 'opnsense'].includes(i.driver) ? mtCard(i) : i.driver === 'docker' ? dockerCard(i) : i.driver === 'shelly' ? shellyCard(i) : haCard(i)}
       </div>`).join('') || `<div class="panel empty-box">${t('Noch keine Integration. Füge deine FRITZ!Box hinzu – das geht auch ohne Passwort.')}</div>`}</div>
     <h2>${t('Letzte Ereignisse')}</h2><div id="events"></div>`;
   api('GET', `${P}/events?limit=15`).then(({ events }) => {
@@ -215,7 +224,7 @@ async function tabIntegrations(ctx) {
       if (!await confirmDlg(t('Integration löschen'), t('„{n}“ löschen? Die Geräte bleiben erhalten, die Messwerte werden gelöscht.', { n: h(i.name) }), t('Löschen'))) return;
       await api('DELETE', `${P}/integrations/${i.id}`); ctx.reload();
     };
-    const dv = $('[data-dev]', card); if (dv) dv.onclick = ev => { ev.preventDefault(); deviceDialog(ctx, +dv.dataset.dev); };
+    $$('[data-dev]', card).forEach(dv => dv.onclick = ev => { ev.preventDefault(); deviceDialog(ctx, +dv.dataset.dev); });
     const ch = $('.chartbox', card);
     if (ch) {
       const wanChart = ['fritzbox', 'unifi', 'asuswrt'].includes(i.driver);
@@ -508,6 +517,37 @@ async function recentActions(ctx, el) {
   $$('[data-cu]', el).forEach(b => b.onclick = async () => { await api('DELETE', `/api/profiles/${ctx.pid}/actions/${b.dataset.cu}/undo`); recentActions(ctx, el); });
 }
 
+function shellyCard(i) {
+  const r = i.result || {}, devs = r.devices || [];
+  const total = devs.reduce((a, d) => a + (d.power_w || 0), 0);
+  const byMac = Object.fromEntries((i.devices_by_mac || []).map(x => [x.mac, x]));
+  return `<div class="kv"><span>${t('Geräte')}: <b>${devs.length}</b></span><span>${t('Leistung zusammen')}: <b class="mono">${fmtW(total)}</b></span></div>
+    ${devs.length ? `<div class="table-wrap"><table class="compact"><thead><tr><th>${t('Gerät')}</th><th>${t('Modell')}</th><th>${t('Ausgänge')}</th><th>${t('Leistung')}</th><th>${t('Energie')}</th><th>${t('WLAN')}</th><th>${t('Firmware')}</th></tr></thead><tbody>
+      ${devs.map(d => `<tr><td>${byMac[d.mac] ? `<a href="#" data-dev="${byMac[d.mac].id}">${h(byMac[d.mac].name)}</a>` : h(d.name || d.ip)} <span class="mono muted small">${h(d.ip)}</span></td>
+        <td class="small">${h(d.kind === 'tasmota' ? 'Tasmota' : `Shelly Gen${d.gen || 1}`)} · ${h(d.model || '')}</td>
+        <td>${(d.channels || []).map(c => `<span class="badge ${c.on ? 'ok' : ''}" title="${h(c.name)}">${c.on ? t('an') : t('aus')}</span>`).join(' ') || '<span class="muted">–</span>'}</td>
+        <td class="mono small">${fmtW(d.power_w)}</td><td class="mono small">${d.energy_kwh != null ? `${d.energy_kwh.toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: 1 })} kWh` : '–'}</td>
+        <td class="mono small">${d.rssi != null ? (d.kind === 'tasmota' ? `${d.rssi} %` : `${d.rssi} dBm`) : '–'}</td>
+        <td class="small"><span class="mono">${h(d.firmware?.installed || '')}</span> ${fwBadge(d.firmware)}</td></tr>`).join('')}</tbody></table></div>`
+    : `<p class="muted small">${t('Noch kein Gerät gefunden. Mit „auto“ zuerst einen Netzscan laufen lassen oder IPs eintragen.')}</p>`}`;
+}
+
+/* Gerätedialog: Leistung eines Shelly/Tasmota mit Verlauf */
+function smartBox(ctx, d, el) {
+  const s = d.smart;
+  if (!s) { el.innerHTML = ''; return; }
+  el.innerHTML = `<h4>${t('Leistung')} <small class="muted">· ${h(s.kind === 'tasmota' ? 'Tasmota' : `Shelly Gen${s.gen || 1}`)}</small></h4>
+    <div class="speed-now"><span>${t('Jetzt')} <b class="mono">${fmtW(s.power_w)}</b></span>
+      ${s.energy_kwh != null ? `<span>${t('Energie gesamt')} <b class="mono">${s.energy_kwh.toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: 2 })} kWh</b></span>` : ''}
+      ${s.voltage ? `<span>${t('Spannung')} <b class="mono">${(+s.voltage).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: 1 })} V</b></span>` : ''}
+      ${(s.channels || []).map(c => `<span>${h(t(c.name))} <b class="${c.on ? 'okc' : 'offc'}">${c.on ? t('an') : t('aus')}</b></span>`).join('')}</div>
+    <div class="row between" style="margin-top:6px"><span class="muted small">${t('Stand {d}', { d: h(fmtDate(s.ts)) })}</span>${rangeButtons(smartBox.since || 86400)}</div>
+    <div class="chartbox" data-power></div>`;
+  const draw = () => drawChart($('[data-power]', el), ctx.pid, [`d${d.id}:power`], [t('Leistung')], smartBox.since || 86400, { fmt: fmtW, height: 110 }).catch(() => { });
+  $$('[data-range]', el).forEach(b => b.onclick = () => { smartBox.since = +b.dataset.range; $$('[data-range]', el).forEach(x => x.classList.toggle('on', x === b)); draw(); });
+  draw();
+}
+
 function dockerCard(i) {
   const r = i.result || {}, info = r.info || {}, cts = r.containers || [];
   return `<div class="kv">${info.version ? `<span>Docker: <b>${h(info.version)}</b></span>` : ''}${info.os ? `<span>${h(info.os)}</span>` : ''}
@@ -609,6 +649,7 @@ async function integrationDialog(ctx, i, drv) {
             : drv.key === 'snmp' ? `${x.name} · ${x.descr}` : drv.key === 'asuswrt' ? `${x.model} · Firmware ${x.firmware} · ${t('{n} Clients', { n: x.clients })} · ${t('{n} Mesh-Knoten', { n: x.nodes })}`
             : drv.key === 'proxmox' ? `Proxmox VE ${x.version} · ${t('{n} VMs und Container', { n: x.guests })}`
             : drv.key === 'opnsense' ? `${x.name || 'OPNsense'} · OPNsense ${x.version} · ${t('{n} Schnittstellen', { n: x.ports })} · ${t('{n} Clients', { n: x.clients })}`
+            : drv.key === 'shelly' ? t('{n} Geräte ({s} Shelly, {t} Tasmota) · zusammen {w}', { n: x.devices, s: x.shelly, t: x.tasmota, w: fmtW(x.power_w) })
             : drv.key === 'docker' ? `Docker ${x.version} · ${h(x.os)} · ${t('{n} von {m} Containern laufen', { n: x.running, m: x.containers })}`
             : drv.key === 'mikrotik' ? `${x.model} · RouterOS ${x.version} · ${t('{n} Ports', { n: x.ports })} · ${t('{n} Clients', { n: x.clients })}${x.wifi ? ' · ' + t('{n} WLAN', { n: x.wifi }) : ''}`
             : ['omada', 'unifi'].includes(drv.key) ? [x.version ? `UniFi Network ${x.version}` : '', `${t('Sites')}: ${x.sites}`, t('{n} Geräte', { n: x.devices }), t('{n} Clients', { n: x.clients })].filter(Boolean).join(' · ')

@@ -53,6 +53,9 @@ def poll(iid, log=print):
     state = json.loads(row["state"] or "{}")
     before = json.loads(row["state"] or "{}")
     conf = conf_of(row)
+    if row["driver"] == "shelly":
+        with db() as c:
+            conf["targets"] = smart_targets(c, row["profile_id"], conf)
     if row["driver"] == "snmp" and row["device_id"]:
         with db() as c:  # Portzahl des Katalogmodells: begrenzt die Frontports (Switches melden oft zusätzliche logische Schnittstellen)
             n = c.execute("SELECT COUNT(*) FROM interfaces WHERE device_id=? AND port_no IS NOT NULL", (row["device_id"],)).fetchone()[0]
@@ -120,6 +123,28 @@ def client_rates(res):
     return out
 
 
+def smart_targets(c, pid, conf):
+    """Shelly/Tasmota: bei „auto“ die IPv4-Adressen aller Geräte, die nach Shelly oder Tasmota aussehen (Name, Hersteller,
+    Modell, Erkennung) oder ein ESP-Modul von Espressif sind (tragen oft Tasmota)."""
+    import ipaddress
+    if "auto" not in str(conf.get("host") or "").lower():
+        return []
+    out = []
+    for r in c.execute("""SELECT d.id, d.name, d.manufacturer, d.model, d.hostname, d.data, a.address FROM devices d
+                          JOIN ip_addresses a ON a.device_id=d.id WHERE d.profile_id=? AND d.status<>'ignored'""", (pid,)):
+        data = json.loads(r["data"] or "{}")
+        seen = data.get("seen") or {}
+        text = " ".join(str(x or "") for x in (r["name"], r["manufacturer"], r["model"], r["hostname"], (data.get("ident") or {}).get("label"),
+                                                seen.get("vendor"), seen.get("hostname"), seen.get("http_title"))).lower()
+        if any(k in text for k in ("shelly", "tasmota", "espressif")) or data.get("smart"):
+            try:
+                if ipaddress.ip_address(r["address"]).version == 4 and r["address"] not in out:
+                    out.append(r["address"])
+            except ValueError:
+                pass
+    return out[:200]
+
+
 def _slim(driver, res):
     """Was die Oberfläche anzeigen soll (ohne die vollständige Hostliste), plus Live-Raten je Client."""
     out = _slim_view(driver, res)
@@ -140,6 +165,9 @@ def _slim_view(driver, res):
                     running=sum(1 for g in res.get("guests", []) if g["running"]))
     if driver == "homeassistant":
         return dict(info=res.get("info"))
+    if driver == "shelly":
+        return dict(info=res.get("info"), devices=[{k: d.get(k) for k in ("ip", "mac", "kind", "gen", "model", "name", "channels", "power_w", "energy_kwh",
+                                                                          "rssi", "voltage", "firmware")} for d in res.get("devices", [])])
     if driver == "docker":
         return dict(info=res.get("info"), containers=[{k: x[k] for k in ("name", "image", "state", "status", "ports", "ips")} for x in res.get("containers", [])])
     if driver in ("mikrotik", "opnsense"):
@@ -759,5 +787,30 @@ def apply_docker(c, row, res):
                 new=new, links=links)
 
 
+def apply_shelly(c, row, res):
+    """Shelly/Tasmota: Geräte zuordnen (MAC, IP) oder neu in den Posteingang, Messwerte, Firmware, Online-Status."""
+    from . import health
+    pid, new = row["profile_id"], 0
+    for x in res.get("devices", []):
+        did = _find_device(c, pid, x.get("mac"), x.get("ip"))
+        vendor = "Shelly" if x["kind"] == "shelly" else "Tasmota"
+        if not did:
+            did = _new_device(c, pid, x.get("name") or f"{vendor} {x.get('model') or ''}".strip(), "iot", x.get("mac", ""), [x["ip"]], "shelly",
+                              x.get("model", ""), vendor)
+            new += 1
+        d = json.loads(c.execute("SELECT data FROM devices WHERE id=?", (did,)).fetchone()["data"] or "{}")
+        d["smart"] = dict(integration=row["id"], ip=x["ip"], kind=x["kind"], gen=x.get("gen"), model=x.get("model", ""), channels=x.get("channels") or [],
+                          power_w=x.get("power_w"), energy_kwh=x.get("energy_kwh"), rssi=x.get("rssi"), voltage=x.get("voltage"), ts=now())
+        c.execute("UPDATE devices SET data=?, manufacturer=CASE WHEN manufacturer='' THEN ? ELSE manufacturer END, "
+                  "model=CASE WHEN model='' THEN ? ELSE model END WHERE id=?", (json.dumps(d, ensure_ascii=False), vendor, x.get("model", ""), did))
+        runner._set_online(c, did, 1, now(), "shelly")
+        if x.get("firmware"):
+            health.apply_firmware(c, pid, did, x["firmware"], "shelly")
+        if x.get("power_w") is not None:
+            metrics.put(c, pid, {f"d{did}:power": x["power_w"]}, unit="W")
+    return dict(devices=len(res.get("devices", [])), new=new, power_w=round(sum(x.get("power_w") or 0 for x in res.get("devices", [])), 1))
+
+
 APPLY = {"fritzbox": apply_fritz, "snmp": apply_snmp, "asuswrt": apply_asus, "proxmox": apply_proxmox, "homeassistant": apply_ha,
-         "omada": apply_controller, "unifi": apply_controller, "mikrotik": apply_mikrotik, "opnsense": apply_mikrotik, "docker": apply_docker}
+         "omada": apply_controller, "unifi": apply_controller, "mikrotik": apply_mikrotik, "opnsense": apply_mikrotik, "docker": apply_docker,
+         "shelly": apply_shelly}

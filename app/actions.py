@@ -78,7 +78,7 @@ def _same_lan(ip, host, c, pid):
 
 
 def _undo_options(kind):
-    return kind in ("wlan", "internet", "port", "poe")
+    return kind in ("wlan", "internet", "port", "poe", "relay")
 
 
 def _act(kind, iid, params, label, detail="", danger=False, blocked=""):
@@ -336,6 +336,26 @@ def available(c, pid, did, port_no=None):
         srow, sdev = _controller_device(c, pid, up_did)
         if srow:
             out += _ctrl_port_actions(c, pid, srow, sdev, up_did, up_port)
+    # Shelly / Tasmota: Ausgänge schalten, Firmware aktualisieren
+    sm = data.get("smart") or {}
+    if sm.get("integration"):
+        row = next((r for r in _integrations(c, pid, "shelly") if r["id"] == sm["integration"]), None)
+        if row:
+            base = dict(ip=sm["ip"], kind=sm["kind"], gen=sm.get("gen") or 1, name=d["name"])
+            mine = "díktyo läuft an diesem Ausgang." if sm["ip"] in own_ips else ""
+            for ch in sm.get("channels") or []:
+                p = dict(base, channel=ch["id"], comp=ch.get("comp", "switch"))
+                lbl = ch["name"] if len(sm["channels"]) > 1 else ""
+                if ch["on"]:
+                    out.append(_act("relay", row["id"], dict(p, on=False), f"{lbl or 'Ausgang'} ausschalten".strip(),
+                                    "Alles, was an diesem Ausgang hängt, verliert den Strom – Vorsicht bei Server, Router oder Switch.", danger=True,
+                                    blocked=mine))
+                else:
+                    out.append(_act("relay", row["id"], dict(p, on=True), f"{lbl or 'Ausgang'} einschalten".strip(), ""))
+            fw = data.get("firmware") or {}
+            if fw.get("update"):
+                out.append(_act("fw_update", row["id"], base, f"Firmware aktualisieren ({fw.get('installed') or '?'} → {fw.get('latest') or 'neu'})",
+                                "Das Gerät lädt die Firmware selbst und startet neu; Ausgänge können dabei kurz schalten.", danger=True))
     # Proxmox-Host: seine Gäste schalten
     px = data.get("proxmox") or {}
     if px.get("node") and not px.get("vmid"):
@@ -389,7 +409,7 @@ def inverse(kind, params):
         return dict(params, block=not params["block"])
     if kind == "port":
         return dict(params, up=not params["up"])
-    if kind == "poe":
+    if kind in ("poe", "relay"):
         return dict(params, on=not params["on"])
     return None
 

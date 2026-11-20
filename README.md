@@ -310,12 +310,21 @@ go into backups only with the backup passphrase.
 Profile owners can switch things through the integrations (device dialog, topology side panel, front panel port):
 Wi-Fi on/off and restart (FRITZ!Box), block/allow internet access and Wake-on-LAN for devices in the FRITZ!Box
 network, switch port off/on and PoE restart (SNMP with write access), start/shut down/restart VMs and containers
-(Proxmox token with `VM.PowerMgmt`). Every action shows a preview and asks for confirmation; Wi-Fi, internet block and
+(Proxmox token with `VM.PowerMgmt`), restart managed devices and PoE restart on switch ports via UniFi and Omada
+(Omada also PoE on/off), Shelly/Tasmota outputs on/off and firmware update. Every action shows a preview and asks for confirmation; Wi-Fi, internet block and
 switch ports can switch back automatically (15 min, 1 h, 2 h, tomorrow 6:00). The configuration is backed up first if
 the last backup is older than an hour. **Schedules** run actions on weekdays and times (with a time window for
 reversible actions, e.g. internet blocked Mon–Fri 22:00–06:30, switching only at the transitions). **Quarantine** blocks
 internet access (FRITZ!Box) for every new device until it is accepted in the inbox. díktyo refuses to disable the switch port it or the router uses to reach the
 switch, does not block infrastructure from the internet and does not shut down its own VM. All actions are logged.
+
+## Shelly / Tasmota
+
+The integration "Shelly / Tasmota" talks to the devices directly (no cloud). With the address "auto" it polls every
+device the network scan recognised as Shelly or Tasmota (plus Espressif ESP modules); further IPs can be added. Shelly
+Gen1, Gen2/3/4 (RPC, digest auth) and Tasmota are detected automatically. díktyo shows outputs, power, energy, Wi-Fi
+signal and firmware (with update hint) per device, keeps the power history as a chart in the device dialog, and offers
+switching outputs (with automatic switch-back) and firmware updates as actions.
 
 ## Device configuration backups
 

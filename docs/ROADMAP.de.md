@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.21.3 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.22.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt
@@ -33,6 +33,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Geschwindigkeit | Internet-Speedtest (Cloudflare) von Hand oder nach Zeitplan mit Verlauf und Hinweis bei langsamer Leitung; iperf3 zwischen díktyo und einem Gerät | 0.19 |
 | Sicherheit | Anmeldung mit zweitem Faktor (TOTP, QR lokal erzeugt, Wiederherstellungscodes, Einmal-Codes, Versuchsgrenze), Sitzungsverwaltung, Zurücksetzen durch Admin/CLI | 0.20 |
 | Benachrichtigungen | E-Mail und ntfy je Profil, Ereignisse wählbar, gebündelt; neue Ereignisse: Internet langsam, Backup fehlgeschlagen, Integration gestört | 0.21 |
+| Aktionen und Shelly | UniFi: Gerät neu starten, PoE-Port neu starten; Omada: Gerät neu starten, PoE ein/aus/neu starten; Shelly/Tasmota direkt: Leistung, Energie, Ausgänge schalten, Firmware | 0.22 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan
 
@@ -51,7 +52,9 @@ der technische Aufbau in [architecture.md](architecture.md).
 |---|---|---|
 | UniFi (inkl. Live-Raten je Client über stat/sta) | nach offizieller OpenAPI gebaut, gegen nachgebildeten Controller getestet | Tester |
 | MikroTik (inkl. Live-Raten: WLAN-Registrierungen, Kid Control) | nach REST-Doku gebaut, gegen nachgebildete RouterOS-API getestet | Tester |
-| Omada (inkl. Live-Raten je Client) | nach Open-API-Doku gebaut, gegen nachgebildeten Controller getestet | offen |
+| Omada (inkl. Live-Raten je Client, Aktionen PoE/Neustart) | nach Open-API-Doku gebaut, gegen nachgebildeten Controller getestet | offen |
+| UniFi-Aktionen (Neustart, PoE-Power-Cycle) | nach Integration-API-Doku gebaut, gegen Nachbildung getestet | Tester |
+| Shelly / Tasmota | gegen nachgebildete Geräte (Gen1, Gen2/3, Tasmota) getestet | Nutzer |
 | OPNsense (inkl. Top Talkers), Docker | gegen nachgebildete APIs getestet | Tester |
 | Proxmox: Live-Raten je VM | gegen nachgebildete API getestet | Nutzer (Proxmox vorhanden) |
 | iperf3 zu einem Gerät | gegen nachgebildete iperf3-Ausgabe getestet | Nutzer |
@@ -78,9 +81,9 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 | ~~Docker~~ – erledigt in 0.16 (Portainer optional später) | ★★ | S |
 | Pi-hole / AdGuard Home: Hostnamen, Blockstatistik je Gerät | ★★ | S |
 | Synology / QNAP / TrueNAS / Unraid: Status, Laufwerke, Dienste | ★★ | M |
-| Shelly / Tasmota direkt: Leistung, Schalten, Firmware | ★ | S |
+| ~~Shelly / Tasmota direkt: Leistung, Schalten, Firmware~~ – erledigt in 0.22 | ★ | S |
 | Netgear-Switches (SNMP-Profile), devolo Powerline | ★ | M |
-| Aktionen für UniFi (Port-Power-Cycle, Neustart) und Omada (PoE, Neustart) | ★★ | S |
+| ~~Aktionen für UniFi (Port-Power-Cycle, Neustart) und Omada (PoE, Neustart)~~ – erledigt in 0.22 (gegen nachgebildete APIs getestet) | ★★ | S |
 | ASUS: Aktionen (Gastnetz, Neustart) und lesbarer Konfig-Vergleich (CFG entschlüsseln) | ★★ | M |
 
 ### Wünsche aus dem Test (neu)
@@ -90,6 +93,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 | ~~Datendurchsatz je Gerät in der Topologie~~ – erledigt in 0.17 (kabelgebunden), 0.17.1 (ASUS-Tagesmenge) und 0.18 (Live-Raten aus Omada, UniFi, MikroTik, OPNsense, Proxmox) | ★★★ | M |
 | ~~Übersichtsseite (Dashboard)~~ – erledigt in 0.17 | ★★★ | M |
 | Übersicht anpassbar: eigene Diagramme anheften (z. B. bestimmter Port, bestimmtes Gerät) | ★★ | S |
+| **Gruppen in der Topologie:** eigene Gruppen („IoT“, „Kameras“, „Kinderzimmer“), die als eigene Box unter ihrem Access Point/Switch erscheinen; alternativ nach Standort oder Tag gruppieren; Schwellwerte fürs automatische Zusammenfassen einstellbar | ★★ | M |
 
 ### Monitoring
 

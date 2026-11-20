@@ -27,11 +27,22 @@ def _names_by_mac(r):
         return [dict(mac=x["mac"], name=x["name"]) for x in c.execute(q, (r["profile_id"], *macs))]
 
 
+def _smart_names(r):
+    """Shelly/Tasmota-Karte: díktyo-Gerät (Name, ID) zu jeder MAC."""
+    st = json.loads(r["state"] or "{}")
+    macs = [x.get("mac") for x in ((st.get("result") or {}).get("devices") or []) if x.get("mac")][:200]
+    if not macs:
+        return []
+    with db() as c:
+        q = f"SELECT i.mac, d.id, d.name FROM interfaces i JOIN devices d ON d.id=i.device_id WHERE d.profile_id=? AND i.mac IN ({','.join('?' * len(macs))})"
+        return [dict(mac=x["mac"], id=x["id"], name=x["name"]) for x in c.execute(q, (r["profile_id"], *macs))]
+
+
 def _out(r):
     st = json.loads(r["state"] or "{}")
     sec = integrations.secrets_of(r)
     return dict(can_backup=configbackup.can_backup(r), cfg_result=st.get("cfg_result"), cfg_ok=st.get("cfg_ok"),
-                devices_by_mac=_names_by_mac(r) if r["driver"] == "asuswrt" else [],
+                devices_by_mac=_names_by_mac(r) if r["driver"] == "asuswrt" else _smart_names(r) if r["driver"] == "shelly" else [],
                 id=r["id"], driver=r["driver"], name=r["name"], host=r["host"], port=r["port"], username=r["username"],
                 options=json.loads(r["options"] or "{}"), secrets={k: security.MASK for k, v in sec.items() if v},
                 password=security.MASK if sec.get("password") else "", device_id=r["device_id"], interval_s=r["interval_s"],
@@ -150,6 +161,9 @@ def test(pid: int, body: dict = Body(...), user=Depends(require_user)):
         old = _get(c, pid, int(body["id"])) if body.get("id") else None
         v = _body(body, old)
     conf = {**v["_options"], **v["_secrets"], "host": v["host"], "port": v["port"], "username": v["username"]}
+    if v["driver"] == "shelly":
+        with db() as c:
+            conf["targets"] = integrations.smart_targets(c, pid, conf)
     try:
         return dict(ok=True, result=DRIVERS[v["driver"]].test(conf))
     except ERRORS as ex:
