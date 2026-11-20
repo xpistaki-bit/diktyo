@@ -251,6 +251,22 @@ sich zwischen zwei Ständen geändert hat.
 díktyo liest Schnittstellen (Status, Adressen, Traffic), Clients aus DHCP-Leases und ARP, WAN-Status und -Traffic
 (Internet-Leitung in der Topologie) und den Firmware-Stand.
 
+### Pi-hole / AdGuard Home
+
+- *+ Pi-hole / AdGuard*, Art wählen, Adresse und Port wie im Browser.
+- **Pi-hole (ab v6):** unter *Einstellungen → Web-Oberfläche/API* ein **App-Passwort** erzeugen und als Passwort
+  eintragen. díktyo hält eine Sitzung offen und nutzt sie weiter (Pi-hole begrenzt gleichzeitige Sitzungen). Pi-hole v5
+  geht mit dem API-Token, liefert aber nur Zusammenfassung und Top-Clients.
+- **AdGuard Home:** Benutzer und Passwort der Weboberfläche. Die Blockierten je Gerät stammen aus den letzten 1000
+  blockierten Einträgen des Abfrage-Protokolls (AdGuard führt dazu keine eigene Statistik).
+- **Hostnamen:** Geräte ohne Hostnamen bekommen den aus Pi-hole/AdGuard (rDNS, DHCP). Geräte im Posteingang mit
+  Platzhalternamen („Espressif .45“) werden umbenannt; selbst vergebene Namen bleiben.
+- **Je Gerät:** Anfragen und Blockierte (24 h) im Gerätedialog und auf der Karte; die Übersicht zeigt Anfragen und
+  Blockierte je Minute als Diagramm und die meistblockierten Geräte.
+- **Aktion** am Pi-hole-Gerät: *Werbeblocker ausschalten* – mit *Zurückschalten nach* z. B. nur für 15 Minuten.
+- Gespeichert werden nur Zahlen je Gerät und die meistblockierten Domains insgesamt, keine besuchten Domains einzelner
+  Geräte.
+
 ### Shelly / Tasmota (direkt, ohne Cloud)
 
 - *+ Shelly / Tasmota*, unter *Adressen* „auto“ lassen: díktyo fragt alle Geräte ab, die der Netzscan als Shelly oder
@@ -419,6 +435,7 @@ Topologie-Seitenleiste und in der Frontplatte beim angeklickten Port:
 | UniFi | verwaltetes Gerät (Gateway, Switch, AP) neu starten; PoE an einem Switch-Port neu starten | API-Schlüssel mit Schreibrecht |
 | Omada | verwaltetes Gerät neu starten; PoE an einem Switch-Port ein/aus (mit Zurückschalten) und neu starten | Open-API-App mit Schreibrecht (Rolle Administrator) |
 | Shelly / Tasmota | Ausgang ein/aus (mit Zurückschalten), Firmware aktualisieren | ggf. Passwort der Geräte in der Integration |
+| Pi-hole / AdGuard Home | Werbeblocker bzw. Schutz aus/ein (mit Zurückschalten) | App-Passwort bzw. Admin-Zugang |
 
 - Vor jeder Aktion kommt eine **Vorschau mit Bestätigung**. Bei WLAN, Internetsperre und Switch-Port lässt sich
   **automatisch zurückschalten** (nach 15 min, 1 h, 2 h oder morgen um 6:00) – praktisch etwa für eine Internetpause.

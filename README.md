@@ -318,6 +318,15 @@ reversible actions, e.g. internet blocked Mon–Fri 22:00–06:30, switching onl
 internet access (FRITZ!Box) for every new device until it is accepted in the inbox. díktyo refuses to disable the switch port it or the router uses to reach the
 switch, does not block infrastructure from the internet and does not shut down its own VM. All actions are logged.
 
+## Pi-hole / AdGuard Home
+
+The integration "Pi-hole / AdGuard Home" reads host names (rDNS, DHCP) and fills in empty host names of devices
+(placeholder names in the inbox are replaced; names you set stay), shows queries and blocked queries per device (device
+dialog, card) and in total, the most blocked domains, and queries/blocked per minute as a chart on the overview. Pi-hole
+v6 uses an app password and keeps one session (Pi-hole limits sessions); Pi-hole v5 works with the API token (summary and
+top clients only); AdGuard Home uses the web login (blocked per client from the recent query log). Action: turn the ad
+blocker/protection off and on, with automatic switch-back. Only numbers per device are stored, no visited domains.
+
 ## Shelly / Tasmota
 
 The integration "Shelly / Tasmota" talks to the devices directly (no cloud). With the address "auto" it polls every

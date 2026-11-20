@@ -154,6 +154,8 @@ async function deviceDialog(ctx, did) {
     ${d && d.ports.length ? portTable(d) : ''}
     ${d && d.configs?.length ? configTable(d) : ''}
     ${d && d.smart ? '<div id="smartbox"></div>' : ''}
+    ${d && d.dns ? `<h4>${t('DNS')} <small class="muted">· ${h(d.dns.source)}</small></h4><p class="small">${t('{q} Anfragen, davon {b} blockiert', { q: fmtInt(d.dns.queries), b: fmtInt(d.dns.blocked) })}${d.dns.pct != null ? ` (${d.dns.pct.toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE')} %)` : ''}
+      ${d.dns.name ? ` · ${t('Name im DNS')}: <span class="mono">${h(d.dns.name)}</span>` : ''} <span class="muted">· ${h(t(d.dns.window || '24 h'))}</span></p>` : ''}
     ${d && d.ips?.length ? `<div id="svcbox">${servicesBox(d, ctx.canEdit)}</div><div id="iperfbox"></div>` : ''}
     ${d && ctx.isOwner ? '<div id="actbox"></div>' : ''}
     ${d ? '<div id="healthbox"></div><div id="histbox"></div>' : ''}

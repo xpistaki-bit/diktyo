@@ -92,6 +92,7 @@ Phase 2:
 | P3.3 | sign-in with TOTP second factor, recovery codes, session management | done (0.20.0) |
 | P3.4 | notifications by e-mail and ntfy (bundled, per-profile event selection, new events) | done (0.21.0) |
 | P3.5 | actions via UniFi/Omada (restart, PoE), Shelly/Tasmota integration (power, switching, firmware) | done (0.22.0), not yet tested on real hardware |
+| P3.6 | Pi-hole / AdGuard Home integration (host names, per-device query stats, blocking toggle) | done (0.23.0) |
 | P3.2 | speed tests: internet (Cloudflare, scheduled, history, slow-line hint) and iperf3 to a device | done (0.19.0) |
 | P2.16 | live traffic per client (Omada, UniFi stat/sta, MikroTik registrations/Kid Control, OPNsense top talkers, Proxmox guests) in topology, device dialog and overview; illustrated getting-started guide | done (0.18.0), client rates not yet tested on real hardware |
  Phase 3: change history between scans, cable and patch-panel documentation,

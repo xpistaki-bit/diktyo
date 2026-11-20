@@ -27,6 +27,17 @@ def _names_by_mac(r):
         return [dict(mac=x["mac"], name=x["name"]) for x in c.execute(q, (r["profile_id"], *macs))]
 
 
+def _dns_names(r):
+    """DNS-Filter-Karte: díktyo-Gerät zu jeder IP."""
+    st = json.loads(r["state"] or "{}")
+    ips = [x.get("ip") for x in ((st.get("result") or {}).get("clients") or []) if x.get("ip")][:60]
+    if not ips:
+        return []
+    with db() as c:
+        q = f"SELECT a.address, d.id, d.name FROM ip_addresses a JOIN devices d ON d.id=a.device_id WHERE d.profile_id=? AND a.address IN ({','.join('?' * len(ips))})"
+        return [dict(ip=x["address"], id=x["id"], name=x["name"]) for x in c.execute(q, (r["profile_id"], *ips))]
+
+
 def _smart_names(r):
     """Shelly/Tasmota-Karte: díktyo-Gerät (Name, ID) zu jeder MAC."""
     st = json.loads(r["state"] or "{}")
@@ -42,7 +53,7 @@ def _out(r):
     st = json.loads(r["state"] or "{}")
     sec = integrations.secrets_of(r)
     return dict(can_backup=configbackup.can_backup(r), cfg_result=st.get("cfg_result"), cfg_ok=st.get("cfg_ok"),
-                devices_by_mac=_names_by_mac(r) if r["driver"] == "asuswrt" else _smart_names(r) if r["driver"] == "shelly" else [],
+                devices_by_mac=_names_by_mac(r) if r["driver"] == "asuswrt" else _smart_names(r) if r["driver"] == "shelly" else _dns_names(r) if r["driver"] == "dnsfilter" else [],
                 id=r["id"], driver=r["driver"], name=r["name"], host=r["host"], port=r["port"], username=r["username"],
                 options=json.loads(r["options"] or "{}"), secrets={k: security.MASK for k, v in sec.items() if v},
                 password=security.MASK if sec.get("password") else "", device_id=r["device_id"], interval_s=r["interval_s"],

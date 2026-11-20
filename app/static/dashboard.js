@@ -40,6 +40,13 @@ async function tabOverview(ctx) {
         <div class="panel"><div class="row between"><h3 style="margin:0">${w ? h(w.name) + ' · ' + t('WAN-Traffic') : t('WAN-Traffic')}</h3>${rangeButtons(since())}</div>
           ${w ? '<div class="chartbox" data-ch="wan"></div>' : `<p class="muted small">${t('Kommt aus der FRITZ!Box-, ASUS-, UniFi-, MikroTik- oder OPNsense-Integration.')}</p>`}</div>
         ${speedPanel(r.speed, ctx.canEdit, ctx.pid)}
+        ${r.dns ? `<div class="panel"><div class="row between"><h3 style="margin:0">${h(r.dns.name)}</h3><a class="small" href="#/p/${ctx.pid}/integrationen">${t('Details')} →</a></div>
+          <div class="speed-now"><span>${t('Anfragen')} <b class="mono">${fmtInt(r.dns.summary.queries)}</b></span><span>${t('blockiert')} <b class="mono">${fmtInt(r.dns.summary.blocked)}</b></span>
+            <span><b class="mono">${(r.dns.summary.pct ?? 0).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE')} %</b></span>
+            ${r.dns.info?.blocking === false ? `<span class="warnc">${t('Filter ausgeschaltet')}</span>` : ''}</div>
+          <div class="chartbox" data-ch="dns"></div>
+          ${r.dns.top.length ? `<p class="small" style="margin:6px 0 2px"><b>${t('Meistblockiert je Gerät')}</b></p>${r.dns.top.map(x => `<div class="small">${x.device_id ? `<a href="#" data-dev="${x.device_id}">${h(x.label)}</a>` : `<span class="mono">${h(x.label)}</span>`}
+            <span class="mono muted"> · ${fmtInt(x.blocked)} ${t('von')} ${fmtInt(x.queries)}</span></div>`).join('')}` : ''}</div>` : ''}
         <div class="panel"><h3>${t('Antwortzeiten Infrastruktur')}</h3>${r.rtt.length ? '<div class="chartbox" data-ch="rtt"></div>' : `<p class="muted small">${t('Entsteht mit der Online-Überwachung.')}</p>`}</div>
         <div class="panel"><h3>${t('Aktivste Ports')}</h3>${r.ports.length ? r.ports.map((p, i) => `<div class="small"><b>${h(p.device)}</b> · ${t('Port')} ${h(p.name)} · <span class="mono">↓ ${fmtBps(p.out_bps)} ↑ ${fmtBps(p.in_bps)}</span></div><div class="chartbox" data-ch="port${i}"></div>`).join('')
           : `<p class="muted small">${t('Kommt aus Switch- (SNMP), MikroTik- oder OPNsense-Integrationen.')}</p>`}</div>
@@ -63,6 +70,7 @@ async function tabOverview(ctx) {
       const s = since();
       return Promise.allSettled([
         w && drawChart($('[data-ch=wan]', box), ctx.pid, w.keys, [t('Download'), t('Upload')], s, { height: 130 }),
+        r.dns && drawChart($('[data-ch=dns]', box), ctx.pid, r.dns.keys, [t('Anfragen/min'), t('blockiert/min')], s, { fmt: v => fmtInt(Math.round(v)), height: 100 }),
         r.rtt.length && drawChart($('[data-ch=rtt]', box), ctx.pid, r.rtt.map(x => x.key), r.rtt.map(x => x.name), s, { fmt: fmtMs, height: 130 }),
         ...r.ports.map((p, i) => drawChart($(`[data-ch=port${i}]`, box), ctx.pid, p.keys, [t('empfangen'), t('gesendet')], s, { height: 90 })),
       ]);

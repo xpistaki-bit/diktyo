@@ -294,7 +294,7 @@ def device_detail(c, pid, did):
     configs = listing(c, pid, did)
     return dict(base, ports=ports, port_groups=data.get("ports", []), connected=sorted(kids, key=lambda x: x["name"].lower()),
                 seen=data.get("seen"), ident_full=data.get("ident"), events=events, integrations=integ, configs=configs,
-                services_scan=data.get("services_scan"), smart=data.get("smart"),
+                services_scan=data.get("services_scan"), smart=data.get("smart"), dns=data.get("dns"),
                 services_job=_services_job(c, pid, did))
 
 

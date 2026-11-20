@@ -11,6 +11,12 @@ Object.assign(DRIVER_HELP, {
 });
 // Schritt-für-Schritt-Hinweise oben im Dialog
 const DRIVER_STEPS = {
+  dnsfilter: [
+    '<b>Pi-hole (ab v6):</b> unter <b>Einstellungen → Web-Oberfläche/API</b> ein <b>App-Passwort</b> erzeugen und hier als Passwort eintragen (das normale Web-Passwort geht auch). Pi-hole v5 nimmt das API-Token.',
+    '<b>AdGuard Home:</b> Benutzer und Passwort der Weboberfläche eintragen.',
+    'Adresse und Port wie im Browser (Pi-hole meist Port 80, AdGuard Home oft 80 oder 3000).',
+    'díktyo übernimmt Hostnamen (nur wo noch keiner steht) und zeigt Anfragen und Blockierte je Gerät. Gespeichert werden nur Zahlen, keine besuchten Domains einzelner Geräte.',
+  ],
   shelly: [
     'Unter <b>Adressen</b> „auto“ lassen: díktyo nimmt alle Geräte, die der Netzscan als Shelly oder Tasmota erkannt hat (und ESP-Module von Espressif). Weitere IPs mit Komma ergänzen.',
     'Shelly: Die lokale HTTP-Schnittstelle ist ab Werk an. Ist am Shelly „Authentifizierung“ eingeschaltet, hier das Passwort eintragen (Gen2+: Benutzer <b>admin</b>).',
@@ -169,7 +175,7 @@ async function tabIntegrations(ctx) {
           <button class="pri" data-add="asuswrt">${t('+ ASUS (AiMesh)')}</button><button class="pri" data-add="proxmox">${t('+ Proxmox')}</button><button class="pri" data-add="homeassistant">${t('+ Home Assistant')}</button>
           <button class="pri" data-add="omada">${t('+ Omada')}</button><button class="pri" data-add="unifi">${t('+ UniFi')}</button>
           <button class="pri" data-add="mikrotik">${t('+ MikroTik')}</button><button class="pri" data-add="opnsense">${t('+ OPNsense')}</button>
-          <button class="pri" data-add="docker">${t('+ Docker')}</button><button class="pri" data-add="shelly">${t('+ Shelly / Tasmota')}</button></div>` : ''}</div>
+          <button class="pri" data-add="docker">${t('+ Docker')}</button><button class="pri" data-add="shelly">${t('+ Shelly / Tasmota')}</button><button class="pri" data-add="dnsfilter">${t('+ Pi-hole / AdGuard')}</button></div>` : ''}</div>
     </div>
     <div class="grid-out" style="margin-top:16px"><div id="speedbox"></div><div id="notifybox"></div></div>
     <div id="ints" class="stack" style="margin-top:16px">${r.integrations.map(i => `<div class="panel integ" data-id="${i.id}">
@@ -182,7 +188,7 @@ async function tabIntegrations(ctx) {
         ${i.can_backup ? `<p class="small cfgline"><b>${t('Konfiguration')}:</b> ${i.cfg_ok ? t('zuletzt gesichert {d}', { d: h(ago(i.cfg_ok)) }) : t('noch nicht gesichert')}
           ${i.cfg_result?.status === 'error' ? ` · <span class="${i.cfg_result.second_factor ? 'warnc' : 'errtxt'}">${h(t(i.cfg_result.message))}</span>` : i.cfg_result?.status === 'unchanged' ? ` · <span class="muted">${t('unverändert')}</span>` : ''}
           ${ctx.canEdit ? `<button class="sm" data-cfg>${t('Konfiguration sichern')}</button>` : ''}</p>` : ''}
-        ${i.driver === 'fritzbox' ? fritzCard(i) : i.driver === 'snmp' ? snmpCard(i) : i.driver === 'asuswrt' ? asusCard(i) : i.driver === 'proxmox' ? pveCard(i) : ['omada', 'unifi'].includes(i.driver) ? ctrlCard(i) : ['mikrotik', 'opnsense'].includes(i.driver) ? mtCard(i) : i.driver === 'docker' ? dockerCard(i) : i.driver === 'shelly' ? shellyCard(i) : haCard(i)}
+        ${i.driver === 'fritzbox' ? fritzCard(i) : i.driver === 'snmp' ? snmpCard(i) : i.driver === 'asuswrt' ? asusCard(i) : i.driver === 'proxmox' ? pveCard(i) : ['omada', 'unifi'].includes(i.driver) ? ctrlCard(i) : ['mikrotik', 'opnsense'].includes(i.driver) ? mtCard(i) : i.driver === 'docker' ? dockerCard(i) : i.driver === 'shelly' ? shellyCard(i) : i.driver === 'dnsfilter' ? dnsCard(i) : haCard(i)}
       </div>`).join('') || `<div class="panel empty-box">${t('Noch keine Integration. Füge deine FRITZ!Box hinzu – das geht auch ohne Passwort.')}</div>`}</div>
     <h2>${t('Letzte Ereignisse')}</h2><div id="events"></div>`;
   api('GET', `${P}/events?limit=15`).then(({ events }) => {
@@ -228,9 +234,11 @@ async function tabIntegrations(ctx) {
     const ch = $('.chartbox', card);
     if (ch) {
       const wanChart = ['fritzbox', 'unifi', 'asuswrt'].includes(i.driver);
-      const keys = () => wanChart ? [`i${i.id}:wan:rx`, `i${i.id}:wan:tx`] : [`i${i.id}:port:${card.dataset.port || ch.dataset.port}:rx`, `i${i.id}:port:${card.dataset.port || ch.dataset.port}:tx`];
-      const names = wanChart ? [t('Download'), t('Upload')] : [t('empfangen'), t('gesendet')];
-      const draw = () => drawChart(ch, ctx.pid, keys(), names, tabIntegrations.since || 7200).catch(() => { });
+      const dnsChart = i.driver === 'dnsfilter';
+      const keys = () => dnsChart ? [`i${i.id}:dns:qpm`, `i${i.id}:dns:bpm`] : wanChart ? [`i${i.id}:wan:rx`, `i${i.id}:wan:tx`]
+        : [`i${i.id}:port:${card.dataset.port || ch.dataset.port}:rx`, `i${i.id}:port:${card.dataset.port || ch.dataset.port}:tx`];
+      const names = dnsChart ? [t('Anfragen/min'), t('blockiert/min')] : wanChart ? [t('Download'), t('Upload')] : [t('empfangen'), t('gesendet')];
+      const draw = () => drawChart(ch, ctx.pid, keys(), names, tabIntegrations.since || 7200, dnsChart ? { fmt: v => fmtInt(Math.round(v)) } : {}).catch(() => { });
       $$('[data-range]', card).forEach(b => b.onclick = () => { tabIntegrations.since = +b.dataset.range; $$('[data-range]', card).forEach(x => x.classList.toggle('on', x === b)); draw(); });
       $$('[data-port]', card).forEach(b => b.onclick = () => { card.dataset.port = b.dataset.port; $$('.pstrip [data-port]', card).forEach(x => x.classList.toggle('sel', x === b)); $('.pname', card).textContent = b.title; draw(); });
       draw();
@@ -517,6 +525,22 @@ async function recentActions(ctx, el) {
   $$('[data-cu]', el).forEach(b => b.onclick = async () => { await api('DELETE', `/api/profiles/${ctx.pid}/actions/${b.dataset.cu}/undo`); recentActions(ctx, el); });
 }
 
+const fmtInt = v => v == null ? '–' : (+v).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE');
+
+function dnsCard(i) {
+  const r = i.result || {}, s = r.summary || {}, inf = r.info || {}, cl = r.clients || [];
+  const byMac = Object.fromEntries((i.devices_by_mac || []).map(x => [x.ip || x.mac, x]));
+  return `<div class="kv"><span>${h(inf.kind === 'adguard' ? 'AdGuard Home' : 'Pi-hole')} <b>${h(inf.version || '')}</b></span>
+      <span>${inf.kind === 'adguard' ? t('Schutz') : t('Werbeblocker')}: <b class="${inf.blocking ? 'okc' : 'offc'}">${inf.blocking ? t('an') : t('aus')}</b></span>
+      <span>${t('Anfragen')}: <b class="mono">${fmtInt(s.queries)}</b></span><span>${t('blockiert')}: <b class="mono">${fmtInt(s.blocked)} (${(s.pct ?? 0).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE')} %)</b></span>
+      ${s.listed ? `<span>${t('Sperrliste')}: <b class="mono">${fmtInt(s.listed)}</b> ${t('Domains')}</span>` : ''}</div>
+    <div class="row between" style="margin-top:8px"><b class="small">${t('Anfragen je Minute')}</b>${rangeButtons(tabIntegrations.since || 7200)}</div><div class="chartbox"></div>
+    ${cl.length ? `<div class="table-wrap"><table class="compact"><thead><tr><th>${t('Gerät')}</th><th>${t('Anfragen')}</th><th>${t('blockiert')}</th><th>%</th></tr></thead><tbody>
+      ${cl.slice(0, 15).map(x => { const dv = byMac[x.ip]; return `<tr><td>${dv ? `<a href="#" data-dev="${dv.id}">${h(dv.name)}</a>` : h(x.name || x.ip)} <span class="mono muted small">${h(x.ip)}</span></td>
+        <td class="mono small">${fmtInt(x.queries)}</td><td class="mono small">${fmtInt(x.blocked)}</td><td class="mono small">${x.pct != null ? x.pct.toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE') : '–'}</td></tr>`; }).join('')}</tbody></table></div>
+      <p class="muted small">${t('Zeitraum: {w}', { w: h(t(inf.window || '24 h')) })}${r.top_domains?.length ? ` · ${t('Meistblockiert')}: ${r.top_domains.slice(0, 5).map(d => h(d.domain)).join(', ')}` : ''}</p>` : ''}`;
+}
+
 function shellyCard(i) {
   const r = i.result || {}, devs = r.devices || [];
   const total = devs.reduce((a, d) => a + (d.power_w || 0), 0);
@@ -649,6 +673,7 @@ async function integrationDialog(ctx, i, drv) {
             : drv.key === 'snmp' ? `${x.name} · ${x.descr}` : drv.key === 'asuswrt' ? `${x.model} · Firmware ${x.firmware} · ${t('{n} Clients', { n: x.clients })} · ${t('{n} Mesh-Knoten', { n: x.nodes })}`
             : drv.key === 'proxmox' ? `Proxmox VE ${x.version} · ${t('{n} VMs und Container', { n: x.guests })}`
             : drv.key === 'opnsense' ? `${x.name || 'OPNsense'} · OPNsense ${x.version} · ${t('{n} Schnittstellen', { n: x.ports })} · ${t('{n} Clients', { n: x.clients })}`
+            : drv.key === 'dnsfilter' ? `${x.kind === 'adguard' ? 'AdGuard Home' : 'Pi-hole'} ${h(x.version || '')} · ${t('{q} Anfragen, {b} blockiert', { q: fmtInt(x.queries), b: fmtInt(x.blocked) })} · ${t('{n} Geräte, {m} mit Namen', { n: x.clients, m: x.names })}`
             : drv.key === 'shelly' ? t('{n} Geräte ({s} Shelly, {t} Tasmota) · zusammen {w}', { n: x.devices, s: x.shelly, t: x.tasmota, w: fmtW(x.power_w) })
             : drv.key === 'docker' ? `Docker ${x.version} · ${h(x.os)} · ${t('{n} von {m} Containern laufen', { n: x.running, m: x.containers })}`
             : drv.key === 'mikrotik' ? `${x.model} · RouterOS ${x.version} · ${t('{n} Ports', { n: x.ports })} · ${t('{n} Clients', { n: x.clients })}${x.wifi ? ' · ' + t('{n} WLAN', { n: x.wifi }) : ''}`

@@ -78,7 +78,7 @@ def _same_lan(ip, host, c, pid):
 
 
 def _undo_options(kind):
-    return kind in ("wlan", "internet", "port", "poe", "relay")
+    return kind in ("wlan", "internet", "port", "poe", "relay", "dns_blocking")
 
 
 def _act(kind, iid, params, label, detail="", danger=False, blocked=""):
@@ -336,6 +336,16 @@ def available(c, pid, did, port_no=None):
         srow, sdev = _controller_device(c, pid, up_did)
         if srow:
             out += _ctrl_port_actions(c, pid, srow, sdev, up_did, up_port)
+    # Pi-hole / AdGuard Home: Werbeblocker am Gerät der Integration aus- und einschalten
+    for row in _integrations(c, pid, "dnsfilter"):
+        if row["device_id"] == did:
+            inf = (_state(row).get("result") or {}).get("info") or {}
+            name = "Pi-hole-Werbeblocker" if inf.get("kind") == "pihole" else "AdGuard-Schutz"
+            if inf.get("blocking", True):
+                out.append(_act("dns_blocking", row["id"], dict(on=False), f"{name} ausschalten",
+                                "Alle Geräte bekommen Werbung und Tracker wieder ungefiltert – mit „Zurückschalten nach“ nur für eine Weile.", danger=True))
+            else:
+                out.append(_act("dns_blocking", row["id"], dict(on=True), f"{name} einschalten", ""))
     # Shelly / Tasmota: Ausgänge schalten, Firmware aktualisieren
     sm = data.get("smart") or {}
     if sm.get("integration"):
@@ -409,7 +419,7 @@ def inverse(kind, params):
         return dict(params, block=not params["block"])
     if kind == "port":
         return dict(params, up=not params["up"])
-    if kind in ("poe", "relay"):
+    if kind in ("poe", "relay", "dns_blocking"):
         return dict(params, on=not params["on"])
     return None
 

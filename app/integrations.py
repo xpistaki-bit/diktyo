@@ -165,6 +165,9 @@ def _slim_view(driver, res):
                     running=sum(1 for g in res.get("guests", []) if g["running"]))
     if driver == "homeassistant":
         return dict(info=res.get("info"))
+    if driver == "dnsfilter":
+        return dict(info=res.get("info"), summary=res.get("summary"), top_domains=res.get("top_domains"),
+                    clients=[c for c in res.get("clients", []) if c["queries"]][:30])
     if driver == "shelly":
         return dict(info=res.get("info"), devices=[{k: d.get(k) for k in ("ip", "mac", "kind", "gen", "model", "name", "channels", "power_w", "energy_kwh",
                                                                           "rssi", "voltage", "firmware")} for d in res.get("devices", [])])
@@ -787,6 +790,40 @@ def apply_docker(c, row, res):
                 new=new, links=links)
 
 
+GENERIC_NAME = __import__("re").compile(r"^(Unbekanntes Gerät|Unknown device|.*\s\.\d{1,3}|\d{1,3}(\.\d{1,3}){3})$")
+
+
+def apply_dnsfilter(c, row, res):
+    """Pi-hole / AdGuard Home: Hostnamen übernehmen (nur leere Hostnamen; Platzhalternamen im Posteingang), Anfragen und
+    Blockierte je Gerät ablegen. Legt keine Geräte an – das machen Scan und Router-Integrationen."""
+    pid, info = row["profile_id"], res.get("info") or {}
+    own = row["device_id"] or _find_device(c, pid, "", row["host"])
+    if own and not row["device_id"]:  # Gerät der Integration merken (für die Aktion „Werbeblocker ausschalten“)
+        c.execute("UPDATE integrations SET device_id=? WHERE id=?", (own, row["id"]))
+    named = matched = 0
+    src = "Pi-hole" if info.get("kind") == "pihole" else "AdGuard Home"
+    for x in res.get("clients", []):
+        did = _find_device(c, pid, x.get("mac", ""), x["ip"])
+        if not did:
+            continue
+        matched += 1
+        d = c.execute("SELECT name, hostname, status, data FROM devices WHERE id=?", (did,)).fetchone()
+        host = (x.get("name") or "").strip()
+        short = host.split(".")[0] if host and not host.replace(".", "").isdigit() else ""
+        sets = {}
+        if short and not d["hostname"]:
+            sets["hostname"] = short[:120]
+        if short and d["status"] == "discovered" and GENERIC_NAME.match(d["name"] or ""):
+            sets["name"] = short[:80]
+        data = json.loads(d["data"] or "{}")
+        data["dns"] = dict(integration=row["id"], source=src, queries=x["queries"], blocked=x["blocked"], pct=x["pct"], name=host,
+                           window=info.get("window", ""), ts=now())
+        sets["data"] = json.dumps(data, ensure_ascii=False)
+        c.execute(f"UPDATE devices SET {', '.join(k + '=?' for k in sets)} WHERE id=?", (*sets.values(), did))
+        named += 1 if ("hostname" in sets or "name" in sets) else 0
+    return dict(device_id=own, clients=len(res.get("clients", [])), matched=matched, named=named)
+
+
 def apply_shelly(c, row, res):
     """Shelly/Tasmota: Geräte zuordnen (MAC, IP) oder neu in den Posteingang, Messwerte, Firmware, Online-Status."""
     from . import health
@@ -813,4 +850,4 @@ def apply_shelly(c, row, res):
 
 APPLY = {"fritzbox": apply_fritz, "snmp": apply_snmp, "asuswrt": apply_asus, "proxmox": apply_proxmox, "homeassistant": apply_ha,
          "omada": apply_controller, "unifi": apply_controller, "mikrotik": apply_mikrotik, "opnsense": apply_mikrotik, "docker": apply_docker,
-         "shelly": apply_shelly}
+         "shelly": apply_shelly, "dnsfilter": apply_dnsfilter}

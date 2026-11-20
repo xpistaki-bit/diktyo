@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.22.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.23.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt
@@ -34,6 +34,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Sicherheit | Anmeldung mit zweitem Faktor (TOTP, QR lokal erzeugt, Wiederherstellungscodes, Einmal-Codes, Versuchsgrenze), Sitzungsverwaltung, Zurücksetzen durch Admin/CLI | 0.20 |
 | Benachrichtigungen | E-Mail und ntfy je Profil, Ereignisse wählbar, gebündelt; neue Ereignisse: Internet langsam, Backup fehlgeschlagen, Integration gestört | 0.21 |
 | Aktionen und Shelly | UniFi: Gerät neu starten, PoE-Port neu starten; Omada: Gerät neu starten, PoE ein/aus/neu starten; Shelly/Tasmota direkt: Leistung, Energie, Ausgänge schalten, Firmware | 0.22 |
+| DNS-Filter | Pi-hole (v6, v5) und AdGuard Home: Hostnamen, Anfragen/Blockierte je Gerät, Statistik und Diagramm in der Übersicht, Werbeblocker schalten | 0.23 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan
 
@@ -55,6 +56,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Omada (inkl. Live-Raten je Client, Aktionen PoE/Neustart) | nach Open-API-Doku gebaut, gegen nachgebildeten Controller getestet | offen |
 | UniFi-Aktionen (Neustart, PoE-Power-Cycle) | nach Integration-API-Doku gebaut, gegen Nachbildung getestet | Tester |
 | Shelly / Tasmota | gegen nachgebildete Geräte (Gen1, Gen2/3, Tasmota) getestet | Nutzer |
+| Pi-hole / AdGuard Home | gegen nachgebildete APIs (Pi-hole v6/v5, AdGuard) getestet | Nutzer |
 | OPNsense (inkl. Top Talkers), Docker | gegen nachgebildete APIs getestet | Tester |
 | Proxmox: Live-Raten je VM | gegen nachgebildete API getestet | Nutzer (Proxmox vorhanden) |
 | iperf3 zu einem Gerät | gegen nachgebildete iperf3-Ausgabe getestet | Nutzer |
@@ -79,7 +81,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 | pfSense: wartet auf Netgates offizielle REST-API (das Community-Paket „pfrest“ ist im Wartungsmodus und endet nach pfSense 26.10) | ★★ | M |
 | OpenWrt (ubus/rpcd): Clients, WLAN, Ports, Aktionen | ★★ | M |
 | ~~Docker~~ – erledigt in 0.16 (Portainer optional später) | ★★ | S |
-| Pi-hole / AdGuard Home: Hostnamen, Blockstatistik je Gerät | ★★ | S |
+| ~~Pi-hole / AdGuard Home: Hostnamen, Blockstatistik je Gerät~~ – erledigt in 0.23 | ★★ | S |
 | Synology / QNAP / TrueNAS / Unraid: Status, Laufwerke, Dienste | ★★ | M |
 | ~~Shelly / Tasmota direkt: Leistung, Schalten, Firmware~~ – erledigt in 0.22 | ★ | S |
 | Netgear-Switches (SNMP-Profile), devolo Powerline | ★ | M |

@@ -63,6 +63,22 @@ def build(c, pid):
         p["down"] += x["down"]
         p["up"] += x["up"]
     top_now = sorted((x for x in per.values() if x["down"] + x["up"] > 0), key=lambda x: -(x["down"] + x["up"]))[:8]
+    # DNS-Filter (Pi-hole / AdGuard Home): Zusammenfassung und Geräte mit den meisten Blockierungen
+    dns = None
+    by_ip = {r["address"]: (r["device_id"], r["name"]) for r in c.execute(
+        "SELECT a.address, d.id AS device_id, d.name FROM ip_addresses a JOIN devices d ON d.id=a.device_id WHERE d.profile_id=?", (pid,))}
+    for r in integ:
+        if r["driver"] != "dnsfilter":
+            continue
+        res_ = json.loads(r["state"] or "{}").get("result") or {}
+        if res_.get("summary"):
+            top = sorted((x for x in res_.get("clients") or [] if x.get("blocked")), key=lambda x: -x["blocked"])[:8]
+            for x in top:
+                did, name = by_ip.get(x["ip"], (None, x.get("name") or x["ip"]))
+                x.update(device_id=did, label=name)
+            dns = dict(integration=r["id"], name=r["name"], info=res_.get("info"), summary=res_["summary"], top=top,
+                       top_domains=(res_.get("top_domains") or [])[:5], keys=[f"i{r['id']}:dns:qpm", f"i{r['id']}:dns:bpm"])
+            break
     # Internet-Geschwindigkeit: letzte Messungen; deutlich unter der Leitung (laut Router) -> Hinweis
     from . import speedtest
     hist = speedtest.history(c, pid, limit=120)
@@ -96,6 +112,6 @@ def build(c, pid):
         counts=dict(devices=len(confirmed), online=sum(1 for d in confirmed if d["online"] == 1), offline=len(offline),
                     inbox=sum(1 for d in devs if d["status"] == "discovered"), firmware=len(fw_up), quarantine=quarantine,
                     availability=round(sum(avail) / len(avail), 2) if avail else None),
-        wan=wan, speed=speed, top_today=top_today, top_now=top_now, offline=offline[:12], firmware=fw_up[:12], broken=broken, failed=failed[:10], ports=ports[:4], infra=infra[:12],
+        wan=wan, speed=speed, dns=dns, top_today=top_today, top_now=top_now, offline=offline[:12], firmware=fw_up[:12], broken=broken, failed=failed[:10], ports=ports[:4], infra=infra[:12],
         rtt=rtt_keys, recent=[x for x in changes.timeline(c, pid, limit=12) if x["cat"] in ("change", "action", "quarantine")][:8],
         summary=changes.summary(c, pid))
