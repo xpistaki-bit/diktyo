@@ -49,7 +49,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | UniFi | nach offizieller OpenAPI gebaut, gegen nachgebildeten Controller getestet | Tester |
 | MikroTik | nach REST-Doku gebaut, gegen nachgebildete RouterOS-API getestet | Tester |
 | Omada | nach Open-API-Doku gebaut, gegen nachgebildeten Controller getestet | offen |
-| Switch-Aktionen (SNMP-SET) | gegen Test-Agent getestet; Zyxel mit Schreibrechten offen | Tester |
+| Switch-Aktionen (SNMP-SET) | gegen Test-Agent getestet; Zyxel mit Schreibrechten erledigt | Tester |
 | Proxmox-Aktionen | gebaut, Token mit `VM.PowerMgmt` offen | Tester |
 
 Offene Punkte aus den Tests: Bei UniFi ist die Einheit der WAN-Rate (Bit/Byte) nicht dokumentiert; bei MikroTik
