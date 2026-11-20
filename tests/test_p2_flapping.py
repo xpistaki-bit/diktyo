@@ -99,3 +99,25 @@ def test_grace_follows_integration_interval_and_quick_ping_rechecks(monkeypatch)
     assert cl.get(f"{P}/devices/{node}").json()["online"] == 1
     with db() as c:
         assert c.execute("SELECT COUNT(*) FROM status_events WHERE device_id=? AND online=0", (node,)).fetchone()[0] == 0
+
+
+def test_quick_ping_without_ping_permission_sets_nothing_offline(monkeypatch):
+    cl, pid, P, mk = _setup("Ohne Ping-Recht")
+    node = mk("EBM68 WK", "mesh", "192.0.2.217")
+    with db() as c:
+        c.execute("UPDATE devices SET status='confirmed', online=1 WHERE id=?", (node,))
+
+    async def no(*a, **k):
+        return None
+
+    async def no_tcp(*a, **k):
+        return False
+
+    async def cannot():
+        return False
+    monkeypatch.setattr(discover, "ping_rtt", no)
+    monkeypatch.setattr(discover, "tcp", no_tcp)
+    monkeypatch.setattr(discover, "ping_works", cannot)
+    r = cl.post(f"{P}/ping", json={"device_ids": [node]}, headers=H).json()
+    assert r["ping_unavailable"] is True and r["online"] == 0
+    assert cl.get(f"{P}/devices/{node}").json()["online"] == 1  # nicht fälschlich offline

@@ -55,12 +55,18 @@ WorkingDirectory=/opt/diktyo
 Environment=DIKTYO_DATA=/var/lib/diktyo
 ExecStart=/opt/diktyo/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
 Restart=on-failure
+# nur zum Pingen (Schnell-Ping aus der Oberfläche); ohne dieses Recht scheitert ping unter NoNewPrivileges
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
 NoNewPrivileges=true
 
 [Install]
 WantedBy=multi-user.target
 UNIT
-# Hintergrunddienst (Netzscan). Nur er bekommt CAP_NET_RAW/CAP_NET_ADMIN, damit nmap das Betriebssystem erkennen kann.
+# Pingen ohne Sonderrechte erlauben (ICMP-Datagramm-Sockets) – zusätzlich zur Berechtigung oben, falls der Container sie nicht weitergibt
+echo "net.ipv4.ping_group_range = 0 2147483647" > /etc/sysctl.d/99-diktyo-ping.conf
+sysctl -q -w net.ipv4.ping_group_range="0 2147483647" 2>/dev/null || true
+# Hintergrunddienst (Netzscan). Er bekommt zusätzlich CAP_NET_ADMIN, damit nmap das Betriebssystem erkennen kann.
 cat > /etc/systemd/system/diktyo-worker.service <<UNIT
 [Unit]
 Description=díktyo background service (network scan)

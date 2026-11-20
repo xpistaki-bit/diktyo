@@ -359,6 +359,8 @@ def quick_ping(pid: int, body: dict = Body(default={}), user=Depends(require_use
             continue
         ports = (_json.loads(r["data"] or "{}").get("seen") or {}).get("ports") or []
         targets.append((r["id"], r["address"], ports[0] if ports else None))
+    from .scan import discover
+    can_ping = asyncio.run(discover.ping_works())
     full = asyncio.run(monitor._check(targets)) if targets else {}
     # Wer online war und in der Lastspitze nicht antwortete, wird einzeln mit mehr Geduld nachgeprüft
     with db() as c:
@@ -374,9 +376,10 @@ def quick_ping(pid: int, body: dict = Body(default={}), user=Depends(require_use
     with db() as c:
         others = monitor.seen_by_others(c, pid, max(600, 3 * monitor.settings_of(pid)["interval_s"]))
         for did, ok in res.items():
-            if ok or did not in others:  # von einer anderen Quelle gerade gesehen: Ping kommt nur nicht durch
+            if ok or (can_ping and did not in others):  # von anderer Quelle gesehen bzw. Ping hier nicht erlaubt: nicht offline setzen
                 runner._set_online(c, did, 1 if ok else 0, ts, "ping")
     with db() as c:
         from . import metrics
         metrics.put(c, pid, {f"d{did}:rtt": v for did, v in rtt.items()}, unit="ms")
-    return dict(results={str(k): v for k, v in res.items()}, rtt={str(k): v for k, v in rtt.items()}, checked=len(res), online=sum(res.values()))
+    return dict(results={str(k): v for k, v in res.items()}, rtt={str(k): v for k, v in rtt.items()}, checked=len(res), online=sum(res.values()),
+                ping_unavailable=not can_ping)

@@ -464,4 +464,5 @@ pveum acl modify / --tokens 'diktyo@pve!diktyo' --roles DiktyoPower
 | ASUS meldet dich ständig ab | Abfrageintervall der ASUS-Integration erhöhen |
 | Uhrzeit falsch | Update ausführen (übernimmt die Zeitzone des Proxmox-Hosts) |
 | Passwort vergessen | Im Container: `diktyo reset-password deine@adresse.de` |
+| Schnell-Ping meldet „Ping ist für die Weboberfläche nicht erlaubt“ bzw. Geräte gehen dabei kurz offline | díktyo mit dem Update-Skript aktualisieren (ab 0.21.2 darf die Weboberfläche pingen) |
 | Authenticator-App weg, keine Wiederherstellungscodes | Admin: *Einstellungen → Konten → 2FA zurücksetzen*; oder im Container `diktyo reset-2fa deine@adresse.de` |

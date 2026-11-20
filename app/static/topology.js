@@ -277,7 +277,8 @@ tabTopology.expanded = {}; tabTopology.view = {}; tabTopology.sel = null;
 async function quickPing(ctx, ids) {
   try {
     const r = await api('POST', `/api/profiles/${ctx.pid}/ping`, ids ? { device_ids: ids } : {});
-    toast(t('Ping: {n} von {m} online', { n: r.online, m: r.checked }));
+    toast(r.ping_unavailable ? t('Ping ist für die Weboberfläche nicht erlaubt – Status nur über offene Ports geprüft, nichts auf offline gesetzt. Abhilfe: díktyo aktualisieren (Update-Skript).')
+      : t('Ping: {n} von {m} online', { n: r.online, m: r.checked }), !!r.ping_unavailable);
     return r;
   } catch (e) { toast(e.message, true); }
 }

@@ -31,6 +31,21 @@ async def ping(ip, timeout=1.0):
         return False
 
 
+_PING_OK = {}
+
+
+async def ping_works():
+    """Darf dieser Prozess pingen? (Ohne CAP_NET_RAW bzw. ping_group_range scheitert ping für jedes Ziel.) Ergebnis wird gemerkt."""
+    if "ok" not in _PING_OK:
+        try:
+            p = await asyncio.create_subprocess_exec("ping", "-n", "-q", "-c", "1", "-W", "1", "127.0.0.1",
+                                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            _PING_OK["ok"] = await p.wait() == 0
+        except (FileNotFoundError, PermissionError):
+            _PING_OK["ok"] = False
+    return _PING_OK["ok"]
+
+
 async def ping_rtt(ip, timeout=1.0):
     """Ein Ping mit Antwortzeit. -> Millisekunden oder None"""
     import re
