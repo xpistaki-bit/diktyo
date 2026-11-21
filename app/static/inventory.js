@@ -119,7 +119,7 @@ async function deviceDialog(ctx, did) {
       ${dis ? '' : `<button type="button" class="sm" data-rmip title="${t('Entfernen')}">×</button>`}</div>`;
   const html = `
     ${did && ctx.canEdit ? `<div class="dlg-actions"><button type="button" class="sm danger" data-del>${t('Gerät löschen')}</button></div>` : ''}
-    ${d && (d.ident_full || d.seen) ? identBox(d) : ''}
+    ${d && (d.ident_full || d.seen) ? identBox(d, ctx.canEdit) : ''}
     <div class="grid2">
       <div><label>${t('Name')}</label><input name="name" required maxlength="120" value="${h(v.name)}" ${dis}></div>
       <div><label>${t('Typ')}</label><select name="type" ${dis}>${META.types.map(x => `<option value="${x.key}" ${x.key === v.type ? 'selected' : ''}>${h(x.name)}</option>`).join('')}</select></div>
@@ -127,6 +127,7 @@ async function deviceDialog(ctx, did) {
         ${Object.keys(byMan).sort(cmp).map(man => `<optgroup label="${h(man)}">${byMan[man].map(m => `<option value="${m.id}" ${m.id === v.model_id ? 'selected' : ''}>${h(m.model)}${m.port_summary ? ' · ' + h(m.port_summary) : ''}</option>`).join('')}</optgroup>`).join('')}</select></div>
       <div><label>${t('Hersteller')}</label><input name="manufacturer" maxlength="80" value="${h(v.manufacturer || '')}" ${dis}></div>
       <div><label>${t('Modell')}</label><input name="model" maxlength="120" value="${h(v.model || '')}" ${dis}></div>
+      <div class="span2"><label>${t('Software / Betriebssystem')}</label><input name="software" maxlength="120" value="${h(v.software || '')}" placeholder="${h(t('z. B. Proxmox VE 9, Windows 11, Debian 13, FRITZ!OS 8 – Hersteller und Modell meinen die Hardware'))}" ${dis}></div>
       <div><label>${t('Standort')}</label><select name="location_id" ${dis}><option value="">–</option>${locations.map(l => `<option value="${l.id}" ${l.id === v.location_id ? 'selected' : ''}>${h(l.path)}</option>`).join('')}</select></div>
       <div><label>${t('Hostname')}</label><input name="hostname" maxlength="120" value="${h(v.hostname || '')}" ${dis}></div>
     </div>
@@ -158,7 +159,7 @@ async function deviceDialog(ctx, did) {
       ${d.dns.name ? ` · ${t('Name im DNS')}: <span class="mono">${h(d.dns.name)}</span>` : ''} <span class="muted">· ${h(t(d.dns.window || '24 h'))}</span></p>` : ''}
     ${d && d.ips?.length ? `<div id="svcbox">${servicesBox(d, ctx.canEdit)}</div><div id="iperfbox"></div>` : ''}
     ${d && ctx.isOwner ? '<div id="actbox"></div>' : ''}
-    ${d ? '<div id="healthbox"></div><div id="histbox"></div>' : ''}
+    ${d ? '<div id="healthbox"></div>' : ''}
     ${d && d.connected.length ? `<h4>${t('Verbundene Geräte')} (${d.connected.length})</h4><div class="table-wrap"><table class="compact"><thead><tr><th>${t('Name')}</th><th>${t('Verbindung')}</th><th>${t('IP')}</th><th>${t('MAC')}</th></tr></thead><tbody>
       ${d.connected.map(k => `<tr><td>${h(k.name)}</td><td>${t(MEDIUM_SHORT[k.medium])}${k.port_name ? ' · ' + t('Port') + ' ' + h(k.port_name) : ''}</td><td class="mono">${h(k.ip)}</td><td class="mono">${h(k.mac)}</td></tr>`).join('')}
       </tbody></table></div>` : ''}`;
@@ -173,22 +174,34 @@ async function deviceDialog(ctx, did) {
       $$('[data-dl]', f).forEach(a => { a.href = `${P}/configs/${a.dataset.dl}/download`; a.setAttribute('download', ''); });
       $$('[data-diff]', f).forEach(b => b.onclick = () => showDiff(ctx.pid, b.dataset.diff, b.dataset.prev));
       if (d && $('#svcbox', f)) bindServices(ctx, d, $('#svcbox', f));
+      const di = $('[data-dismiss-ident]', f);
+      if (di) di.onclick = async () => {
+        try { await api('POST', `${P}/devices/${d.id}/ident/dismiss`, {}); di.closest('.row.between').nextElementSibling?.remove(); di.closest('.row.between').remove(); toast(t('Vermutung ausgeblendet')); }
+        catch (e) { toast(e.message, true); }
+      };
       if (d && $('#iperfbox', f)) iperfBox(ctx, d, $('#iperfbox', f));
       if (d && $('#smartbox', f)) smartBox(ctx, d, $('#smartbox', f));
       if (d && $('#actbox', f)) actionsBox(ctx, d.id, $('#actbox', f));
       if (d && $('#healthbox', f)) deviceHealth(ctx, d.id, $('#healthbox', f));
-      if (d && $('#histbox', f)) deviceHistory(ctx, d.id, $('#histbox', f));
       const bindIps = () => $$('[data-rmip]', f).forEach(b => b.onclick = () => b.closest('.iprow').remove());
       bindIps();
       const addip = $('#addip', f);
       if (addip) addip.onclick = () => { $('#ips', f).insertAdjacentHTML('beforeend', ipRow({ address: '', kind: 'static' })); bindIps(); $('#ips .iprow:last-child input', f).focus(); };
+      // Modell ohne Netzwerkbuchse, aber mit WLAN: „LAN ohne Port“ ist dann sicher WLAN
+      const wifiOnly = m => m && !(m.ports || []).some(g => +g.count > 0) && !!m.wifi;
+      const toWlan = () => {
+        const m = models.find(x => String(x.id) === sel('model_id').value);
+        if (wifiOnly(m) && sel('medium').value === 'lan' && !sel('up_port').value) { sel('medium').value = 'wlan'; sel('medium').dispatchEvent(new Event('change')); }
+      };
       sel('model_id').onchange = () => {
         const m = models.find(x => String(x.id) === sel('model_id').value);
         if (!m) return;
         sel('manufacturer').value = m.manufacturer; sel('model').value = m.model; sel('type').value = m.type;
         $('#pe', f).innerHTML = portEditorHtml(m.ports, dis); bindPortEditor($('#pe', f), pc); pc();
         if (!sel('name').value.trim()) sel('name').value = m.model;
+        toWlan();
       };
+      setTimeout(toWlan, 0);
       const loadPorts = async () => {
         const target = sel('up_device').value, ps = sel('up_port');
         ps.innerHTML = `<option value="">${t('– kein bestimmter Port –')}</option>`;
@@ -218,7 +231,7 @@ async function deviceDialog(ctx, did) {
       const x = fd(f);
       const body = {
         name: x.name, type: x.type, model_id: x.model_id ? +x.model_id : null, manufacturer: x.manufacturer, model: x.model,
-        location_id: x.location_id ? +x.location_id : null, hostname: x.hostname, mac: x.mac, notes: x.notes, tags: x.tags,
+        location_id: x.location_id ? +x.location_id : null, hostname: x.hostname, mac: x.mac, notes: x.notes, tags: x.tags, software: x.software,
         ips: $$('.iprow', f).map(r => ({ address: $('[data-ip]', r).value.trim(), kind: $('[data-ipk]', r).value })).filter(i => i.address),
         ports: readPorts($('#pe', f)),
         uplink: x.medium && x.up_device ? { medium: x.medium, device_id: +x.up_device, port_id: x.medium === 'lan' && x.up_port ? +x.up_port : null,
@@ -314,7 +327,7 @@ function portTable(d) {
   </tbody></table></div>`;
 }
 
-function identBox(d) {
+function identBox(d, canEdit = false) {
   const i = d.ident_full, s = d.seen || {};
   const rows = [
     [t('Hersteller (MAC)'), s.vendor], [t('DNS-Name'), s.hostname], [t('NetBIOS'), s.netbios], [t('mDNS'), (s.mdns_names || []).join(', ')],
@@ -323,7 +336,9 @@ function identBox(d) {
     [t('Dienste'), Object.entries(s.services || {}).map(([p, v]) => `${p}: ${v}`).join(' · ')], [t('Betriebssystem'), s.os],
   ].filter(r => r[1]);
   return `<div class="identbox">
-    ${i && identLabel(i) ? `<div class="row"><b>${t('Erkannt als')}: ${h(identLabel(i))}</b> ${confBar(i.confidence || 0)}</div><div class="reasons">${reasonsHtml(i)}</div>` : ''}
+    ${i && identLabel(i) ? `<div class="row between"><div class="row"><b>${t('Erkannt als')}: ${h(identLabel(i))}</b> ${confBar(i.confidence || 0)}</div>
+      ${canEdit ? `<button type="button" class="sm link" data-dismiss-ident title="${h(t('Diese Vermutung ausblenden – sie erscheint erst wieder, wenn der Scan etwas anderes erkennt.'))}">${t('Vermutung verwerfen')}</button>` : ''}</div>
+      <div class="reasons">${reasonsHtml(i)}</div>` : ''}
     <div class="row small muted" style="margin-top:6px">${onlineDot(d)} ${d.online ? t('online') : d.online === 0 ? t('offline') : t('noch nicht geprüft')}${d.last_seen ? ' · ' + t('zuletzt gesehen') + ' ' + h(fmtDate(d.last_seen)) : ''}
       ${d.events && d.events.length > 1 ? ' · ' + t('Wechsel') + ': ' + d.events.slice(0, 5).map(e => `<span class="${e.online ? 'okc' : 'offc'}">${e.online ? '▲' : '▼'} ${h(fmtDate(e.ts))}</span>`).join(' ') : ''}</div>
     ${rows.length ? `<details><summary>${t('Beobachtet beim letzten Scan')}</summary><table class="compact kvt">${rows.map(([k, v]) => `<tr><th>${h(k)}</th><td>${h(v)}</td></tr>`).join('')}</table></details>` : ''}

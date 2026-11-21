@@ -141,6 +141,16 @@ def set_uplink(c, pid, did, up):
 
 
 # ------------------------------------------------------------ Speichern
+def wireless_only(c, did):
+    """Gerät ohne eigene Netzwerkbuchse, dessen Katalogmodell WLAN hat (z. B. Saugroboter, Steckdose)."""
+    d = c.execute("SELECT model_id FROM devices WHERE id=?", (did,)).fetchone()
+    if not d or not d["model_id"] or c.execute("SELECT 1 FROM interfaces WHERE device_id=? AND role='port'", (did,)).fetchone():
+        return False
+    m = c.execute("SELECT data FROM device_models WHERE id=?", (d["model_id"],)).fetchone()
+    data = json.loads(m["data"] or "{}") if m else {}
+    return bool(data.get("wifi")) and not any(int(g.get("count") or 0) for g in data.get("ports") or [])
+
+
 def lock_name(c, did):
     r = c.execute("SELECT data FROM devices WHERE id=?", (did,)).fetchone()
     data = json.loads(r["data"] or "{}")
@@ -176,6 +186,10 @@ def save_device(c, pid, body, did=None):
         old = c.execute("SELECT data FROM devices WHERE id=?", (did,)).fetchone()
         data = json.loads(old["data"] or "{}")
     data["ports"] = catalog.clean_groups(body.get("ports")) if "ports" in body else data.get("ports", [])
+    if "software" in body:
+        sw = str(body.get("software") or "").strip()[:120]
+        if sw != data.get("software", ""):
+            data["software"], data["software_auto"] = sw, False  # von Hand: Integrationen überschreiben es nicht mehr
     vals = (name, typ, int(model_id) if model_id else None, str(body.get("manufacturer") or "").strip()[:80],
             str(body.get("model") or "").strip()[:120], check_location(c, pid, body.get("location_id")),
             str(body.get("hostname") or "").strip()[:120], str(body.get("notes") or "").strip()[:5000],
@@ -311,8 +325,8 @@ def device_detail(c, pid, did):
     from .configbackup import listing
     configs = listing(c, pid, did)
     return dict(base, ports=ports, port_groups=data.get("ports", []), connected=sorted(kids, key=lambda x: x["name"].lower()),
-                seen=data.get("seen"), ident_full=data.get("ident"), events=events, integrations=integ, configs=configs,
-                services_scan=data.get("services_scan"), smart=data.get("smart"), dns=data.get("dns"), firmware_info=data.get("firmware"),
+                seen=data.get("seen"), ident_full=None if (data.get("ident") or {}).get("label") and (data.get("ident") or {}).get("label") == data.get("ident_dismissed") else data.get("ident"), events=events, integrations=integ, configs=configs,
+                services_scan=data.get("services_scan"), smart=data.get("smart"), software=data.get("software", ""), dns=data.get("dns"), firmware_info=data.get("firmware"),
                 services_job=_services_job(c, pid, did))
 
 

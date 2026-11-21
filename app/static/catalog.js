@@ -1,12 +1,9 @@
 'use strict';
 /* Gerätekatalog: Startdaten + eigene Einträge, CSV-Import/-Export. Ändern dürfen Administratoren. */
 const DRIVERS = { '': '–', fritzbox_tr064: 'FRITZ!Box (TR-064)', snmp: 'SNMP', asuswrt: 'ASUS (AiMesh)', omada: 'TP-Link Omada', unifi: 'UniFi', proxmox: 'Proxmox', mikrotik: 'MikroTik (RouterOS)', opnsense: 'OPNsense', docker: 'Docker' };
-const TYPE_KEYS = ['router', 'modem', 'firewall', 'switch', 'ap', 'mesh', 'repeater', 'powerline', 'server', 'hypervisor', 'vm', 'container', 'nas', 'computer',
-  'laptop', 'phone', 'tablet', 'tv', 'speaker', 'camera', 'iot', 'printer', 'console', 'ups', 'other'];
-const TYPE_DE = { router: 'Router', modem: 'Modem', firewall: 'Firewall', switch: 'Switch', ap: 'Access Point', mesh: 'Mesh-Knoten', repeater: 'Repeater',
-  powerline: 'Powerline', server: 'Server', hypervisor: 'Hypervisor', vm: 'VM', container: 'Container', nas: 'NAS', computer: 'Computer', laptop: 'Laptop',
-  phone: 'Smartphone', tablet: 'Tablet', tv: 'TV / Medien', speaker: 'Smart Speaker', camera: 'Kamera', iot: 'IoT-Gerät', printer: 'Drucker',
-  console: 'Spielkonsole', ups: 'USV', other: 'Sonstiges' };
+const TYPE_DE = {"router": "Router", "modem": "Modem", "firewall": "Firewall", "switch": "Switch", "ap": "Access Point", "mesh": "Mesh-Knoten", "repeater": "Repeater", "powerline": "Powerline", "server": "Server", "hypervisor": "Hypervisor", "vm": "VM", "container": "Container", "nas": "NAS", "computer": "Computer", "laptop": "Laptop", "phone": "Smartphone", "tablet": "Tablet", "tv": "TV / Medien", "speaker": "Smart Speaker", "camera": "Kamera", "iot": "IoT-Gerät", "printer": "Drucker", "console": "Spielkonsole", "ups": "USV", "printer3d": "3D-Drucker", "vacuum": "Saugroboter", "doorbell": "Türklingel", "hub": "Smart-Home-Hub (Zigbee, Matter, Thread)", "esp": "ESP-Gerät (ESPHome, Tasmota)", "plug": "Steckdose / Schalter", "light": "Licht / Lampe", "thermostat": "Thermostat / Heizung", "energy": "Energie (PV, Speicher, Zähler)", "wallbox": "Wallbox", "appliance": "Haushaltsgerät", "sensor": "Sensor", "voip": "Telefon / VoIP", "wearable": "Uhr / Wearable", "other": "Sonstiges"};
+/* alphabetisch nach Anzeigename (in der gewählten Sprache), „Sonstiges“ zuletzt */
+const TYPE_KEYS_SORTED = () => Object.keys(TYPE_DE).filter(k => k !== 'other').sort((a, b) => t(TYPE_DE[a]).localeCompare(t(TYPE_DE[b]), LANG)).concat('other');
 const catType = k => t(TYPE_DE[k] || k);
 
 async function viewCatalog() {
@@ -19,7 +16,7 @@ async function viewCatalog() {
   app.innerHTML = `<div class="page wide"><h1>${t('Katalog')}</h1>${catalogTabs('geraete')}
     <p class="sub">${t('Gängige Geräte mit ihren Ports. Ein Katalogmodell legt beim Gerät die Ports an; die Angaben lassen sich je Gerät anpassen. Einträge des Startkatalogs sind nach Herstellerangaben erfasst, aber nicht einzeln geprüft.')}</p>
     <div class="toolbar"><input type="search" id="q" placeholder="${t('Suchen …')}" value="${h(f.q)}">
-      <select id="ft"><option value="">${t('Alle Typen')}</option>${TYPE_KEYS.filter(k => models.some(m => m.type === k)).map(k => `<option value="${k}" ${f.type === k ? 'selected' : ''}>${catType(k)}</option>`).join('')}</select>
+      <select id="ft"><option value="">${t('Alle Typen')}</option>${TYPE_KEYS_SORTED().filter(k => models.some(m => m.type === k)).map(k => `<option value="${k}" ${f.type === k ? 'selected' : ''}>${catType(k)}</option>`).join('')}</select>
       <select id="fm"><option value="">${t('Alle Hersteller')}</option>${mans.map(m => `<option ${f.man === m ? 'selected' : ''}>${h(m)}</option>`).join('')}</select>
       <span class="grow"></span><span class="muted" id="cnt"></span>
       <a class="btn sm" href="/api/catalog/export.csv">${t('CSV exportieren')}</a>
@@ -103,7 +100,8 @@ async function aiFill(f, m) {
     const e = r.entry;
     $('[name=type]', f).value = e.type; $('[name=wifi]', f).value = e.wifi; $('[name=managed]', f).checked = e.managed;
     if (e.note) $('[name=note]', f).value = e.note;
-    if (e.ports.length) { $('#pe', f).innerHTML = portEditorHtml(e.ports, ''); bindPortEditor($('#pe', f)); }
+    // immer übernehmen – auch „keine Ports“ (z. B. reine WLAN-Geräte), sonst bliebe die Vorgabe 8× RJ45 stehen
+    $('#pe', f).innerHTML = portEditorHtml(e.ports || [], ''); bindPortEditor($('#pe', f));
     m.source = e.source;
     const conf = { high: t('Herstellerdatenblatt gefunden'), medium: t('teilweise belegt'), low: t('unsicher – bitte genau prüfen') }[r.confidence] || r.confidence;
     box.innerHTML = `<div class="hint-box small"><b>${t('KI-Vorschlag')}</b> (${h(conf)}) – ${t('bitte prüfen, dann speichern.')}
@@ -120,7 +118,7 @@ async function catalogDialog(m, intro = '') {
     <div class="grid2">
       <div><label>${t('Hersteller')}</label><input name="manufacturer" required maxlength="80" value="${h(m.manufacturer || '')}"></div>
       <div><label>${t('Modell')}</label><input name="model" required maxlength="120" value="${h(m.model || '')}"></div>
-      <div><label>${t('Typ')}</label><select name="type">${TYPE_KEYS.map(k => `<option value="${k}" ${k === m.type ? 'selected' : ''}>${catType(k)}</option>`).join('')}</select></div>
+      <div><label>${t('Typ')}</label><select name="type">${TYPE_KEYS_SORTED().map(k => `<option value="${k}" ${k === m.type ? 'selected' : ''}>${catType(k)}</option>`).join('')}</select></div>
       <div><label>${t('Anbindung')}</label><select name="driver">${Object.entries(DRIVERS).map(([k, n]) => `<option value="${k}" ${k === (m.driver || '') ? 'selected' : ''}>${h(n)}</option>`).join('')}</select></div>
       <div><label>${t('WLAN')}</label><input name="wifi" maxlength="80" value="${h(m.wifi || '')}" placeholder="${t('z. B. Wi-Fi 6 (2,4/5 GHz)')}"></div>
       <div><label>&nbsp;</label><label class="chk"><input type="checkbox" name="managed" ${m.managed ? 'checked' : ''}> ${t('verwaltbar (managed)')}</label></div>
@@ -210,7 +208,7 @@ async function ruleDialog(r) {
     <div class="grid2">
       <div><label>${t('Erkannt als (Deutsch)')}</label><input name="label" required value="${h(r.label)}" placeholder="${t('z. B. Saugroboter')}"></div>
       <div><label>${t('Erkannt als (Englisch)')}</label><input name="label_en" value="${h(r.label_en)}"></div>
-      <div><label>${t('Typ')}</label><select name="type">${TYPE_KEYS.map(k => `<option value="${k}" ${k === r.type ? 'selected' : ''}>${catType(k)}</option>`).join('')}</select></div>
+      <div><label>${t('Typ')}</label><select name="type">${TYPE_KEYS_SORTED().map(k => `<option value="${k}" ${k === r.type ? 'selected' : ''}>${catType(k)}</option>`).join('')}</select></div>
       <div><label>${t('Gewicht (1–99)')}</label><input name="weight" type="number" min="1" max="99" value="${h(r.weight)}"></div>
     </div>
     <h4>${t('Bedingungen (alle müssen zutreffen)')}</h4>

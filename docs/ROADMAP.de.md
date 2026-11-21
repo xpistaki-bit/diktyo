@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.23.2 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.24.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt
@@ -34,6 +34,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Sicherheit | Anmeldung mit zweitem Faktor (TOTP, QR lokal erzeugt, Wiederherstellungscodes, Einmal-Codes, Versuchsgrenze), Sitzungsverwaltung, Zurücksetzen durch Admin/CLI | 0.20 |
 | Benachrichtigungen | E-Mail und ntfy je Profil, Ereignisse wählbar, gebündelt; neue Ereignisse: Internet langsam, Backup fehlgeschlagen, Integration gestört | 0.21 |
 | Aktionen und Shelly | UniFi: Gerät neu starten, PoE-Port neu starten; Omada: Gerät neu starten, PoE ein/aus/neu starten; Shelly/Tasmota direkt: Leistung, Energie, Ausgänge schalten, Firmware | 0.22 |
+| Geräte | Typen alphabetisch und erweitert (Saugroboter, 3D-Drucker, Türklingel, Hub, ESP …), Software/Betriebssystem-Feld, Proxmox-Gäste übernehmen Software/Standort vom Host, Vermutung verwerfen, WLAN bei Geräten ohne Buchse, Gerätedialog ohne Verlauf, KI-Katalog ohne erfundene Ports | 0.24 |
 | DNS-Filter | Pi-hole (v6, v5) und AdGuard Home: Hostnamen, Anfragen/Blockierte je Gerät, Statistik und Diagramm in der Übersicht, Werbeblocker schalten | 0.23 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan

@@ -12,17 +12,23 @@ TYPES = {
     "mesh": "Mesh-Knoten", "repeater": "Repeater", "powerline": "Powerline", "server": "Server", "hypervisor": "Hypervisor",
     "vm": "VM", "container": "Container", "nas": "NAS", "computer": "Computer", "laptop": "Laptop", "phone": "Smartphone",
     "tablet": "Tablet", "tv": "TV / Medien", "speaker": "Smart Speaker", "camera": "Kamera", "iot": "IoT-Gerät",
-    "printer": "Drucker", "console": "Spielkonsole", "ups": "USV", "other": "Sonstiges",
+    "printer": "Drucker", "console": "Spielkonsole", "ups": "USV", "printer3d": "3D-Drucker", "vacuum": "Saugroboter", "doorbell": "Türklingel", "hub": "Smart-Home-Hub (Zigbee, Matter, Thread)", "esp": "ESP-Gerät (ESPHome, Tasmota)", "plug": "Steckdose / Schalter", "light": "Licht / Lampe", "thermostat": "Thermostat / Heizung", "energy": "Energie (PV, Speicher, Zähler)", "wallbox": "Wallbox", "appliance": "Haushaltsgerät", "sensor": "Sensor", "voip": "Telefon / VoIP", "wearable": "Uhr / Wearable", "other": "Sonstiges",
 }
 TYPE_EN = {
     "router": "Router", "modem": "Modem", "firewall": "Firewall", "switch": "Switch", "ap": "Access point", "mesh": "Mesh node",
     "repeater": "Repeater", "powerline": "Powerline", "server": "Server", "hypervisor": "Hypervisor", "vm": "VM",
     "container": "Container", "nas": "NAS", "computer": "Computer", "laptop": "Laptop", "phone": "Smartphone", "tablet": "Tablet",
     "tv": "TV / media", "speaker": "Smart speaker", "camera": "Camera", "iot": "IoT device", "printer": "Printer",
-    "console": "Game console", "ups": "UPS", "other": "Other",
+    "console": "Game console", "ups": "UPS", "printer3d": "3D printer", "vacuum": "Robot vacuum", "doorbell": "Doorbell", "hub": "Smart home hub (Zigbee, Matter, Thread)", "esp": "ESP device (ESPHome, Tasmota)", "plug": "Plug / switch", "light": "Light / lamp", "thermostat": "Thermostat / heating", "energy": "Energy (PV, battery, meter)", "wallbox": "Wallbox", "appliance": "Household appliance", "sensor": "Sensor", "voip": "Phone / VoIP", "wearable": "Watch / wearable", "other": "Other",
 }
 PORT_KINDS = ("rj45", "sfp", "sfp+", "sfp28", "coax", "dsl", "fiber", "usb")
 MEDIA = ("lan", "wlan", "mesh", "virtual")  # Verbindungsarten
+
+
+def sorted_types(lang="de"):
+    """Typen alphabetisch nach Anzeigename, „Sonstiges“ zuletzt."""
+    names = TYPE_EN if lang == "en" else TYPES
+    return sorted((k for k in TYPES if k != "other"), key=lambda k: names[k].lower()) + ["other"]
 
 
 def type_name(t, lang="de"):

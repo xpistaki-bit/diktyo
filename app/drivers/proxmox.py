@@ -47,6 +47,12 @@ def _get(cl, path):
     return r.json().get("data")
 
 
+OSTYPE = {"l26": "Linux", "l24": "Linux 2.4", "win11": "Windows 11", "win10": "Windows 10", "win8": "Windows 8", "win7": "Windows 7",
+          "w2k8": "Windows Server 2008", "wxp": "Windows XP", "solaris": "Solaris", "other": "", "debian": "Debian", "ubuntu": "Ubuntu",
+          "alpine": "Alpine Linux", "centos": "CentOS", "fedora": "Fedora", "archlinux": "Arch Linux", "opensuse": "openSUSE", "nixos": "NixOS",
+          "devuan": "Devuan", "gentoo": "Gentoo", "unmanaged": ""}
+
+
 def parse_net(value):
     """'virtio=BC:24:11:..,bridge=vmbr0,tag=10' (VM) bzw. 'name=eth0,bridge=vmbr0,hwaddr=..,ip=192.168.50.16/24' (LXC)."""
     out = {}
@@ -128,7 +134,14 @@ def poll(conf, state):
                                 ips.append(i["inet"].split("/")[0])
                 except (PermissionError, httpx.HTTPError, DriverError):
                     pass  # Gast-Agent nicht aktiv oder keine Berechtigung (VM.GuestAgent.Audit)
-            guests.append(dict(vmid=g["vmid"], name=g.get("name") or f'{kind}-{g["vmid"]}', node=g["node"], kind=kind,
+            os_name = ""
+            if g.get("status") == "running" and kind == "qemu" and str(cfg.get("agent", "0")).split(",")[0] in ("1", "enabled=1"):
+                try:
+                    os_name = ((_get(cl, f"{path}/agent/get-osinfo") or {}).get("result") or {}).get("pretty-name", "")
+                except (PermissionError, httpx.HTTPError, DriverError):
+                    pass
+            os_name = os_name or OSTYPE.get(str(cfg.get("ostype") or ""), str(cfg.get("ostype") or "").capitalize())
+            guests.append(dict(vmid=g["vmid"], name=g.get("name") or f'{kind}-{g["vmid"]}', node=g["node"], kind=kind, os=os_name,
                                running=g.get("status") == "running", nets=nets, ips=[ip for ip in dict.fromkeys(ips) if _usable(ip)],
                                _down=g.get("netin"), _up=g.get("netout")))
     import time as _tm

@@ -85,6 +85,17 @@ Seite aktualisiert sich alle 30 Sekunden.
 - **Geräte:** Im Gerätedialog Katalogmodell wählen – damit entstehen die Ports (z. B. 24 × RJ45 + 4 × SFP+). Unter
   *Anschluss* legst du fest, woran das Gerät hängt: LAN an einen Port, WLAN bzw. Mesh an einen Access Point, virtuell
   an einen Host. Von Hand gesetzte Verbindungen überschreibt keine Integration.
+- **Hersteller, Modell, Software:** Hersteller und Modell meinen die **Hardware** (z. B. HP · EliteDesk 800 G4), das Feld
+  *Software / Betriebssystem* das, was darauf läuft (z. B. Proxmox VE 9.2). Proxmox füllt es selbst: der Host bekommt
+  „Proxmox VE …“, VMs und Container ihr Gast-Betriebssystem (über den Gast-Agent bzw. die Konfiguration), als
+  „Hardware“ Proxmox · QEMU-VM bzw. LXC-Container und – wenn leer – den Standort des Hosts. Ihre Verbindung ist
+  „virtuell“ zum Host; den physischen Weg (Switch-Port usw.) hat der Host. Eigene Einträge überschreibt díktyo nicht.
+- **Typ:** alphabetisch, u. a. Saugroboter, 3D-Drucker, Türklingel, Smart-Home-Hub (Zigbee, Matter, Thread),
+  ESP-Gerät, Steckdose/Schalter, Licht, Thermostat, Energie, Wallbox, Haushaltsgerät, Sensor, Telefon/VoIP.
+- **Erkannt als …** lässt sich mit *Vermutung verwerfen* ausblenden (z. B. HP-Rechner, der wegen der MAC als Drucker
+  vermutet wird). Sie erscheint erst wieder, wenn der Scan etwas anderes erkennt.
+- **Nur WLAN:** Hat das Katalogmodell keine Netzwerkbuchse, aber WLAN, steht die Verbindung auf WLAN – auch wenn ein
+  Router das Gerät als „kabelgebunden“ meldet.
 - **Woher die Namen kommen:** Beim ersten Fund vergibt díktyo einen Namen aus Hostname, mDNS oder Erkennung
   („Espressif .45“). Integrationen können ihn ersetzen: Home Assistant (Einstellung *Namen aus HA übernehmen*), Pi-hole/
   AdGuard (nur Platzhalternamen im Posteingang), neue Geräte aus FRITZ!Box, ASUS, Shelly usw. bekommen den Namen dort.

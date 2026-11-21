@@ -103,6 +103,20 @@ def scan_run(pid: int, body: dict = Body(default={}), user=Depends(require_user)
         return dict(job=_job_out(c.execute("SELECT * FROM jobs WHERE id=?", (cur.lastrowid,)).fetchone()), worker=w)
 
 
+@router.post("/api/profiles/{pid}/devices/{did}/ident/dismiss")
+def ident_dismiss(pid: int, did: int, user=Depends(require_user)):
+    """„Erkannt als …“ ausblenden (z. B. HP-Rechner als Drucker vermutet). Erscheint wieder, wenn der Scan etwas anderes erkennt."""
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        r = c.execute("SELECT data FROM devices WHERE id=? AND profile_id=?", (did, pid)).fetchone()
+        if not r:
+            raise HTTPException(404, "Gerät nicht gefunden")
+        data = json.loads(r["data"] or "{}")
+        data["ident_dismissed"] = (data.get("ident") or {}).get("label", "")
+        c.execute("UPDATE devices SET data=? WHERE id=?", (json.dumps(data, ensure_ascii=False), did))
+    return dict(ok=True)
+
+
 @router.post("/api/profiles/{pid}/devices/{did}/services-scan")
 def services_scan(pid: int, did: int, body: dict = Body(default={}), user=Depends(require_user)):
     """Dienste-Scan (nmap) eines Geräts im Hintergrunddienst starten."""

@@ -54,7 +54,7 @@ TOOL = {
             "model": {"type": "string", "description": "Modellbezeichnung ohne Hersteller"},
             "ports": {
                 "type": "array",
-                "description": "Kabelgebundene Netzwerk-/WAN-Anschlüsse in Gruppen gleicher Art und Geschwindigkeit. Keine USB-, Video- oder Audioanschlüsse.",
+                "description": "Kabelgebundene Netzwerk-/WAN-Anschlüsse in Gruppen gleicher Art und Geschwindigkeit. Keine USB-, Video- oder Audioanschlüsse. Hat das Gerät keine Netzwerkbuchse (nur WLAN, z. B. Saugroboter, Steckdose, Kamera mit Akku), eine leere Liste.",
                 "items": {
                     "type": "object",
                     "properties": {

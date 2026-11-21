@@ -570,7 +570,7 @@
   "key": "espressif",
   "label": "IoT-Gerät mit ESP-Chip (z. B. Shelly, Tasmota, ESPHome)",
   "label_en": "IoT device with ESP chip (e.g. Shelly, Tasmota, ESPHome)",
-  "type": "iot",
+  "type": "esp",
   "weight": 60,
   "cond": {
    "vendor": "espressif"
@@ -580,7 +580,7 @@
   "key": "esphome",
   "label": "ESPHome-Gerät",
   "label_en": "ESPHome device",
-  "type": "iot",
+  "type": "esp",
   "weight": 88,
   "cond": {
    "mdns": "_esphomelib"
@@ -620,7 +620,7 @@
   "key": "hue",
   "label": "Philips Hue Bridge",
   "label_en": "Philips Hue Bridge",
-  "type": "iot",
+  "type": "hub",
   "weight": 88,
   "cond": {
    "vendor": "signify|philips lighting"
@@ -630,7 +630,7 @@
   "key": "hue-mdns",
   "label": "Philips Hue Bridge",
   "label_en": "Philips Hue Bridge",
-  "type": "iot",
+  "type": "hub",
   "weight": 88,
   "cond": {
    "mdns": "_hue|philips hue"
@@ -670,7 +670,7 @@
   "key": "vacuum",
   "label": "Saugroboter",
   "label_en": "Robot vacuum",
-  "type": "iot",
+  "type": "vacuum",
   "weight": 86,
   "cond": {
    "hostname": "vacuum|dreame|roborock|roomba|deebot"
@@ -680,7 +680,7 @@
   "key": "xiaomi",
   "label": "Xiaomi / Roborock (z. B. Saugroboter)",
   "label_en": "Xiaomi / Roborock (e.g. robot vacuum)",
-  "type": "iot",
+  "type": "vacuum",
   "weight": 55,
   "cond": {
    "vendor": "xiaomi|roborock|dreame"
@@ -710,7 +710,7 @@
   "key": "tado",
   "label": "tado° Thermostat-Bridge",
   "label_en": "tado° thermostat bridge",
-  "type": "iot",
+  "type": "thermostat",
   "weight": 80,
   "cond": {
    "vendor": "tado"
@@ -1028,7 +1028,7 @@
   "key": "slzb",
   "label": "Zigbee-Koordinator (SMLIGHT SLZB)",
   "label_en": "Zigbee coordinator (SMLIGHT SLZB)",
-  "type": "iot",
+  "type": "hub",
   "weight": 90,
   "cond": {
    "mdns": "slzb"
@@ -1038,7 +1038,7 @@
   "key": "ai-on-the-edge",
   "label": "Zählerauslesung (AI on the edge, ESP32-CAM)",
   "label_en": "Meter reader (AI on the edge, ESP32-CAM)",
-  "type": "iot",
+  "type": "esp",
   "weight": 90,
   "cond": {
    "http": "ai on the edge"
@@ -1178,7 +1178,7 @@
   "key": "esphome-host",
   "label": "ESPHome-Gerät",
   "label_en": "ESPHome device",
-  "type": "iot",
+  "type": "esp",
   "weight": 84,
   "cond": {
    "hostname": "esphome|bluetooth-proxy|esp32-|esp8266-"

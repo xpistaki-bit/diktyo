@@ -434,9 +434,8 @@ async function deviceHealth(ctx, did, el) {
   const a = r.availability, fw = r.firmware;
   if (!a['24'] && !a['168'] && !fw && r.rtt_24h == null && !r.today && !r.live) { el.innerHTML = ''; return; }
   const cell = (x, label) => `<div class="hcell"><span class="muted small">${t(label)}</span><b class="mono">${fmtPct(x)}</b>${x ? `<span class="small muted">${x.outages === 1 ? t('1 Ausfall') : t('{n} Ausfälle', { n: x.outages })}${x.longest_s ? ' · ' + t('längster {d}', { d: fmtDur(x.longest_s) }) : ''}</span>` : ''}</div>`;
-  el.innerHTML = `<h4>${t('Erreichbarkeit & Firmware')}</h4>
-    ${fw ? `<p class="small">${t('Firmware')}: <b class="mono">${h(fw.installed || '–')}</b> ${fw.update ? `${fwBadge(fw)}${fw.info ? ` <a href="${h(fw.info)}" target="_blank" rel="noopener">${t('Hinweise des Herstellers')}</a>` : ''}`
-      : fw.update === false ? `<span class="okc">${t('aktuell')}</span>` : ''} <span class="muted">· ${t('Quelle')}: ${h(fw.source)}</span></p>${fwStuck(fw, r.web_ip)}` : ''}
+  el.innerHTML = `<h4>${t('Erreichbarkeit')}</h4>
+    ${fw?.installed ? `<p class="small">${t('Firmware')}: <b class="mono">${h(fw.installed)}</b> <span class="muted">· ${t('Quelle')}: ${h(fw.source)}</span></p>` : ''}
     ${r.live ? `<p class="small">${t('Gerade')}: <b class="mono">↓ ${fmtBps(r.live.down)} · ↑ ${fmtBps(r.live.up)}</b> <span class="muted">· ${h(r.live.source)}</span></p>` : ''}
     ${r.today ? `<p class="small">${t('Letzte 24 Stunden')}: <b class="mono">↓ ${fmtBytes(r.today.rx)} · ↑ ${fmtBytes(r.today.tx)}</b> <span class="muted">· ${h(r.today.source)}</span></p>` : ''}
     ${a['24'] || a['168'] ? `<div class="hcells">${cell(a['24'], '24 Stunden')}${cell(a['168'], '7 Tage')}${cell(a['720'], '30 Tage')}

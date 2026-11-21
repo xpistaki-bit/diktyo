@@ -240,6 +240,8 @@ def set_auto_uplink(c, pid, did, target, medium="lan", port_name=None, port_id=N
     if port_name and not port_id:
         r = c.execute("SELECT id FROM interfaces WHERE device_id=? AND role='port' AND lower(name)=lower(?)", (target, port_name)).fetchone()
         port_id = r["id"] if r else None
+    if medium == "lan" and not port_id and not local_port_id and inventory.wireless_only(c, did):
+        medium = "wlan"  # Router meldet „kabelgebunden“, das Gerät hat aber keine Buchse (z. B. Client hinter einem Mesh-Knoten)
     b_if = port_id or inventory.nic_of(c, target)["id"]
     a_if = local_port_id or inventory.nic_of(c, did)["id"]
     ts = _t.time()
@@ -482,6 +484,29 @@ def apply_asus(c, row, res):
 
 
 # ------------------------------------------------------------ Proxmox
+def _auto_set(c, did, software="", manufacturer="", model="", inherit_from=None):
+    """Angaben aus einer Integration setzen, ohne Eingaben von Hand zu überschreiben: Software nur, wenn sie leer ist oder
+    selbst automatisch kam; Hersteller/Modell nur, wenn leer; Standort vom Host, wenn keiner gesetzt ist."""
+    d = c.execute("SELECT manufacturer, model, location_id, data FROM devices WHERE id=?", (did,)).fetchone()
+    if not d:
+        return
+    data = json.loads(d["data"] or "{}")
+    sets = {}
+    if software and (not data.get("software") or data.get("software_auto", False)) and data.get("software") != software:
+        data["software"], data["software_auto"] = software, True
+        sets["data"] = json.dumps(data, ensure_ascii=False)
+    if manufacturer and not d["manufacturer"]:
+        sets["manufacturer"] = manufacturer
+    if model and not d["model"]:
+        sets["model"] = model
+    if inherit_from and not d["location_id"]:
+        loc = c.execute("SELECT location_id FROM devices WHERE id=?", (inherit_from,)).fetchone()
+        if loc and loc["location_id"]:
+            sets["location_id"] = loc["location_id"]
+    if sets:
+        c.execute(f"UPDATE devices SET {', '.join(k + '=?' for k in sets)} WHERE id=?", (*sets.values(), did))
+
+
 def apply_proxmox(c, row, res):
     pid, ts = row["profile_id"], now()
     node_dev, new, links, own = {}, 0, 0, None
@@ -492,6 +517,9 @@ def apply_proxmox(c, row, res):
             new += 1
         node_dev[n["name"]] = did
         runner._set_online(c, did, 1 if n["online"] else 0, ts, "proxmox")
+        ver = (res.get("info") or {}).get("version")
+        if ver:
+            _auto_set(c, did, software=f"Proxmox VE {ver}")
         if n["ip"] == row["host"] or own is None:
             own = did if n["ip"] == row["host"] else own
     if own is None and node_dev:
@@ -522,6 +550,8 @@ def apply_proxmox(c, row, res):
                               (pid, did, nic["id"], ip, runner._ip_kind(c, pid, ip), "proxmox"))
         runner._set_online(c, did, 1 if g["running"] else 0, ts, "proxmox")
         host = node_dev.get(g["node"])
+        # vom Hypervisor übernehmen: Software, „Hardware“ (virtuell), Standort – nur wo nichts von Hand eingetragen ist
+        _auto_set(c, did, software=g.get("os") or "", manufacturer="Proxmox", model="QEMU-VM" if g["kind"] == "qemu" else "LXC-Container", inherit_from=host)
         if host and host != did and set_auto_uplink(c, pid, did, host, "virtual", source="proxmox"):
             links += 1
     return dict(device_id=own, nodes=len(node_dev), guests=len(res.get("guests", [])), running=sum(1 for g in res.get("guests", []) if g["running"]),

@@ -308,7 +308,7 @@ def meta(pid: int, request: Request, user=Depends(require_user)):
     lang = lang_of(request)
     with db() as c:
         profile_access(c, user, pid)
-    return dict(types=[dict(key=k, name=catalog.type_name(k, lang)) for k in catalog.TYPES], media=list(catalog.MEDIA),
+    return dict(types=[dict(key=k, name=catalog.type_name(k, lang)) for k in catalog.sorted_types(lang)], media=list(catalog.MEDIA),
                 port_kinds=list(catalog.PORT_KINDS), sections=list(export.SECTIONS))
 
 
