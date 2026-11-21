@@ -207,6 +207,7 @@ async function tabIntegrations(ctx) {
     try { await api('PUT', `${P}/monitor`, { enabled: !!v.enabled, interval_s: +v.interval_s }); toast(t('gespeichert')); } catch (e) { toast(e.message, true); }
   };
   $$('[data-add]', ctx.el).forEach(b => b.onclick = () => integrationDialog(ctx, null, drv[b.dataset.add]));
+  const waits = [];  // Diagramme und Zusatzbereiche: erst fertig, dann zeigen (kein Flackern beim Aktualisieren)
   for (const card of $$('.integ', ctx.el)) {
     const i = r.integrations.find(x => x.id === +card.dataset.id);
     const pb = $('[data-poll]', card);
@@ -241,18 +242,25 @@ async function tabIntegrations(ctx) {
       const draw = () => drawChart(ch, ctx.pid, keys(), names, tabIntegrations.since || 7200, dnsChart ? { fmt: v => fmtInt(Math.round(v)) } : {}).catch(() => { });
       $$('[data-range]', card).forEach(b => b.onclick = () => { tabIntegrations.since = +b.dataset.range; $$('[data-range]', card).forEach(x => x.classList.toggle('on', x === b)); draw(); });
       $$('[data-port]', card).forEach(b => b.onclick = () => { card.dataset.port = b.dataset.port; $$('.pstrip [data-port]', card).forEach(x => x.classList.toggle('sel', x === b)); $('.pname', card).textContent = b.title; draw(); });
-      draw();
+      waits.push(draw());
     }
   }
   // Ansicht aktuell halten, solange der Reiter offen ist
-  { const hb = document.createElement('div'); hb.style.marginTop = '16px'; ctx.el.appendChild(hb); healthPanel(ctx, hb); }
-  { const qb = document.createElement('div'); qb.style.marginTop = '16px'; ctx.el.appendChild(qb); quarantinePanel(ctx, qb); }
-  { const sb = document.createElement('div'); sb.className = 'panel'; sb.style.marginTop = '16px'; sb.innerHTML = `<h3>${t('Zeitpläne')}</h3><div></div>`; ctx.el.appendChild(sb); scheduleList(ctx, sb.lastElementChild); }
-  { const box = document.createElement('div'); box.id = 'recentact'; box.style.marginTop = '16px'; ctx.el.appendChild(box); recentActions(ctx, box); }
+  { const hb = document.createElement('div'); hb.style.marginTop = '16px'; ctx.el.appendChild(hb); waits.push(healthPanel(ctx, hb)); }
+  { const qb = document.createElement('div'); qb.style.marginTop = '16px'; ctx.el.appendChild(qb); waits.push(quarantinePanel(ctx, qb)); }
+  { const sb = document.createElement('div'); sb.className = 'panel'; sb.style.marginTop = '16px'; sb.innerHTML = `<h3>${t('Zeitpläne')}</h3><div></div>`; ctx.el.appendChild(sb); waits.push(scheduleList(ctx, sb.lastElementChild)); }
+  { const box = document.createElement('div'); box.id = 'recentact'; box.style.marginTop = '16px'; ctx.el.appendChild(box); waits.push(recentActions(ctx, box)); }
   clearTimeout(tabIntegrations.timer);
-  speedSettings(ctx, $('#speedbox', ctx.el));
-  notifySettings(ctx, $('#notifybox', ctx.el));
-  tabIntegrations.timer = setTimeout(() => { if (document.body.contains(ctx.el) && location.hash.endsWith('/integrationen') && !$('#dlg').open) ctx.reload(); }, 60000);
+  waits.push(speedSettings(ctx, $('#speedbox', ctx.el)), notifySettings(ctx, $('#notifybox', ctx.el)));
+  await Promise.allSettled(waits);
+  // jede Minute aktualisieren: neue Ansicht unsichtbar fertig bauen und dann in einem Schritt tauschen
+  tabIntegrations.timer = setTimeout(async () => {
+    if (!document.body.contains(ctx.el) || !location.hash.endsWith('/integrationen') || $('#dlg').open) return;
+    const fresh = document.createElement('div');
+    fresh.id = ctx.el.id;
+    try { await tabIntegrations({ ...ctx, el: fresh }); } catch { return; }
+    if (document.body.contains(ctx.el) && location.hash.endsWith('/integrationen') && !$('#dlg').open) ctx.el.replaceWith(fresh);
+  }, 60000);
   void since;
 }
 
@@ -544,15 +552,16 @@ function dnsCard(i) {
 function shellyCard(i) {
   const r = i.result || {}, devs = r.devices || [];
   const total = devs.reduce((a, d) => a + (d.power_w || 0), 0);
-  const byMac = Object.fromEntries((i.devices_by_mac || []).map(x => [x.mac, x]));
+  const byIp = Object.fromEntries((i.devices_by_mac || []).map(x => [x.ip, x]));
   return `<div class="kv"><span>${t('Geräte')}: <b>${devs.length}</b></span><span>${t('Leistung zusammen')}: <b class="mono">${fmtW(total)}</b></span></div>
     ${devs.length ? `<div class="table-wrap"><table class="compact"><thead><tr><th>${t('Gerät')}</th><th>${t('Modell')}</th><th>${t('Ausgänge')}</th><th>${t('Leistung')}</th><th>${t('Energie')}</th><th>${t('WLAN')}</th><th>${t('Firmware')}</th></tr></thead><tbody>
-      ${devs.map(d => `<tr><td>${byMac[d.mac] ? `<a href="#" data-dev="${byMac[d.mac].id}">${h(byMac[d.mac].name)}</a>` : h(d.name || d.ip)} <span class="mono muted small">${h(d.ip)}</span></td>
+      ${devs.map(d => { const dv = byIp[d.ip]; return `<tr><td>${dv ? `<a href="#" data-dev="${dv.id}">${h(dv.name)}</a>` : h(d.name || d.ip)} <span class="mono muted small">${h(d.ip)}</span>
+        ${dv && d.name && d.name !== dv.name ? `<div class="muted small">${t('im Gerät')}: ${h(d.name)}</div>` : ''}</td>
         <td class="small">${h(d.kind === 'tasmota' ? 'Tasmota' : `Shelly Gen${d.gen || 1}`)} · ${h(d.model || '')}</td>
         <td>${(d.channels || []).map(c => `<span class="badge ${c.on ? 'ok' : ''}" title="${h(c.name)}">${c.on ? t('an') : t('aus')}</span>`).join(' ') || '<span class="muted">–</span>'}</td>
         <td class="mono small">${fmtW(d.power_w)}</td><td class="mono small">${d.energy_kwh != null ? `${d.energy_kwh.toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: 1 })} kWh` : '–'}</td>
         <td class="mono small">${d.rssi != null ? (d.kind === 'tasmota' ? `${d.rssi} %` : `${d.rssi} dBm`) : '–'}</td>
-        <td class="small"><span class="mono">${h(d.firmware?.installed || '')}</span> ${fwBadge(d.firmware)}</td></tr>`).join('')}</tbody></table></div>`
+        <td class="small"><span class="mono">${h(d.firmware?.installed || '')}</span> ${fwBadge(d.firmware)}</td></tr>`; }).join('')}</tbody></table></div>`
     : `<p class="muted small">${t('Noch kein Gerät gefunden. Mit „auto“ zuerst einen Netzscan laufen lassen oder IPs eintragen.')}</p>`}`;
 }
 

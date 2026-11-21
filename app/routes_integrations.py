@@ -39,14 +39,23 @@ def _dns_names(r):
 
 
 def _smart_names(r):
-    """Shelly/Tasmota-Karte: díktyo-Gerät (Name, ID) zu jeder MAC."""
+    """Shelly/Tasmota-Karte: díktyo-Gerät (Name, ID) zu jedem Gerät – über die MAC, sonst die IP (Shelly Pro am Kabel meldet
+    in /shelly die WLAN-MAC, im Netz hängt er mit der Ethernet-MAC)."""
     st = json.loads(r["state"] or "{}")
-    macs = [x.get("mac") for x in ((st.get("result") or {}).get("devices") or []) if x.get("mac")][:200]
-    if not macs:
-        return []
+    devs = ((st.get("result") or {}).get("devices") or [])[:200]
+    out = []
     with db() as c:
-        q = f"SELECT i.mac, d.id, d.name FROM interfaces i JOIN devices d ON d.id=i.device_id WHERE d.profile_id=? AND i.mac IN ({','.join('?' * len(macs))})"
-        return [dict(mac=x["mac"], id=x["id"], name=x["name"]) for x in c.execute(q, (r["profile_id"], *macs))]
+        for x in devs:
+            hit = None
+            if x.get("mac"):
+                hit = c.execute("""SELECT d.id, d.name FROM interfaces i JOIN devices d ON d.id=i.device_id WHERE d.profile_id=? AND i.mac=?""",
+                                (r["profile_id"], x["mac"])).fetchone()
+            if not hit and x.get("ip"):
+                hit = c.execute("""SELECT d.id, d.name FROM ip_addresses a JOIN devices d ON d.id=a.device_id WHERE d.profile_id=? AND a.address=?""",
+                                (r["profile_id"], x["ip"])).fetchone()
+            if hit:
+                out.append(dict(mac=x.get("mac", ""), ip=x.get("ip", ""), id=hit["id"], name=hit["name"]))
+    return out
 
 
 def _out(r):

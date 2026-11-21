@@ -122,3 +122,32 @@ def test_auth_required_message(monkeypatch):
         raise AssertionError
     except shelly.DriverError as ex:
         assert "Anmeldung" in str(ex)
+
+
+def test_firmware_only_if_newer_and_gen1_name(monkeypatch):
+    assert shelly.newer("1.14.1", "1.14.0") and not shelly.newer("1.14.0", "1.14.1") and not shelly.newer("", "1.0")
+    mock(monkeypatch)
+    DEV["192.0.2.44"] = {"/shelly": {"type": "SHSW-25", "mac": "AABBCC000044", "fw": "x/v1.14.1-g1"},
+                         "/settings": {"name": "Rollladen Büro"},
+                         "/status": {"relays": [], "update": {"has_update": True, "new_version": "x/v1.14.0-g0"}}}
+    try:
+        r = shelly.read("192.0.2.44", {})
+    finally:
+        DEV.pop("192.0.2.44")
+    assert r["name"] == "Rollladen Büro" and r["firmware"] == dict(installed="1.14.1", latest="", update=False)
+
+
+def test_card_matches_by_ip_and_names_stay(monkeypatch):
+    from app import routes_integrations
+    mock(monkeypatch)
+    cl = login()
+    pid = cl.post("/api/profiles", json={"name": "Shelly-Namen"}, headers=H).json()["profile"]["id"]
+    P = f"/api/profiles/{pid}"
+    # Pro 3EM am Kabel: im Netz mit anderer MAC als in /shelly
+    pro = cl.post(f"{P}/devices", json=dict(name="ShellyPro3EM", type="iot", mac="02:00:00:00:00:99", ips=[{"address": "192.0.2.41"}]), headers=H).json()["id"]
+    r = cl.post(f"{P}/integrations", json=dict(driver="shelly", host="192.0.2.41"), headers=H).json()
+    integrations.poll(r["id"])
+    with db() as c:
+        row = c.execute("SELECT * FROM integrations WHERE id=?", (r["id"],)).fetchone()
+    names = routes_integrations._smart_names(row)
+    assert names == [dict(mac="AA:BB:CC:00:00:41", ip="192.0.2.41", id=pro, name="ShellyPro3EM")]

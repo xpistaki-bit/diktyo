@@ -561,7 +561,8 @@ def apply_ha(c, row, res):
             data["ha"] = {k: hd.get(k) for k in ("name", "area", "manufacturer", "model")}
             sets = dict(data=json.dumps(data, ensure_ascii=False))
             mode = conf.get("import_names") or "new"
-            if hd.get("name") and hd["name"] != d["name"] and (mode == "all" or (mode == "new" and _auto_name(d))):
+            if hd.get("name") and hd["name"] != d["name"] and (mode == "all" or (mode == "new" and _auto_name(d))) \
+                    and not inventory.name_locked(c, d["id"], data):  # selbst vergebene Namen bleiben
                 sets["name"] = hd["name"][:120]
                 out["renamed"] += 1
             if conf.get("import_areas", "yes") == "yes" and hd.get("area") and not d["location_id"]:
@@ -813,7 +814,7 @@ def apply_dnsfilter(c, row, res):
         sets = {}
         if short and not d["hostname"]:
             sets["hostname"] = short[:120]
-        if short and d["status"] == "discovered" and GENERIC_NAME.match(d["name"] or ""):
+        if short and d["status"] == "discovered" and GENERIC_NAME.match(d["name"] or "") and not inventory.name_locked(c, did):
             sets["name"] = short[:80]
         data = json.loads(d["data"] or "{}")
         data["dns"] = dict(integration=row["id"], source=src, queries=x["queries"], blocked=x["blocked"], pct=x["pct"], name=host,
@@ -837,6 +838,7 @@ def apply_shelly(c, row, res):
             new += 1
         d = json.loads(c.execute("SELECT data FROM devices WHERE id=?", (did,)).fetchone()["data"] or "{}")
         d["smart"] = dict(integration=row["id"], ip=x["ip"], kind=x["kind"], gen=x.get("gen"), model=x.get("model", ""), channels=x.get("channels") or [],
+                          device_name=x.get("name", ""),
                           power_w=x.get("power_w"), energy_kwh=x.get("energy_kwh"), rssi=x.get("rssi"), voltage=x.get("voltage"), ts=now())
         c.execute("UPDATE devices SET data=?, manufacturer=CASE WHEN manufacturer='' THEN ? ELSE manufacturer END, "
                   "model=CASE WHEN model='' THEN ? ELSE model END WHERE id=?", (json.dumps(d, ensure_ascii=False), vendor, x.get("model", ""), did))

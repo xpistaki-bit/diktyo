@@ -78,7 +78,14 @@ def _w(v):
         return None
 
 
-def read_shelly1(ip, info, st):
+def newer(latest, installed):
+    """Ist latest wirklich neuer als installed? („1.14.0“ gegen „1.14.1“ -> nein)"""
+    import re
+    num = lambda s: tuple(int(x) for x in re.findall(r"\d+", str(s or ""))[:4])  # noqa: E731
+    return bool(latest) and num(latest) > num(installed)
+
+
+def read_shelly1(ip, info, st, settings=None):
     relays = st.get("relays") or []
     meters = st.get("meters") or []
     emeters = st.get("emeters") or []
@@ -90,11 +97,13 @@ def read_shelly1(ip, info, st):
     power = sum(x for x in [_w(m.get("power")) for m in meters] + [_w(e.get("power")) for e in emeters] if x is not None) if (meters or emeters) else None
     energy = sum((m.get("total") or 0) / 60000 for m in meters) + sum((e.get("total") or 0) / 1000 for e in emeters) if (meters or emeters) else None
     up = st.get("update") or {}
-    return dict(kind="shelly", gen=1, model=info.get("type", ""), mac=norm_mac(info.get("mac") or st.get("mac")), name=(st.get("name") or ""),
+    inst, new = _fw1(info.get("fw") or up.get("old_version")), _fw1(up.get("new_version")) if up.get("has_update") else ""
+    upd = newer(new, inst) if up else None
+    return dict(kind="shelly", gen=1, model=info.get("type", ""), mac=norm_mac(info.get("mac") or st.get("mac")),
+                name=((settings or {}).get("name") or st.get("name") or ""),
                 channels=ch, power_w=power, energy_kwh=round(energy, 3) if energy is not None else None,
                 rssi=(st.get("wifi_sta") or {}).get("rssi"), voltage=_w((emeters[0] if emeters else {}).get("voltage")),
-                firmware=dict(installed=_fw1(info.get("fw") or up.get("old_version")), latest=_fw1(up.get("new_version")) if up.get("has_update") else "",
-                              update=bool(up.get("has_update")) if up else None))
+                firmware=dict(installed=inst, latest=new if upd else "", update=upd))
 
 
 def _fw1(s):
@@ -135,7 +144,8 @@ def read_shelly2(ip, info, st):
     return dict(kind="shelly", gen=int(info.get("gen") or 2), model=info.get("model") or info.get("app") or "", mac=norm_mac(info.get("mac")),
                 name=info.get("name") or "", channels=ch, power_w=round(sum(p for p in power if p is not None), 1) if power else None,
                 energy_kwh=round(sum(energy), 3) if energy else None, rssi=(st.get("wifi") or {}).get("rssi"), voltage=voltage,
-                firmware=dict(installed=str(info.get("ver") or ""), latest=str(upd.get("version") or ""), update=bool(upd.get("version"))))
+                firmware=dict(installed=str(info.get("ver") or ""), latest=str(upd.get("version") or "") if newer(upd.get("version"), info.get("ver")) else "",
+                              update=newer(upd.get("version"), info.get("ver"))))
 
 
 def read_tasmota(ip, s):
@@ -166,7 +176,11 @@ def read(ip, conf):
     if info and (info.get("gen") or 0) >= 2:
         return dict(read_shelly2(ip, info, _rpc(ip, "Shelly.GetStatus", conf)), ip=ip)
     if info and info.get("type"):
-        return dict(read_shelly1(ip, info, _get(ip, "/status", conf)), ip=ip)
+        try:
+            settings = _get(ip, "/settings", conf)  # Gerätename steht bei Gen1 nur hier
+        except DriverError:
+            settings = {}
+        return dict(read_shelly1(ip, info, _get(ip, "/status", conf), settings), ip=ip)
     s = _tasmota(ip, "Status 0", conf)
     if "StatusFWR" not in s and "Status" not in s:
         raise DriverError(f"{ip}: weder Shelly noch Tasmota")

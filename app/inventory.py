@@ -141,6 +141,24 @@ def set_uplink(c, pid, did, up):
 
 
 # ------------------------------------------------------------ Speichern
+def lock_name(c, did):
+    r = c.execute("SELECT data FROM devices WHERE id=?", (did,)).fetchone()
+    data = json.loads(r["data"] or "{}")
+    if not data.get("name_manual"):
+        data["name_manual"] = True
+        c.execute("UPDATE devices SET data=? WHERE id=?", (json.dumps(data, ensure_ascii=False), did))
+
+
+def name_locked(c, did, data=None):
+    """Hat jemand den Namen von Hand vergeben? (Merker, sonst ein früherer Eintrag „Name geändert“ von einem Benutzer im Verlauf)"""
+    if data is None:
+        r = c.execute("SELECT data FROM devices WHERE id=?", (did,)).fetchone()
+        data = json.loads(r["data"] or "{}") if r else {}
+    if data.get("name_manual"):
+        return True
+    return bool(c.execute("SELECT 1 FROM changes WHERE device_id=? AND field='name' AND user_id IS NOT NULL LIMIT 1", (did,)).fetchone())
+
+
 def save_device(c, pid, body, did=None):
     name = str(body.get("name") or "").strip()[:120]
     if not name:

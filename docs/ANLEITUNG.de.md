@@ -85,6 +85,11 @@ Seite aktualisiert sich alle 30 Sekunden.
 - **Geräte:** Im Gerätedialog Katalogmodell wählen – damit entstehen die Ports (z. B. 24 × RJ45 + 4 × SFP+). Unter
   *Anschluss* legst du fest, woran das Gerät hängt: LAN an einen Port, WLAN bzw. Mesh an einen Access Point, virtuell
   an einen Host. Von Hand gesetzte Verbindungen überschreibt keine Integration.
+- **Woher die Namen kommen:** Beim ersten Fund vergibt díktyo einen Namen aus Hostname, mDNS oder Erkennung
+  („Espressif .45“). Integrationen können ihn ersetzen: Home Assistant (Einstellung *Namen aus HA übernehmen*), Pi-hole/
+  AdGuard (nur Platzhalternamen im Posteingang), neue Geräte aus FRITZ!Box, ASUS, Shelly usw. bekommen den Namen dort.
+  **Ein Name, den du selbst änderst, ist geschützt** – keine Integration überschreibt ihn mehr. Die Shelly-Karte zeigt
+  zusätzlich den Namen, der im Shelly selbst eingetragen ist („im Gerät: …“), falls er abweicht.
 - **IPAM:** Subnetze mit Gateway, DHCP-Bereich und VLAN, Belegung und freie Adressen. Hinweise (z. B. doppelte IP,
   statische IP im DHCP-Bereich) lassen sich als gelesen markieren.
 - **Standorte:** Baum aus Haus › Etage › Raum. Home Assistant kann seine Bereiche als Standorte liefern.

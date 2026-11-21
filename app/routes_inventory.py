@@ -43,9 +43,12 @@ def device_get(pid: int, did: int, user=Depends(require_user)):
 def device_update(pid: int, did: int, body: dict = Body(...), user=Depends(require_user)):
     with db() as c:
         profile_access(c, user, pid, "edit")
-        if not c.execute("SELECT 1 FROM devices WHERE id=? AND profile_id=?", (did, pid)).fetchone():
+        old = c.execute("SELECT name FROM devices WHERE id=? AND profile_id=?", (did, pid)).fetchone()
+        if not old:
             raise HTTPException(404, "Gerät nicht gefunden")
         inventory.save_device(c, pid, body, did)
+        if str(body.get("name") or "").strip()[:120] != old["name"]:  # selbst vergebener Name: Integrationen überschreiben ihn nicht mehr
+            inventory.lock_name(c, did)
         audit(c, "device.update", user["id"], pid, dict(id=did, name=body.get("name")))
         touch(c, pid, user)
         return inventory.device_detail(c, pid, did)
