@@ -258,5 +258,6 @@ def action(conf, state, kind, params):
             _rpc(ip, "Shelly.Update", conf, {"stage": "stable"})
         else:
             _get(ip, "/ota", conf, params={"update": "1"})
-        return f"{params.get('name') or ip}: Firmware-Update gestartet (Gerät startet danach neu)"
+        return (f"{params.get('name') or ip}: Auftrag vom Gerät angenommen – es lädt die Firmware selbst vom Hersteller und startet danach neu. "
+                "díktyo prüft bei den nächsten Abfragen, ob die neue Version ankommt.")
     raise DriverError(f"Unbekannte Aktion {kind}")

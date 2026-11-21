@@ -462,6 +462,13 @@ def execute(c_unused, pid, user_id, kind, iid, params, interactive=True, undo=No
     try:
         msg = drv.action(conf_of(row), state, kind, params)
         res = dict(status="done", message=msg, backup=note)
+        if kind == "fw_update" and device_id:
+            with db() as c:  # merken: die nächsten Abfragen prüfen, ob die neue Version ankommt
+                d = c.execute("SELECT data FROM devices WHERE id=?", (device_id,)).fetchone()
+                data = json.loads(d["data"] or "{}")
+                fw = data.get("firmware") or {}
+                data["fw_requested"] = dict(ts=time.time(), installed=fw.get("installed", ""), target=fw.get("latest", ""))
+                c.execute("UPDATE devices SET data=? WHERE id=?", (json.dumps(data, ensure_ascii=False), device_id))
     except ERRORS as ex:
         if type(ex).__name__ == "SecondFactorRequired" and interactive and hasattr(drv, "second_factor_start"):
             sf = drv.second_factor_start(conf_of(row), state)

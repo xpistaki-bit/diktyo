@@ -151,3 +151,42 @@ def test_card_matches_by_ip_and_names_stay(monkeypatch):
         row = c.execute("SELECT * FROM integrations WHERE id=?", (r["id"],)).fetchone()
     names = routes_integrations._smart_names(row)
     assert names == [dict(mac="AA:BB:CC:00:00:41", ip="192.0.2.41", id=pro, name="ShellyPro3EM")]
+
+
+def test_firmware_update_is_tracked(monkeypatch):
+    import time as _time
+    mock(monkeypatch)
+    cl = login()
+    pid = cl.post("/api/profiles", json={"name": "FW-Nachverfolgung"}, headers=H).json()["profile"]["id"]
+    P = f"/api/profiles/{pid}"
+    r = cl.post(f"{P}/integrations", json=dict(driver="shelly", host="192.0.2.42"), headers=H).json()
+    integrations.poll(r["id"])
+    did = next(d["id"] for d in cl.get(f"{P}/devices").json()["devices"])
+    with db() as c:
+        fw_act = next(a for a in actions.available(c, pid, did) if a["kind"] == "fw_update")
+    res = actions.run(pid, 1, did, fw_act["key"])
+    assert "Auftrag vom Gerät angenommen" in res["message"]
+    data = lambda: json.loads(db_one("SELECT data FROM devices WHERE id=?", did))  # noqa: E731
+    assert data()["fw_requested"]["installed"] == "1.3.3" and data()["fw_requested"]["target"] == "1.4.0"
+    integrations.poll(r["id"])
+    assert "stuck" not in data()["firmware"]  # noch keine 20 Minuten
+    with db() as c:
+        d = data()
+        d["fw_requested"]["ts"] = _time.time() - 1800
+        c.execute("UPDATE devices SET data=? WHERE id=?", (json.dumps(d), did))
+    integrations.poll(r["id"])
+    assert data()["firmware"]["stuck"]["installed"] == "1.3.3"
+    assert cl.get(f"{P}/devices/{did}").json()["firmware_info"]["stuck"] and cl.get(f"{P}/devices/{did}/health").json()["web_ip"] == "192.0.2.42"
+    DEV["192.0.2.42"]["/shelly"]["ver"] = "1.4.0"
+    DEV["192.0.2.42"]["rpc"]["sys"]["available_updates"] = {}
+    try:
+        integrations.poll(r["id"])
+    finally:
+        DEV["192.0.2.42"]["/shelly"]["ver"] = "1.3.3"
+        DEV["192.0.2.42"]["rpc"]["sys"]["available_updates"] = {"stable": {"version": "1.4.0"}}
+    assert "fw_requested" not in data() and "stuck" not in data()["firmware"] and data()["firmware"]["installed"] == "1.4.0"
+
+
+def db_one(q, *a):
+    with db() as c:
+        return c.execute(q, a).fetchone()[0]

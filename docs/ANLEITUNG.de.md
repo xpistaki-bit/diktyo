@@ -283,6 +283,9 @@ díktyo liest Schnittstellen (Status, Adressen, Traffic), Clients aus DHCP-Lease
   im Gerätedialog stehen Leistung, Energie, Spannung und der Leistungsverlauf als Diagramm.
 - *Aktionen* im Gerätedialog: Ausgang ein/aus (mit automatischem Zurückschalten) und *Firmware aktualisieren*, wenn
   das Gerät ein Update meldet. Vorsicht bei Steckdosen, an denen Server oder Netzwerktechnik hängen.
+- Das Update lädt der Shelly selbst vom Hersteller. díktyo prüft danach, ob die neue Version ankommt; nach 20 Minuten
+  ohne neue Version erscheint ein Hinweis (meist kommt das Gerät nicht ins Internet). *Weboberfläche öffnen* (im
+  Gerätedialog, in der Topologie und als ↗ auf der Karte) führt direkt zum Gerät.
 
 ### Docker
 

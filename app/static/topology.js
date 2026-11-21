@@ -245,7 +245,7 @@ async function tabTopology(ctx) {
       ${d.ident_full?.label ? `<p class="small muted">${t('Erkannt als')}: ${esc(identLabel(d.ident_full))}</p>` : ''}
       <div class="row" style="margin-top:10px">${ctx.canEdit ? `<button class="sm" data-edit>${t('Bearbeiten')}</button>` : `<button class="sm" data-edit>${t('Details')}</button>`}
         ${d.ports.length || d.connected.length ? `<a class="btn sm pri" href="#/p/${ctx.pid}/topologie/${d.id}">${t('Detailansicht')}</a>` : ''}
-        <button class="sm" data-ping>${t('Ping')}</button></div><div id="sideact"></div>`;
+        <button class="sm" data-ping>${t('Ping')}</button>${d.smart?.ip ? webLink(d.smart.ip) : ''}</div>${fwStuck(d.firmware_info, d.smart?.ip)}<div id="sideact"></div>`;
     actionsBox(ctx, d.id, $('#sideact', el));
     $('[data-close]', el).onclick = () => { el.hidden = true; tabTopology.sel = null; $$('.tn', vp).forEach(g => g.classList.remove('sel')); };
     $('[data-edit]', el).onclick = () => deviceDialog(ctx, d.id);

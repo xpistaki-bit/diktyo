@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.23.1 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.23.2 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt

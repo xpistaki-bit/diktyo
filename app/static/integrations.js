@@ -149,6 +149,11 @@ const fmtMs = v => v == null || isNaN(v) ? '–' : `${(+v).toLocaleString(LANG =
 const fmtDur = s => !s ? '–' : s < 60 ? `${s} s` : s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${(s / 3600).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: 1 })} h` : t('{d} Tage {h} h', { d: Math.floor(s / 86400), h: Math.floor(s % 86400 / 3600) });
 const pctCls = p => p == null ? 'muted' : p >= 99.9 ? 'okc' : p >= 98 ? 'warnc' : 'errtxt';
 const fmtPct = a => a ? `<span class="${pctCls(a.pct)}">${a.pct.toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: a.pct >= 99.9 ? 2 : 1 })} %</span>` : '<span class="muted">–</span>';
+/* Weboberfläche eines Shelly/Tasmota (im lokalen Netz, ohne Cloud) */
+const webLink = (ip, label) => ip ? `<a class="btn sm" href="http://${h(ip)}/" target="_blank" rel="noopener noreferrer">${h(label || t('Weboberfläche öffnen'))} ↗</a>` : '';
+/* Von díktyo angestoßenes Firmware-Update, das nach 20 Minuten nicht angekommen ist */
+const fwStuck = (fw, ip) => fw?.stuck ? `<div class="hint-box small warnc" style="margin:6px 0">${t('Firmware-Update angestoßen {d}, das Gerät meldet aber weiterhin {v}. Meist kommt das Gerät nicht ins Internet oder das Update braucht eine Bestätigung im Gerät.', { d: h(fmtDate(new Date(fw.stuck.since * 1000).toISOString())), v: h(fw.stuck.installed || fw.installed || '?') })}
+  ${ip ? ' ' + webLink(ip, t('Im Gerät prüfen')) : ''}</div>` : '';
 const fwBadge = fw => !fw ? '' : fw.update ? `<span class="badge fwup" title="${h(t('Update verfügbar'))}">⬆ ${h(fw.latest || t('Update'))}</span>` : '';
 
 function rangeButtons(cur) {
@@ -431,7 +436,7 @@ async function deviceHealth(ctx, did, el) {
   const cell = (x, label) => `<div class="hcell"><span class="muted small">${t(label)}</span><b class="mono">${fmtPct(x)}</b>${x ? `<span class="small muted">${x.outages === 1 ? t('1 Ausfall') : t('{n} Ausfälle', { n: x.outages })}${x.longest_s ? ' · ' + t('längster {d}', { d: fmtDur(x.longest_s) }) : ''}</span>` : ''}</div>`;
   el.innerHTML = `<h4>${t('Erreichbarkeit & Firmware')}</h4>
     ${fw ? `<p class="small">${t('Firmware')}: <b class="mono">${h(fw.installed || '–')}</b> ${fw.update ? `${fwBadge(fw)}${fw.info ? ` <a href="${h(fw.info)}" target="_blank" rel="noopener">${t('Hinweise des Herstellers')}</a>` : ''}`
-      : fw.update === false ? `<span class="okc">${t('aktuell')}</span>` : ''} <span class="muted">· ${t('Quelle')}: ${h(fw.source)}</span></p>` : ''}
+      : fw.update === false ? `<span class="okc">${t('aktuell')}</span>` : ''} <span class="muted">· ${t('Quelle')}: ${h(fw.source)}</span></p>${fwStuck(fw, r.web_ip)}` : ''}
     ${r.live ? `<p class="small">${t('Gerade')}: <b class="mono">↓ ${fmtBps(r.live.down)} · ↑ ${fmtBps(r.live.up)}</b> <span class="muted">· ${h(r.live.source)}</span></p>` : ''}
     ${r.today ? `<p class="small">${t('Letzte 24 Stunden')}: <b class="mono">↓ ${fmtBytes(r.today.rx)} · ↑ ${fmtBytes(r.today.tx)}</b> <span class="muted">· ${h(r.today.source)}</span></p>` : ''}
     ${a['24'] || a['168'] ? `<div class="hcells">${cell(a['24'], '24 Stunden')}${cell(a['168'], '7 Tage')}${cell(a['720'], '30 Tage')}
@@ -554,14 +559,15 @@ function shellyCard(i) {
   const total = devs.reduce((a, d) => a + (d.power_w || 0), 0);
   const byIp = Object.fromEntries((i.devices_by_mac || []).map(x => [x.ip, x]));
   return `<div class="kv"><span>${t('Geräte')}: <b>${devs.length}</b></span><span>${t('Leistung zusammen')}: <b class="mono">${fmtW(total)}</b></span></div>
-    ${devs.length ? `<div class="table-wrap"><table class="compact"><thead><tr><th>${t('Gerät')}</th><th>${t('Modell')}</th><th>${t('Ausgänge')}</th><th>${t('Leistung')}</th><th>${t('Energie')}</th><th>${t('WLAN')}</th><th>${t('Firmware')}</th></tr></thead><tbody>
+    ${devs.length ? `<div class="table-wrap"><table class="compact"><thead><tr><th>${t('Gerät')}</th><th>${t('Modell')}</th><th>${t('Ausgänge')}</th><th>${t('Leistung')}</th><th>${t('Energie')}</th><th>${t('WLAN')}</th><th>${t('Firmware')}</th><th></th></tr></thead><tbody>
       ${devs.map(d => { const dv = byIp[d.ip]; return `<tr><td>${dv ? `<a href="#" data-dev="${dv.id}">${h(dv.name)}</a>` : h(d.name || d.ip)} <span class="mono muted small">${h(d.ip)}</span>
         ${dv && d.name && d.name !== dv.name ? `<div class="muted small">${t('im Gerät')}: ${h(d.name)}</div>` : ''}</td>
         <td class="small">${h(d.kind === 'tasmota' ? 'Tasmota' : `Shelly Gen${d.gen || 1}`)} · ${h(d.model || '')}</td>
         <td>${(d.channels || []).map(c => `<span class="badge ${c.on ? 'ok' : ''}" title="${h(c.name)}">${c.on ? t('an') : t('aus')}</span>`).join(' ') || '<span class="muted">–</span>'}</td>
         <td class="mono small">${fmtW(d.power_w)}</td><td class="mono small">${d.energy_kwh != null ? `${d.energy_kwh.toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: 1 })} kWh` : '–'}</td>
         <td class="mono small">${d.rssi != null ? (d.kind === 'tasmota' ? `${d.rssi} %` : `${d.rssi} dBm`) : '–'}</td>
-        <td class="small"><span class="mono">${h(d.firmware?.installed || '')}</span> ${fwBadge(d.firmware)}</td></tr>`; }).join('')}</tbody></table></div>`
+        <td class="small"><span class="mono">${h(d.firmware?.installed || '')}</span> ${fwBadge(d.firmware)}</td>
+        <td><a href="http://${h(d.ip)}/" target="_blank" rel="noopener noreferrer" title="${h(t('Weboberfläche öffnen'))}">↗</a></td></tr>`; }).join('')}</tbody></table></div>`
     : `<p class="muted small">${t('Noch kein Gerät gefunden. Mit „auto“ zuerst einen Netzscan laufen lassen oder IPs eintragen.')}</p>`}`;
 }
 
@@ -569,7 +575,8 @@ function shellyCard(i) {
 function smartBox(ctx, d, el) {
   const s = d.smart;
   if (!s) { el.innerHTML = ''; return; }
-  el.innerHTML = `<h4>${t('Leistung')} <small class="muted">· ${h(s.kind === 'tasmota' ? 'Tasmota' : `Shelly Gen${s.gen || 1}`)}</small></h4>
+  el.innerHTML = `<div class="row between" style="margin-top:22px"><h4 style="margin:0;border:0;padding:0">${t('Leistung')} <small class="muted">· ${h(s.kind === 'tasmota' ? 'Tasmota' : `Shelly Gen${s.gen || 1}`)}${s.device_name ? ' · ' + t('im Gerät') + ': ' + h(s.device_name) : ''}</small></h4>
+      ${webLink(s.ip)}</div>${fwStuck(d.firmware_info || null, s.ip)}
     <div class="speed-now"><span>${t('Jetzt')} <b class="mono">${fmtW(s.power_w)}</b></span>
       ${s.energy_kwh != null ? `<span>${t('Energie gesamt')} <b class="mono">${s.energy_kwh.toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: 2 })} kWh</b></span>` : ''}
       ${s.voltage ? `<span>${t('Spannung')} <b class="mono">${(+s.voltage).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: 1 })} V</b></span>` : ''}

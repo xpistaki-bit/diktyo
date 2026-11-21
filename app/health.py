@@ -56,7 +56,8 @@ def device(c, pid, did):
     fw = json.loads(d["data"] or "{}").get("firmware") if d else None
     from . import clienttraffic
     live, today = clienttraffic.device(*clienttraffic.collect(c, pid), clienttraffic.macs_of(c, did))
-    return dict(availability={h: availability(c, did, h) for h in (24, 168, 720)}, rtt_24h=rtt_avg(c, pid, did), firmware=fw,
+    web_ip = ((json.loads(d["data"] or "{}") if d else {}).get("smart") or {}).get("ip")
+    return dict(availability={h: availability(c, did, h) for h in (24, 168, 720)}, rtt_24h=rtt_avg(c, pid, did), firmware=fw, web_ip=web_ip,
                 today=today, live=live)
 
 
@@ -99,6 +100,15 @@ def apply_firmware(c, pid, did, fw, source):
         changes.record(c, pid, did, "changed", "firmware", old["installed"], new["installed"], source)
     if new["update"] and (not old.get("update") or old.get("latest") != new["latest"]):
         runner.event(c, pid, "firmware_update", did, name=r["name"], installed=new["installed"], latest=new["latest"], source=source)
+    req = data.get("fw_requested")
+    if req:  # von díktyo angestoßenes Update: angekommen? sonst nach 20 Minuten deutlicher Hinweis
+        if new["installed"] and new["installed"] != req.get("installed") and not _same_version(new["installed"], req.get("installed") or "x"):
+            data.pop("fw_requested", None)
+            old = {}  # Speichern erzwingen
+        elif time.time() - req.get("ts", 0) > 20 * 60:
+            new["stuck"] = dict(since=req["ts"], installed=req.get("installed", ""), target=req.get("target", ""))
+            if time.time() - req["ts"] > 7 * 86400:
+                data.pop("fw_requested", None)
     if {k: v for k, v in old.items() if k != "checked"} != {k: v for k, v in new.items() if k != "checked"} or \
             not old.get("checked") or time.time() - parse_ts(old["checked"]).timestamp() > 3600:
         data["firmware"] = new
