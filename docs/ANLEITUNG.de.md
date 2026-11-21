@@ -380,6 +380,8 @@ Ereignisse, nicht die bisherigen.
 - Doppelklick auf einen Switch oder Router öffnet die **Frontplatte** mit allen Ports. Klick auf einen Port zeigt das
   angeschlossene Gerät mit IP und MAC (mit SNMP auch Link, Traffic und LLDP).
 - *Schnell-Ping* prüft alle Geräte sofort.
+- Hängen an einem Gerät mehr als 8 Endgeräte (aufgeklappt), stehen sie in mehreren Spalten nebeneinander – die
+  Topologie wird breiter statt sehr hoch. An der Internet-Leitung steht der Eingang des Routers (z. B. „Kabel“, „DSL“).
 - **Durchsatz** (Knopf in der Werkzeugleiste) zeigt an jeder Verbindung den aktuellen Traffic ↓/↑ aus Sicht des
   angeschlossenen Geräts; die Linie wird mit der Last dicker, der Wert steht kurz vor dem Gerät. Die Einstellung merkt
   sich der Browser. Woher die Werte kommen:

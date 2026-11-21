@@ -520,3 +520,23 @@ async function renderBackup(el) {
   if (STATE.user?.lang && STATE.user.lang !== LANG) { LANG = STATE.user.lang; try { localStorage.setItem('dk_lang', LANG); } catch { } }
   route();
 })();
+
+/* Jedes Suchfeld bekommt ein ✕ zum Leeren (Firefox zeigt keins von selbst); löst „input“ aus, damit die Liste neu filtert */
+(function clearableSearch() {
+  const enhance = root => root.querySelectorAll?.('input[type=search]:not([data-clear])').forEach(inp => {
+    inp.dataset.clear = '1';
+    const wrap = document.createElement('span');
+    wrap.className = 'searchbox';
+    inp.replaceWith(wrap);
+    wrap.append(inp);
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'search-x'; b.textContent = '✕'; b.title = t('Suche leeren'); b.tabIndex = -1;
+    const vis = () => { b.hidden = !inp.value; };
+    b.onclick = () => { inp.value = ''; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true })); vis(); inp.focus(); };
+    inp.addEventListener('input', vis);
+    wrap.append(b); vis();
+  });
+  new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => n.nodeType === 1 && (n.matches?.('input[type=search]') ? enhance(n.parentNode) : enhance(n)))))
+    .observe(document.body, { childList: true, subtree: true });
+  enhance(document);
+})();

@@ -38,7 +38,12 @@ def type_name(t, lang="de"):
 # ------------------------------------------------------------ Port-Gruppen
 # Ein Gerät hat Port-Gruppen, z. B. [{"count": 24, "kind": "rj45", "speed": "1G"}, {"count": 4, "kind": "sfp+", "speed": "10G"}].
 # Daraus entstehen fortlaufend nummerierte Ports. Textform (CSV): "24:rj45:1G, 4:sfp+:10G, 1:rj45:2.5G:WAN:poe".
+NET_SPEED = __import__("re").compile(r"^(\d+([.,]\d+)?\s*(m|g|mb|gb|mbit|gbit|mbps|gbps|gbe|mbe)(/s)?|\d+|\d+\s*base-?[a-z0-9]+|)$", __import__("re").I)
+
+
 def clean_groups(groups):
+    """Nur Netzwerkanschlüsse: unbekannte Arten (HDMI, USB-A, microSD, Audio …) werden weggelassen statt zu RJ45 zu werden;
+    RJ45 mit einer Angabe, die keine Netzwerkgeschwindigkeit ist (z. B. „3.5mm“ = Klinke), ebenso."""
     out = []
     for g in groups or []:
         try:
@@ -47,8 +52,13 @@ def clean_groups(groups):
             n = 0
         if n <= 0:
             continue
-        kind = str(g.get("kind") or "rj45").lower()
-        out.append(dict(count=min(n, 128), kind=kind if kind in PORT_KINDS else "rj45", speed=str(g.get("speed") or "").strip()[:12],
+        kind = str(g.get("kind") or "rj45").strip().lower()
+        speed = str(g.get("speed") or "").strip()
+        if kind not in PORT_KINDS:
+            continue
+        if kind in ("rj45", "sfp", "sfp+", "sfp28") and not NET_SPEED.match(speed):
+            continue
+        out.append(dict(count=min(n, 128), kind=kind, speed=speed[:12],
                         label=str(g.get("label") or "").strip()[:20], poe=bool(g.get("poe"))))
     return out[:16]
 

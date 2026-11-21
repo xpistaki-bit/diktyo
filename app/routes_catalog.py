@@ -121,8 +121,20 @@ async def catalog_import(file: UploadFile = File(...), admin=Depends(require_adm
         for e in entries:
             data = json.dumps(e["data"], ensure_ascii=False)
             if (e["manufacturer"], e["model"]) in have:
-                c.execute("UPDATE device_models SET type=?, data=?, custom=1 WHERE id=?", (e["type"], data, have[(e["manufacturer"], e["model"])]))
+                mid = have[(e["manufacturer"], e["model"])]
+                old = json.loads(c.execute("SELECT data FROM device_models WHERE id=?", (mid,)).fetchone()["data"] or "{}").get("ports") or []
+                c.execute("UPDATE device_models SET type=?, data=?, custom=1 WHERE id=?", (e["type"], data, mid))
                 upd += 1
+                # Geräte mit diesem Modell, deren Ports noch dem alten Katalogstand entsprechen, mitziehen (eigene Anpassungen bleiben)
+                new_ports = e["data"].get("ports") or []
+                if catalog.clean_groups(old) != new_ports or old != new_ports:
+                    from . import inventory
+                    for d in c.execute("SELECT id, data FROM devices WHERE model_id=?", (mid,)).fetchall():
+                        dd = json.loads(d["data"] or "{}")
+                        if (dd.get("ports") or []) == old:
+                            dd["ports"] = new_ports
+                            c.execute("UPDATE devices SET data=? WHERE id=?", (json.dumps(dd, ensure_ascii=False), d["id"]))
+                            inventory.sync_ports(c, d["id"], new_ports)
             else:
                 c.execute("INSERT INTO device_models(type, manufacturer, model, data, custom) VALUES(?,?,?,?,1)", (e["type"], e["manufacturer"], e["model"], data))
                 new += 1

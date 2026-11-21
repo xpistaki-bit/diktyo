@@ -134,7 +134,7 @@ async function tabTopology(ctx) {
           ? `<text x="${cx}" y="${cy - 9}" text-anchor="middle" class="wanlabel">↓ ${esc(fmtBps(e.rx_bps))}</text>
              <text x="${cx}" y="${cy + 19}" text-anchor="middle" class="wanlabel up">↑ ${esc(fmtBps(e.tx_bps))}</text>`
           : e.connected === 0 ? `<text x="${cx}" y="${cy - 9}" text-anchor="middle" class="wanlabel">${t('getrennt')}</text>` : '';
-        return `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" class="${cls}"/>${lbl}`;
+        return `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" class="${cls}"/>${lbl}${e.child_label ? `<text x="${x2 - 8}" y="${y2 - 5}" class="elabel" text-anchor="end">${esc(e.child_label)}</text>` : ''}`;
       }
       const [col, dash] = MSTYLE[e.medium] || MSTYLE.lan;
       if (e.today_bytes) {  // WLAN: kein Live-Wert je Gerät – Verbrauch der letzten 24 Stunden (Traffic Analyzer)

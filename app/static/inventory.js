@@ -86,7 +86,7 @@ async function tabDevices(ctx) {
   const draw = () => {
     const q = f.q.trim().toLowerCase();
     const rows = devices.filter(d => (!f.type || d.type === f.type) && (!f.loc || String(d.location_id) === String(f.loc))
-      && (!q || [d.name, d.hostname, d.mac, d.manufacturer, d.model, d.notes, d.location, ...d.tags, ...d.ips.map(i => i.address), uplinkText(d.uplink)].join(' ').toLowerCase().includes(q)));
+      && (!q || [d.name, d.hostname, d.mac, d.manufacturer, d.model, typeName(d.type), d.notes, d.location, ...d.tags, ...d.ips.map(i => i.address)].join(' ').toLowerCase().includes(q)));
     $('#cnt').textContent = rows.length === devices.length ? t('{n} Geräte', { n: devices.length }) : t('{n} von {m} Geräten', { n: rows.length, m: devices.length });
     sortTable($('#list'), cols, rows, {
       key: 'dev', initial: { k: 'name', dir: 1 }, onRow: d => deviceDialog(ctx, d.id),

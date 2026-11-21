@@ -3,12 +3,15 @@
 Darstellung von links nach rechts: Spalte = Tiefe im Baum, Zeile = Reihenfolge der Blätter. WLAN-Clients und VMs eines
 Geräts werden ab einer Mindestzahl zu einer Gruppe zusammengefasst, die sich aufklappen lässt.
 """
+import math
+
 from . import inventory
 
 COLW, ROWH = 280, 64           # Abstand der Spalten und Zeilen (Einheiten der Zeichnung)
 NODE_W, NODE_H = 220, 48
 INET_GAP = 110                 # zusätzlicher Platz für die Traffic-Anzeige an der Internet-Leitung
 COLLAPSE = {"wlan": 4, "virtual": 5}  # ab so vielen Kindern derselben Art zusammenfassen
+GRID_MIN, GRID_MIN_ROWS, GRID_GAP = 8, 6, 40  # ab so vielen Endgeräten an einem Gerät: Raster mit mindestens so vielen Zeilen je Spalte
 ROOT_ORDER = ("modem", "router", "firewall", "switch", "mesh", "ap", "hypervisor", "server", "nas")
 
 
@@ -46,6 +49,10 @@ def build(c, pid, expanded=(), status="confirmed", traffic=False):
             m = k["uplink"]["medium"]
             groups.setdefault(m if m in COLLAPSE else "other", []).append(k)
         ys = []
+        shown = [k for k in kids if not (k["uplink"]["medium"] in COLLAPSE and len(groups.get(k["uplink"]["medium"], [])) >= COLLAPSE[k["uplink"]["medium"]]
+                                         and f"{d['id']}:{k['uplink']['medium']}" not in expanded)]
+        leaf_ids = {k["id"] for k in shown if not children.get(k["id"])}
+        grid = leaf_ids if len(leaf_ids) > GRID_MIN else set()
         for k in kids:
             m = k["uplink"]["medium"]
             g = groups.get(m)
@@ -60,11 +67,29 @@ def build(c, pid, expanded=(), status="confirmed", traffic=False):
                     edges.append(dict(source=n["id"], target=gid, medium=m, label=""))
                     ys.append(gn["y"])
                 continue
+            if grid and k["id"] in grid:
+                continue  # Endgeräte im Raster, siehe unten
             child = place(k, depth + 1)
             u = k["uplink"]
             edges.append(dict(source=n["id"], target=child["id"], medium=u["medium"], label=u["port_name"] or "",
                               child_label=u["local_port_name"] or "", port_id=u.get("port_id"), local_port_id=u.get("local_port_id")))
             ys.append(child["y"])
+        if grid:
+            # viele Endgeräte am selben Gerät: in mehreren Spalten nebeneinander statt einer langen Liste (Bildschirme sind breiter als hoch)
+            leaves = [k for k in kids if k["id"] in grid]
+            per_col = max(GRID_MIN_ROWS, math.ceil(math.sqrt(len(leaves) * 3)))
+            start = row[0]
+            for i, k in enumerate(leaves):
+                col, r = divmod(i, per_col)
+                child = node_of(k, depth + 1)
+                child.update(x=(depth + 1) * COLW + col * (NODE_W + GRID_GAP), y=(start + r) * ROWH, children=0, grid_col=col)
+                nodes.append(child)
+                u = k["uplink"]
+                edges.append(dict(source=n["id"], target=child["id"], medium=u["medium"], label=u["port_name"] or "",
+                                  child_label=u["local_port_name"] or "", port_id=u.get("port_id"), local_port_id=u.get("local_port_id")))
+                if col == 0:
+                    ys.append(child["y"])
+            row[0] = start + min(len(leaves), per_col)
         n["x"] = depth * COLW
         if ys:
             n["y"] = (min(ys) + max(ys)) / 2
@@ -95,7 +120,7 @@ def build(c, pid, expanded=(), status="confirmed", traffic=False):
                              source=internet["source"], uptime=internet["uptime"], updated=internet["updated"]))
         for n in wan_nodes:
             edges.insert(0, dict(source="internet", target=n["id"], medium="wan", label="", connected=internet["connected"],
-                                 rx_bps=internet["rx_bps"], tx_bps=internet["tx_bps"]))
+                                 rx_bps=internet["rx_bps"], tx_bps=internet["tx_bps"], child_label=_wan_port(c, n["device_id"])))
     if traffic:
         _add_traffic(c, pid, edges, nodes)
     for n in nodes:
@@ -103,7 +128,8 @@ def build(c, pid, expanded=(), status="confirmed", traffic=False):
     for e in edges:
         e.pop("port_id", None)
         e.pop("local_port_id", None)
-    width = (max([n["depth"] for n in nodes] or [0]) + 1) * COLW + (INET_GAP if internet else 0)
+    width = max((max([n["depth"] for n in nodes] or [0]) + 1) * COLW + (INET_GAP if internet else 0),
+                max([n["x"] + NODE_W + 60 for n in nodes] or [0]))
     height = max(row[0], 1) * ROWH
     # von Hand verschobene Knoten
     pos = {r["node"]: (r["x"], r["y"]) for r in c.execute("SELECT node, x, y FROM topo_positions WHERE profile_id=?", (pid,))}
@@ -191,6 +217,18 @@ def _add_traffic(c, pid, edges, nodes=()):
             e["traffic_src"] = lv[0]["source"]
         elif td:
             e["today_bytes"] = sum(x["rx"] + x["tx"] for x in td)
+
+
+def _wan_port(c, did):
+    """Eingang des Routers für die Internet-Leitung: Port nach Art (Kabel, DSL, Glasfaser) oder Name (WAN, Internet …)."""
+    import re
+    best = ""
+    for r in c.execute("SELECT name, kind FROM interfaces WHERE device_id=? AND role='port' ORDER BY port_no", (did,)):
+        if r["kind"] in ("coax", "dsl", "fiber"):
+            return r["name"] or {"coax": "Kabel", "dsl": "DSL", "fiber": "Glasfaser"}[r["kind"]]
+        if not best and re.search(r"wan|internet|dsl|kabel|cable|fiber|glasfaser|uplink", r["name"] or "", re.I):
+            best = r["name"]
+    return best
 
 
 def _internet(c, pid, devs, root_routers):

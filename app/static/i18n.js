@@ -634,6 +634,7 @@ window.I18N_EN = {
   'Erreichbarkeit': 'Reachability',
   'Software / Betriebssystem': 'Software / operating system',
   'z. B. Proxmox VE 9, Windows 11, Debian 13, FRITZ!OS 8 – Hersteller und Modell meinen die Hardware': 'e.g. Proxmox VE 9, Windows 11, Debian 13, FRITZ!OS 8 – manufacturer and model mean the hardware',
+  'Suche leeren': 'Clear search',
   'Topologie': 'Topology', 'Topologie-Grafik': 'Topology graphic', 'Gesamtbaum und Detailansicht mit Switch-Frontplatte und Ports.': 'Overall tree and detail view with switch front panel and ports.',
   'Netzscan': 'Network scan', 'Automatische Erkennung mit Vorschlag, was ein unbekanntes Gerät sein könnte.': 'Automatic discovery with a suggestion of what an unknown device might be.',
   'Der Hintergrunddienst (diktyo-worker) meldet sich seit über einer Minute nicht. Er führt Scans, Integrationen und die Online-Überwachung aus; solange er nicht läuft, bleiben Scans in der Warteschlange. Im LXC prüfen mit: systemctl status diktyo-worker': 'The background service (diktyo-worker) has not reported for over a minute. It runs scans, integrations and online monitoring; while it is not running, scans stay queued. Check in the LXC with: systemctl status diktyo-worker',
