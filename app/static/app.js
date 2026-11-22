@@ -82,9 +82,11 @@ function drawHeader() {
 /* ---------------------------------------------------------------- Router */
 async function route() {
   const p = location.hash.replace(/^#\/?/, '').split('/');
+  STATE.fresh = true;  // frische Navigation: Direktlinks (z. B. vom QR-Etikett) dürfen den Gerätedialog öffnen
   drawHeader();
   try {
     if (p[0] === 'reset' && p[1]) return viewReset(p[1]);
+    if (!STATE.user && p[0] === 'p' && p[1]) STATE.after = location.hash;  // nach der Anmeldung dorthin
     if (!STATE.user) { crumbs([]); return STATE.first_run ? (p[0] === 'wiederherstellen' ? viewRestore() : viewSetup()) : viewLogin(p[0] === 'registrieren' ? 'register' : p[0] === 'vergessen' ? 'forgot' : 'login'); }
     if (p[0] === 'p' && p[1]) await viewProfile(+p[1], p[2] || 'uebersicht', p[3]);
     else if (p[0] === 'katalog') await (p[1] === 'regeln' ? viewRules() : viewCatalog());
@@ -108,7 +110,8 @@ const pwHint = () => t('Mindestens {n} Zeichen', { n: STATE.min_pw });
 async function afterAuth(user) {
   STATE.user = user; STATE.first_run = false;
   if (user.lang && user.lang !== LANG) { LANG = user.lang; try { localStorage.setItem('dk_lang', LANG); } catch { } }
-  location.hash = '#/'; route();
+  const to = STATE.after || '#/'; STATE.after = null;
+  if (location.hash === to) route(); else location.hash = to;
 }
 
 function viewSetup() {

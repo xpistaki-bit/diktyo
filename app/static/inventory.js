@@ -101,6 +101,10 @@ async function tabDevices(ctx) {
   const add = $('#add');
   if (add) add.onclick = () => deviceDialog(ctx, null);
   draw();
+  if (ctx.sub && STATE.fresh && /^\d+$/.test(ctx.sub)) {
+    STATE.fresh = false;
+    if (all.some(d => d.id === +ctx.sub)) deviceDialog(ctx, +ctx.sub); else toast(t('Gerät nicht gefunden'), true);
+  }
 }
 tabDevices.filter = {};
 
@@ -159,7 +163,7 @@ async function deviceDialog(ctx, did) {
       ${d.dns.name ? ` · ${t('Name im DNS')}: <span class="mono">${h(d.dns.name)}</span>` : ''} <span class="muted">· ${h(t(d.dns.window || '24 h'))}</span></p>` : ''}
     ${d && d.ips?.length ? `<div id="svcbox">${servicesBox(d, ctx.canEdit)}</div><div id="iperfbox"></div>` : ''}
     ${d && ctx.isOwner ? '<div id="actbox"></div>' : ''}
-    ${d && d.status === 'confirmed' ? '<div id="watchbox"></div>' : ''}
+    ${d && d.status === 'confirmed' ? `<div class="row between qr-row"><span class="muted small">${t('Aufkleber mit QR-Code, der dieses Gerät in díktyo öffnet.')}</span><button type="button" class="sm" data-qrlabel>${QR_ICON} ${t('QR-Etikett')}</button></div><div id="watchbox"></div>` : ''}
     ${d ? '<div id="healthbox"></div>' : ''}
     ${d && d.connected.length ? `<h4>${t('Verbundene Geräte')} (${d.connected.length})</h4><div class="table-wrap"><table class="compact"><thead><tr><th>${t('Name')}</th><th>${t('Verbindung')}</th><th>${t('IP')}</th><th>${t('MAC')}</th></tr></thead><tbody>
       ${d.connected.map(k => `<tr><td>${h(k.name)}</td><td>${t(MEDIUM_SHORT[k.medium])}${k.port_name ? ' · ' + t('Port') + ' ' + h(k.port_name) : ''}</td><td class="mono">${h(k.ip)}</td><td class="mono">${h(k.mac)}</td></tr>`).join('')}
@@ -184,6 +188,8 @@ async function deviceDialog(ctx, did) {
       if (d && $('#smartbox', f)) smartBox(ctx, d, $('#smartbox', f));
       if (d && $('#actbox', f)) actionsBox(ctx, d.id, $('#actbox', f));
       if (d && $('#watchbox', f)) watchBox(ctx, d.id, $('#watchbox', f));
+      const ql = $('[data-qrlabel]', f);
+      if (ql) ql.onclick = () => openLabels(ctx.pid, [d.id], labelPrefs());
       if (d && $('#healthbox', f)) deviceHealth(ctx, d.id, $('#healthbox', f));
       const bindIps = () => $$('[data-rmip]', f).forEach(b => b.onclick = () => b.closest('.iprow').remove());
       bindIps();
@@ -498,7 +504,9 @@ function tabOutput(ctx) {
       ${SECTIONS.map(([k, n]) => `<label class="chk"><input type="checkbox" data-sec="${k}" ${on(k) ? 'checked' : ''}> ${t(n)}</label>`).join('')}
       <div class="row" style="margin-top:14px"><button class="pri" id="pdf">${t('PDF erstellen')}</button></div></div>
     <div class="panel"><h3>${t('Tabellen (CSV)')}</h3><p class="muted">${t('Für Excel, LibreOffice oder Numbers. Trennzeichen ist das Semikolon.')}</p>
-      <div class="row"><a class="btn" href="${P}/export/devices.csv?lang=${LANG}">${t('Geräteliste')}</a><a class="btn" href="${P}/export/ips.csv?lang=${LANG}">${t('IP-Adressen')}</a></div></div></div>`;
+      <div class="row"><a class="btn" href="${P}/export/devices.csv?lang=${LANG}">${t('Geräteliste')}</a><a class="btn" href="${P}/export/ips.csv?lang=${LANG}">${t('IP-Adressen')}</a></div></div>
+    <div class="panel lab-panel" id="labels"></div></div>`;
+  labelsPanel(ctx, $('#labels', ctx.el)).catch(e => { $('#labels', ctx.el).innerHTML = `<p class="errtxt">${h(e.message)}</p>`; });
   $('#pdf').onclick = () => {
     const secs = $$('[data-sec]', ctx.el).filter(x => x.checked).map(x => x.dataset.sec);
     if (!secs.length) return toast(t('Bitte mindestens einen Abschnitt wählen'), true);
@@ -506,5 +514,78 @@ function tabOutput(ctx) {
     window.open(`${P}/export/report.pdf?sections=${secs.join(',')}&lang=${LANG}`, '_blank');
   };
 }
+
+/* ---------- QR-Etiketten ---------- */
+const QR_ICON = '<svg class="qr-ic" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>';
+function labelPrefs() {
+  let s = {};
+  try { s = JSON.parse(localStorage.getItem('dk_labels') || '{}') || {}; } catch { }
+  return { fmt: s.fmt || 'a4-70x37', fields: s.fields || ['ip', 'mac', 'loc'], outline: !!s.outline, base: s.base || '', skip: 0 };
+}
+function openLabels(pid, ids, o) {
+  const q = new URLSearchParams({ ids: ids.join(','), fmt: o.fmt, fields: o.fields.join(','), skip: String(o.skip || 0), outline: o.outline ? '1' : '0', lang: LANG });
+  if (o.base) q.set('base', o.base);
+  window.open(`/api/profiles/${pid}/export/labels.pdf?${q}`, '_blank');
+}
+async function labelsPanel(ctx, el) {
+  const P = `/api/profiles/${ctx.pid}`;
+  const [info, { devices: all }] = await Promise.all([api('GET', `${P}/export/labels?lang=${LANG}`), api('GET', `${P}/devices`)]);
+  const devs = all.filter(d => d.status === 'confirmed');
+  const o = labelPrefs();
+  if (!o.base) o.base = info.base || location.origin;
+  const sel = labelsPanel.sel[ctx.pid] || (labelsPanel.sel[ctx.pid] = new Set());
+  const INFRA_T = ['router', 'modem', 'firewall', 'switch', 'ap', 'mesh', 'repeater', 'powerline', 'server', 'hypervisor', 'nas'];
+  let q = '';
+  el.innerHTML = `<h3>${QR_ICON} ${t('QR-Etiketten')}</h3>
+    <p class="muted">${t('Aufkleber für die Geräte: Der QR-Code öffnet mit dem Handy direkt den Gerätedialog in díktyo (nach der Anmeldung). Das Handy muss die Adresse erreichen können, also im Heimnetz oder per VPN.')}</p>
+    <div class="lab-grid">
+      <div><label>${t('Format')}</label><select id="lfmt">${info.formats.map(f => `<option value="${f.key}" data-sheet="${f.sheet}" ${f.key === o.fmt ? 'selected' : ''}>${h(f.name)}</option>`).join('')}</select>
+        <label>${t('Adresse der Weboberfläche im QR-Code')}</label><input id="lbase" value="${h(o.base)}" placeholder="http://192.168.178.50:8090">
+        <p class="muted small">${info.configured ? t('Vorgabe aus Einstellungen → E-Mail-Versand („Adresse der Weboberfläche“).') : t('Vorgabe ist die gerade aufgerufene Adresse. Fest einstellen lässt sie sich unter Einstellungen → E-Mail-Versand („Adresse der Weboberfläche“).')}</p>
+        <div class="row lab-opts">
+          <label class="chk"><input type="checkbox" data-lf="ip" ${o.fields.includes('ip') ? 'checked' : ''}> ${t('IP-Adresse')}</label>
+          <label class="chk"><input type="checkbox" data-lf="mac" ${o.fields.includes('mac') ? 'checked' : ''}> MAC</label>
+          <label class="chk"><input type="checkbox" data-lf="loc" ${o.fields.includes('loc') ? 'checked' : ''}> ${t('Standort und Typ')}</label>
+          <label class="chk"><input type="checkbox" id="lout" ${o.outline ? 'checked' : ''}> ${t('Schnittlinien (für normales Papier)')}</label></div>
+        <div id="lskipw"><label>${t('Erstes freies Etikett auf dem Bogen')}</label><input id="lskip" type="number" min="1" value="1" style="max-width:120px">
+          <p class="muted small">${t('Für angebrochene Bögen: Die Etiketten davor bleiben frei (zeilenweise von links oben gezählt).')}</p></div></div>
+      <div><div class="toolbar lab-tb"><input type="search" id="lq" placeholder="${h(t('Geräte suchen …'))}"><button type="button" class="sm" data-lall>${t('Alle')}</button>
+          <button type="button" class="sm" data-linfra>${t('Infrastruktur')}</button><button type="button" class="sm" data-lnone>${t('Keine')}</button></div>
+        <div class="lab-list" id="llist"></div></div></div>
+    <div class="row" style="margin-top:14px"><button class="pri" id="lgo"></button><span class="muted small" id="lhint"></span></div>`;
+  const shown = () => devs.filter(d => !q || [d.name, d.location, typeName(d.type), ...d.ips.map(i => i.address)].join(' ').toLowerCase().includes(q));
+  const sheet = () => +$('#lfmt', el).selectedOptions[0].dataset.sheet;
+  const count = () => {
+    const n = sel.size, s = sheet();
+    $('#lgo', el).textContent = n === 1 ? t('1 Etikett erstellen') : t('{n} Etiketten erstellen', { n });
+    $('#lgo', el).disabled = !n;
+    const skip = Math.max(0, (+$('#lskip', el).value || 1) - 1);
+    $('#lhint', el).textContent = n && s > 1 ? t('{p} Bogen/Bögen', { p: Math.ceil((n + skip) / s) }) : '';
+  };
+  const list = () => {
+    $('#llist', el).innerHTML = shown().map(d => `<label class="chk lab-dev"><input type="checkbox" data-ld="${d.id}" ${sel.has(d.id) ? 'checked' : ''}>
+      <b>${h(d.name)}</b><span class="mono small muted">${h(d.ips[0]?.address || '')}</span><span class="small muted">${h(d.location || typeName(d.type))}</span></label>`).join('')
+      || `<p class="muted">${t('Kein Gerät passt.')}</p>`;
+    $$('[data-ld]', el).forEach(cb => cb.onchange = () => { cb.checked ? sel.add(+cb.dataset.ld) : sel.delete(+cb.dataset.ld); count(); });
+    count();
+  };
+  const skipVis = () => { const s = sheet(); $('#lskipw', el).hidden = s <= 1; $('#lskip', el).max = s; count(); };
+  $('#lq', el).oninput = e => { q = e.target.value.trim().toLowerCase(); list(); };
+  $('[data-lall]', el).onclick = () => { shown().forEach(d => sel.add(d.id)); list(); };
+  $('[data-lnone]', el).onclick = () => { sel.clear(); list(); };
+  $('[data-linfra]', el).onclick = () => { devs.filter(d => INFRA_T.includes(d.type)).forEach(d => sel.add(d.id)); list(); };
+  $('#lfmt', el).onchange = skipVis;
+  $('#lskip', el).oninput = count;
+  $('#lgo', el).onclick = () => {
+    const base = $('#lbase', el).value.trim();
+    if (!/^https?:\/\//.test(base)) return toast(t('Adresse der Weboberfläche bitte mit http:// oder https:// angeben'), true);
+    const v = { fmt: $('#lfmt', el).value, fields: $$('[data-lf]', el).filter(x => x.checked).map(x => x.dataset.lf), outline: $('#lout', el).checked, base };
+    try { localStorage.setItem('dk_labels', JSON.stringify(v)); } catch { }
+    const order = devs.filter(d => sel.has(d.id)).map(d => d.id);
+    openLabels(ctx.pid, order, { ...v, skip: sheet() > 1 ? Math.max(0, (+$('#lskip', el).value || 1) - 1) : 0 });
+  };
+  list(); skipVis();
+}
+labelsPanel.sel = {};
 
 window.INV = { geraete: tabDevices, ipam: tabIpam, standorte: tabLocations, ausgabe: tabOutput };

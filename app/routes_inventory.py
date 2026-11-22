@@ -302,6 +302,32 @@ def export_pdf(pid: int, request: Request, sections: str = "", user=Depends(requ
                     headers={"Content-Disposition": f'inline; filename="{_fname(p["name"], "-netzwerk.pdf")}"'})
 
 
+@router.get("/export/labels")
+def labels_info(pid: int, request: Request, user=Depends(require_user)):
+    """Formate und Vorschlag für die Adresse im QR-Code (Einstellung „Adresse der Weboberfläche“ oder die aufgerufene)."""
+    from . import labels, mailer
+    with db() as c:
+        profile_access(c, user, pid)
+        app_url = (mailer.smtp_config(c).get("app_url") or "").rstrip("/")
+    return dict(formats=labels.formats(lang_of(request)), base=app_url, configured=bool(app_url))
+
+
+@router.get("/export/labels.pdf")
+def labels_pdf(pid: int, request: Request, ids: str = "", fmt: str = "a4-70x37", fields: str = "ip,mac,loc", base: str = "", skip: int = 0,
+               outline: int = 0, user=Depends(require_user)):
+    from . import labels, mailer
+    with db() as c:
+        p, _ = profile_access(c, user, pid)
+        base = (base or mailer.smtp_config(c).get("app_url") or str(request.base_url)).strip()
+        try:
+            data = labels.render(c, pid, [int(x) for x in ids.split(",") if x.strip().isdigit()], fmt,
+                                 [f for f in fields.split(",") if f in labels.FIELDS], base, skip, bool(outline), lang_of(request))
+        except labels.LabelError as ex:
+            raise HTTPException(400, str(ex))
+    return Response(data, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{_fname(p["name"], "-qr-etiketten.pdf")}"'})
+
+
 @router.get("/meta")
 def meta(pid: int, request: Request, user=Depends(require_user)):
     """Auswahllisten für die Oberfläche."""

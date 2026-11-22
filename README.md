@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.27.1 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.28 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -386,6 +386,12 @@ manufacturer, model and detected key data are sent. Default model Claude Opus 5.
 **Output** creates a PDF in a light print layout. Choose the sections: topology graphic, device list, IP plan per subnet, VLAN
 overview, port assignment per switch, Wi-Fi overview (clients per access point/mesh node) and notes. The device
 list and the IP addresses are also available as CSV.
+
+**QR labels** for your devices: stickers whose QR code opens the device dialog in díktyo on a phone (after signing in
+if needed), with name and optionally IP, MAC, location and type next to it. Formats: A4 sheets 70 × 37 mm (24),
+99.1 × 38.1 mm (14), 48.5 × 25.4 mm (40) and label printers 62 × 29 mm (Brother DK-11209) and 54 × 25 mm (Dymo 11352).
+Choose devices, a start position for partly used sheets and optional cut lines; the address in the QR code defaults
+to the "web interface address" from the e-mail settings. The device dialog has a "QR label" button for a single device.
 
 ## Backup
 

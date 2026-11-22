@@ -96,6 +96,7 @@ Phase 2:
 | P3.7 | overview redesign (HUD, full width): KPI tiles, WAN bar chart, speed gauges, ports with the device behind them, response-time sparklines, infrastructure cards; shared HUD components in `static/hud.js` with HTML axis labels; integrations in a grid | done (0.25.0) |
 | P3.8 | customizable overview: per-profile layout in `profiles.settings.dashboard` (`dashlayout.py`: order, width, hidden, pinned charts validated against the profile's series), pin buttons on integration cards and in the device dialog | done (0.26.0) |
 | P3.9 | watchlist (`watch.py`, table `watch`): alarm state per watched device from `changes` (ips, mac, name, uplink; not source `user`) and `status_events` after the acknowledged ids; `watch_change` event from `changes.sync` for notifications, offline of watched devices always notified | done (0.27.0) |
+| P3.10 | QR labels (`labels.py`): PDF via SVG + CairoSVG, QR from segno as one path, sheet/roll formats, skip for partly used sheets; deep link `#/p/<pid>/geraete/<did>` opens the device dialog, kept across login | done (0.28.0) |
 | P3.2 | speed tests: internet (Cloudflare, scheduled, history, slow-line hint) and iperf3 to a device | done (0.19.0) |
 | P2.16 | live traffic per client (Omada, UniFi stat/sta, MikroTik registrations/Kid Control, OPNsense top talkers, Proxmox guests) in topology, device dialog and overview; illustrated getting-started guide | done (0.18.0), client rates not yet tested on real hardware |
  Phase 3: change history between scans, cable and patch-panel documentation,

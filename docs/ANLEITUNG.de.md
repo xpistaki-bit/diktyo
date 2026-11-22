@@ -532,6 +532,16 @@ pveum acl modify / --tokens 'diktyo@pve!diktyo' --roles DiktyoPower
 ## 9. Ausgabe und Sicherung
 
 - *Ausgabe:* PDF (Topologie-Grafik, Geräteliste, IP-Plan, VLANs, Portbelegung, WLAN-Übersicht, Notizen – wählbar) und CSV.
+- **QR-Etiketten** (*Ausgabe → QR-Etiketten*): Aufkleber für die Geräte. Der QR-Code öffnet mit dem Handy direkt den
+  Gerätedialog in díktyo – ist man nicht angemeldet, geht es nach der Anmeldung dorthin. Neben dem Code stehen Name und
+  wahlweise IP-Adresse, MAC sowie Standort und Typ. Formate: A4-Bögen 70 × 37 mm (24 Stück, z. B. Avery Zweckform
+  3474), 99,1 × 38,1 mm (14, Avery L7163), 48,5 × 25,4 mm (40, Avery Zweckform 3657) sowie Etikettendrucker 62 × 29 mm
+  (Brother DK-11209) und 54 × 25 mm (Dymo 11352) mit einer Seite je Etikett. Geräte per Suche oder mit *Alle* /
+  *Infrastruktur* / *Keine* wählen; bei angebrochenen Bögen das *erste freie Etikett* angeben, die Plätze davor bleiben
+  leer. *Schnittlinien* helfen beim Drucken auf normales Papier. Wichtig ist die **Adresse der Weboberfläche im
+  QR-Code**: Sie muss vom Handy aus erreichbar sein (Heimnetz oder VPN); fest einstellen lässt sie sich unter
+  *Einstellungen → E-Mail-Versand*. Für ein einzelnes Gerät gibt es im Gerätedialog den Knopf *QR-Etikett* (mit dem
+  zuletzt gewählten Format). Drucken in Originalgröße (100 %, nicht „an Seite anpassen“).
 - *Einstellungen → Sicherung:* Ziele Ordner/NAS, WebDAV oder rclone, automatisch alle 12 h, täglich oder wöchentlich.
 - **Google Drive (rclone):** Ziel „rclone“ hinzufügen → *Google Drive verbinden*. Auf deinem PC mit Browser
   `rclone authorize "drive"` ausführen (rclone von rclone.org; unter Windows reicht die rclone.exe), mit dem
