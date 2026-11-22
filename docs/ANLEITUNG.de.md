@@ -102,6 +102,16 @@ DNS-Anfragen, die Antwortzeit oder Leistung eines bestimmten Geräts – als Bal
 (Antwortzeit, Leistung). Angeheftete Diagramme zeigen oben rechts den aktuellen Wert und folgen dem Zeitraum des
 WAN-Diagramms. Das Layout gilt für das ganze Profil, also für alle, mit denen es geteilt ist.
 
+**Wachliste:** Wichtige Systeme – etwa einen Proxmox-Quorum-Knoten – im Gerätedialog mit **👁 Beobachten** auf die
+Wachliste setzen (optional mit Notiz, z. B. „Quorum-Knoten“). Das Feld *Wachliste* in der Übersicht zeigt dann je
+System den Zustand: **rot** (pulsierend), solange es offline ist; **gelb**, wenn es seit dem letzten Quittieren
+ausgefallen war oder seine IP-Adresse, MAC, seinen Namen oder Anschluss gewechselt hat – mit alt → neu und Zeitpunkt;
+**grün**, wenn alles ruhig ist. Der Alarm bleibt stehen, bis jemand *Quittieren* (je System) oder *Alle quittieren*
+drückt; ein System, das gerade offline ist, bleibt rot, bis es zurück ist. Eigene Änderungen in díktyo lösen keinen
+Alarm aus, nur was Scan, Integrationen und Online-Überwachung feststellen. Mit dem Ereignis *Wachliste* unter
+*Benachrichtigungen* kommt jeder Alarm zusätzlich per E-Mail/ntfy (Ausfälle beobachteter Systeme auch dann, wenn
+„Gerät offline“ nicht gewählt oder auf Infrastruktur beschränkt ist).
+
 Alle Beschriftungen der Diagramme bleiben unabhängig von der Breite lesbar. Die Seite aktualisiert sich alle 30
 Sekunden. Auf *Integrationen* stehen die Karten nebeneinander: Integrationen mit Diagrammen oder Portlisten nehmen zwei
 Spalten ein, einfache eine.
@@ -382,6 +392,7 @@ an echter Hardware.
 | Internet langsam | Speedtest unter der Hälfte der Leitung (laut FRITZ!Box) |
 | Konfigurations-Backup fehlgeschlagen | beim automatischen Backup |
 | Integration gestört | wenn eine Integration seit 15 Minuten nicht mehr antwortet (einmal, bis sie wieder klappt) |
+| Wachliste | ein beobachtetes System fällt aus oder wechselt IP, MAC, Name oder Anschluss (siehe *Übersicht*) |
 
 Mehrere Ereignisse werden höchstens einmal pro Minute zu einer Nachricht gebündelt. Beim Einschalten zählen nur neue
 Ereignisse, nicht die bisherigen.

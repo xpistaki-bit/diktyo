@@ -5,6 +5,7 @@ const NOTIFY_KIND = {
   device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät', quarantined: 'Quarantäne',
   firmware_update: 'Firmware-Update', action_undo_failed: 'Zurückschalten fehlgeschlagen', schedule_failed: 'Zeitplan fehlgeschlagen',
   speed_slow: 'Internet langsam', backup_failed: 'Konfigurations-Backup fehlgeschlagen', integration_failed: 'Integration gestört',
+  watch_change: 'Wachliste: Ausfall oder Änderung',
 };
 
 async function notifySettings(ctx, el) {

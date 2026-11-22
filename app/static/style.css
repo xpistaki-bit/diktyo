@@ -616,3 +616,24 @@ a.kpi:hover{border-color:var(--cyan);box-shadow:0 0 18px rgba(0,229,255,.25)}
 .pn .hval b{font-size:20px;color:var(--c)}
 .pinbtn-dyn{margin-top:6px}
 .panel.w-hidden{opacity:1}.panel.w-hidden>*:not(.w-ctl){opacity:.35}
+
+/* Wachliste */
+.panel.watch .wl{display:flex;flex-direction:column;gap:8px}
+.wl-item{border:1px solid rgba(120,160,200,.14);border-left:3px solid var(--ok);border-radius:6px;padding:8px 10px;background:rgba(10,20,32,.35)}
+.wl-item.changed{border-left-color:var(--warn)} .wl-item.down{border-left-color:var(--err);background:rgba(255,77,106,.07)}
+.wl-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.wl-name{font-size:15px;font-weight:600;flex:1 1 auto;min-width:0}
+.wl-st{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--ok)}
+.wl-item.changed .wl-st{color:var(--warn)} .wl-item.down .wl-st{color:var(--err)}
+.wl-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);flex:none}
+.changed>.wl-head .wl-dot,.wl-box.changed .wl-dot{background:var(--warn);box-shadow:0 0 8px var(--warn)}
+.down>.wl-head .wl-dot,.wl-box.down .wl-dot{background:var(--err);box-shadow:0 0 10px var(--err);animation:wlpulse 1.4s infinite}
+@keyframes wlpulse{50%{opacity:.35}}
+.wl-sub{margin:4px 0 0 20px}
+ul.ov-issues.wl-ev{margin:6px 0 0 20px} .ovg ul.ov-issues.wl-ev li{font-size:13px;padding:3px 0}
+ul.ov-issues li.ok span.ic{color:var(--ok)}
+.panel.watch.alarm{border-color:rgba(255,77,106,.55);box-shadow:0 0 18px rgba(255,77,106,.18)}
+.panel.watch .hint.bad{color:var(--err)} .panel.watch .hint.ok{color:var(--ok)}
+.wl-box{gap:10px;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){.down>.wl-head .wl-dot,.wl-box.down .wl-dot{animation:none}}
+.wl-box input[data-wnote]{width:240px;max-width:100%}

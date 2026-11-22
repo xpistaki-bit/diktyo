@@ -201,8 +201,59 @@ async function pinDialog(pid, cands, cur) {
   });
 }
 
+/* ---------- Wachliste ---------- */
+const WATCH_FIELD = { ips: 'IP-Adresse', mac: 'MAC', name: 'Name', uplink: 'Anschluss' };
+
+function watchEvent(e) {
+  const when = `<span class="muted">${h(ago(e.ts))}</span>`;
+  if (e.kind === 'offline') return `<li class="bad"><span class="ic">▼</span><span>${t('ausgefallen')} ${when}</span></li>`;
+  if (e.kind === 'online') return `<li class="ok"><span class="ic">▲</span><span>${t('wieder online')} ${when}</span></li>`;
+  return `<li class="warn"><span class="ic">⇄</span><span>${t(WATCH_FIELD[e.field] || e.field)}: <span class="mono">${h(e.old)}</span> → <b class="mono">${h(e.new)}</b> ${when}</span></li>`;
+}
+
+function watchPanel(w, canEdit, editing) {
+  if (!w || !w.items.length) return editing ? `<div class="panel s4"><div class="hud-h"><h3>${t('Wachliste')}</h3></div>
+    <p class="muted">${t('Noch leer. Im Gerätedialog mit „Beobachten“ ein System auf die Wachliste setzen – das Feld meldet dann Ausfälle und Wechsel von IP, MAC, Name oder Anschluss.')}</p></div>` : '';
+  const label = { down: t('offline'), changed: t('geändert'), ok: t('OK') };
+  const rows = w.items.map(x => `<div class="wl-item ${x.state}">
+      <div class="wl-head"><span class="wl-dot"></span><span class="wl-name">${devLink(x.id, x.name)}${x.note ? ` <span class="muted small">· ${h(x.note)}</span>` : ''}</span>
+        <span class="mono small wl-ip">${h(x.ip || '')}</span><span class="wl-st">${label[x.state]}</span>
+        ${canEdit && x.state === 'changed' ? `<button type="button" class="sm" data-wack="${x.id}">${t('Quittieren')}</button>` : ''}</div>
+      ${x.state === 'down' && x.last_seen ? `<div class="muted small wl-sub">${t('zuletzt gesehen')} ${h(ago(x.last_seen))}</div>` : ''}
+      ${x.events.length ? `<ul class="ov-issues wl-ev">${x.events.slice(0, 4).map(watchEvent).join('')}</ul>` : ''}</div>`).join('');
+  return `<div class="panel s4 watch ${w.alarms ? 'alarm' : ''}"><div class="hud-h"><h3>${t('Wachliste')}</h3><span class="row">
+      ${w.alarms ? `<span class="hint bad">${w.alarms === 1 ? t('1 Alarm') : t('{n} Alarme', { n: w.alarms })}</span>` : `<span class="hint ok">✓ ${t('alles ruhig')}</span>`}
+      ${canEdit && w.items.some(x => x.events.length) ? `<button type="button" class="sm" data-wack="0">${t('Alle quittieren')}</button>` : ''}</span></div>
+    <div class="wl">${rows}</div></div>`;
+}
+
+/* im Gerätedialog: auf die Wachliste setzen, Zustand und Ereignisse seit dem Quittieren */
+async function watchBox(ctx, did, el) {
+  const P = `/api/profiles/${ctx.pid}`;
+  let w;
+  try { w = await api('GET', `${P}/watch`); } catch { el.innerHTML = ''; return; }
+  const x = w.items.find(i => i.id === did);
+  if (!x && !ctx.canEdit) { el.innerHTML = ''; return; }
+  const label = { down: t('offline'), changed: t('geändert seit dem letzten Quittieren'), ok: t('keine Auffälligkeiten') };
+  el.innerHTML = `<h4>${t('Wachliste')}</h4>
+    <div class="row between wl-box ${x ? x.state : ''}"><span>${x ? `<span class="wl-dot"></span> <b>${t('Wird beobachtet')}</b> · ${label[x.state]}${x.note ? ` · <span class="muted">${h(x.note)}</span>` : ''}`
+      : `<span class="muted small">${t('Beobachtete Systeme erscheinen in der Übersicht und melden Ausfälle sowie Wechsel von IP, MAC, Name oder Anschluss – bis jemand quittiert.')}</span>`}</span>
+      ${ctx.canEdit ? `<span class="row">${x && x.events.length ? `<button type="button" class="sm" data-wack>${t('Quittieren')}</button>` : ''}
+        ${x ? '' : `<input data-wnote maxlength="200" placeholder="${h(t('Notiz (optional, z. B. „Quorum-Knoten“)'))}">`}
+        <button type="button" class="sm ${x ? '' : 'pri'}" data-wtoggle>${x ? t('Nicht mehr beobachten') : '👁 ' + t('Beobachten')}</button></span>` : ''}</div>
+    ${x && x.events.length ? `<ul class="ov-issues wl-ev">${x.events.map(watchEvent).join('')}</ul>` : ''}`;
+  const tg = $('[data-wtoggle]', el);
+  if (tg) tg.onclick = async () => {
+    const note = $('[data-wnote]', el)?.value || '';
+    try { await api('PUT', `${P}/devices/${did}/watch`, { watch: !x, note }); toast(x ? t('Von der Wachliste genommen') : t('Auf der Wachliste')); watchBox(ctx, did, el); }
+    catch (e) { toast(e.message, true); }
+  };
+  const ak = $('[data-wack]', el);
+  if (ak) ak.onclick = async () => { try { await api('POST', `${P}/watch/ack`, { device_id: did }); watchBox(ctx, did, el); } catch (e) { toast(e.message, true); } };
+}
+
 /* ---------- Übersicht ---------- */
-const BUILTIN_NAME = { wan: 'WAN-Traffic', speed: 'Internet-Geschwindigkeit', issues: 'Braucht Aufmerksamkeit', ports: 'Aktivste Ports', live: 'Gerade aktiv',
+const BUILTIN_NAME = { wan: 'WAN-Traffic', speed: 'Internet-Geschwindigkeit', issues: 'Braucht Aufmerksamkeit', watch: 'Wachliste', ports: 'Aktivste Ports', live: 'Gerade aktiv',
   today: 'Top-Verbraucher (24 h)', rtt: 'Antwortzeiten Infrastruktur', infra: 'Infrastruktur', dns: 'DNS-Filter', recent: 'Letzte Änderungen' };
 const SIZE_NAME = [[3, 'S'], [4, 'M'], [5, 'M+'], [6, 'L'], [8, 'XL'], [12, '▭']];
 
@@ -215,6 +266,7 @@ async function tabOverview(ctx) {
 
   const builtins = r => ({
     wan: () => wanPanel(r.wan, since()), speed: () => speedHud(r.speed, ctx.canEdit, ctx.pid), issues: () => issuesPanel(r, ctx.pid),
+    watch: () => watchPanel(r.watch, ctx.canEdit, st.edit),
     ports: () => portsPanel(r.ports), live: () => livePanel(r.top_now), today: () => todayPanel(r.top_today), rtt: () => rttPanel(r.rtt),
     infra: () => infraPanel(r.infra, ctx.pid), dns: () => dnsPanel(r.dns, ctx.pid),
     recent: () => `<div class="panel s4"><div class="hud-h"><h3>${t('Letzte Änderungen')}</h3><a class="small" href="#/p/${ctx.pid}/verlauf">${t('Verlauf')} →</a></div>
@@ -267,6 +319,9 @@ async function tabOverview(ctx) {
         ...pins.map(([el, p]) => drawPin(el, ctx.pid, p, s)),
       ]);
     };
+    $$('[data-wack]', box).forEach(b => b.onclick = async () => {
+      try { await api('POST', `${P}/watch/ack`, +b.dataset.wack ? { device_id: +b.dataset.wack } : {}); toast(t('quittiert')); render(); } catch (e) { toast(e.message, true); }
+    });
     bindSpeedRun(ctx, box, () => render());
     $$('[data-range]', box).forEach(b => b.onclick = () => { tabOverview.since = +b.dataset.range; $$('[data-range]', ctx.el).forEach(x => x.classList.toggle('on', x === b)); charts(); });
     bindEdit(box);

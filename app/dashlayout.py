@@ -2,7 +2,7 @@
 
 Gespeichert in profiles.settings["dashboard"] = {"items": [...]}; ein Eintrag ist entweder ein eingebautes Feld
 ({"id": "wan", "size": 5, "hidden": false}) oder ein angeheftetes Diagramm ({"id": "p_…", "size": 6, "pin": {...}}).
-Eingebaute Felder, die in einer neueren Version dazukommen, werden hinten angehängt. Angeheftet werden können nur
+Eingebaute Felder, die in einer neueren Version dazukommen, landen hinter ihrem Vorgänger aus der Standard-Reihenfolge. Angeheftet werden können nur
 Messreihen, die es im Profil gibt (WAN, Switch-Ports, ASUS-Schnittstellen, DNS-Filter, Antwortzeit und Leistung je Gerät).
 """
 import json
@@ -10,7 +10,7 @@ import re
 import secrets
 
 # eingebaute Felder in der Standard-Reihenfolge mit Standardbreite (von 12 Spalten)
-BUILTINS = [("wan", 5), ("speed", 4), ("issues", 3), ("ports", 4), ("live", 4), ("today", 4), ("rtt", 4), ("infra", 8),
+BUILTINS = [("wan", 5), ("speed", 4), ("issues", 3), ("watch", 4), ("ports", 4), ("live", 4), ("today", 4), ("rtt", 4), ("infra", 8),
             ("dns", 4), ("recent", 4)]
 SIZES = (3, 4, 5, 6, 8, 12)
 UNITS = ("bps", "ms", "W", "count", "pct")
@@ -40,7 +40,12 @@ def get(c, pid):
     have = {x["id"] for x in saved}
     known = dict(BUILTINS)
     items = [x for x in saved if x["id"] in known or x.get("pin")]
-    items += [dict(id=k, size=s, hidden=False) for k, s in BUILTINS if k not in have]
+    for i, (k, s) in enumerate(BUILTINS):  # neue Felder hinter ihren Vorgänger in der Standard-Reihenfolge
+        if k in have:
+            continue
+        prev = next((BUILTINS[j][0] for j in range(i - 1, -1, -1) if any(x["id"] == BUILTINS[j][0] for x in items)), None)
+        at = next((n + 1 for n, x in enumerate(items) if x["id"] == prev), 0 if prev is None else len(items))
+        items.insert(at, dict(id=k, size=s, hidden=False))
     return dict(items=items, customized=True)
 
 

@@ -89,6 +89,9 @@ def sync(c, pid, source="", user_id=None):
         for f, a, b in diffs:
             record(c, pid, did, "changed", f, a, b, source, user_id)
             n += 1
+        if diffs:
+            from . import watch
+            watch.on_changes(c, pid, did, d["name"], diffs, source)
         if diffs or old != snap:
             c.execute("UPDATE device_snapshots SET data=? WHERE device_id=?", (json.dumps(snap, ensure_ascii=False), did))
     for did, old in snaps.items():

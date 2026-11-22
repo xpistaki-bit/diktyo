@@ -2,7 +2,7 @@
 import datetime as dt
 import json
 
-from . import changes, health
+from . import changes, health, watch
 from .actions import INFRA
 
 WAN_DRIVERS = ("fritzbox", "unifi", "mikrotik", "opnsense", "asuswrt")
@@ -124,7 +124,7 @@ def build(c, pid):
                     availability=round(sum(avail) / len(avail), 2) if avail else None),
         wan=wan, speed=speed, dns=dns, top_today=top_today, top_now=top_now, offline=offline[:12], firmware=fw_up[:12], broken=broken, failed=failed[:10], ports=ports, infra=infra[:16],
         rtt=rtt_keys, recent=[x for x in changes.timeline(c, pid, limit=12) if x["cat"] in ("change", "action", "quarantine")][:8],
-        summary=changes.summary(c, pid))
+        summary=changes.summary(c, pid), watch=watch.state(c, pid))
 
 
 def _port_peer(c, did, port_no):

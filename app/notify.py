@@ -25,9 +25,10 @@ KINDS = {  # Art -> (deutsch, englisch, ntfy-Priorität, ntfy-Tag)
     "speed_slow": ("Internet langsam: ↓ {down} (Leitung ↓ {line})", "Internet slow: ↓ {down} (line ↓ {line})", 3, "turtle"),
     "backup_failed": ("Konfigurations-Backup fehlgeschlagen: {name} – {message}", "Configuration backup failed: {name} – {message}", 3, "floppy_disk"),
     "integration_failed": ("Integration gestört: {name} – {message}", "Integration failing: {name} – {message}", 3, "warning"),
+    "watch_change": ("Wachliste: {name} – {label_de} {old} → {new}", "Watchlist: {name} – {label_en} {old} → {new}", 5, "rotating_light"),
 }
 DEFAULT_KINDS = ["device_offline", "new_device", "quarantined", "action_undo_failed", "schedule_failed", "speed_slow", "backup_failed",
-                 "integration_failed"]
+                 "integration_failed", "watch_change"]
 DEFAULTS = dict(email=False, email_to="", ntfy=False, ntfy_url="https://ntfy.sh", ntfy_topic="", ntfy_token="", kinds=DEFAULT_KINDS,
                 lang="de", only_infra_offline=False)
 
@@ -40,6 +41,8 @@ def settings(profile_row, reveal=False):
     s = json.loads(profile_row["settings"] or "{}").get("notify") or {}
     out = {**DEFAULTS, **{k: v for k, v in s.items() if k in DEFAULTS}}
     out["kinds"] = [k for k in out["kinds"] if k in KINDS]
+    if s and not s.get("seen_watch") and "watch_change" not in out["kinds"]:  # vor 0.27 gespeichert: Wachliste mit an
+        out["kinds"].append("watch_change")
     if not reveal:
         out["ntfy_token"] = security.MASK if out["ntfy_token"] else ""
     elif out["ntfy_token"]:
@@ -70,7 +73,7 @@ def save_settings(c, profile_row, body):
     if s["ntfy_url"] and not s["ntfy_url"].startswith(("http://", "https://")):
         raise NotifyError("ntfy-Server bitte mit http:// oder https:// angeben")
     was_on = old["email"] or old["ntfy"]
-    st["notify"] = s
+    st["notify"] = dict(s, seen_watch=True)
     c.execute("UPDATE profiles SET settings=? WHERE id=?", (json.dumps(st, ensure_ascii=False), profile_row["id"]))
     if (s["email"] or s["ntfy"]) and not was_on:  # ab jetzt melden, nicht rückwirkend
         last = c.execute("SELECT COALESCE(MAX(id), 0) FROM events WHERE profile_id=?", (profile_row["id"],)).fetchone()[0]
@@ -152,7 +155,7 @@ def deliver(pid, log=print, force=False):
         if not evs:
             return 0
         new_last = evs[-1]["id"]
-        wanted = [e for e in evs if e["kind"] in s["kinds"] and _relevant(c, e, s)]
+        wanted = [e for e in evs if _wanted(c, e, s)]
         c.execute("UPDATE notify_state SET last_id=?, last_sent=? WHERE profile_id=?", (new_last, time.time(), pid))
         name = p["name"]
     if not wanted:
@@ -178,6 +181,15 @@ def deliver(pid, log=print, force=False):
 
 
 INFRA = ("router", "switch", "ap", "mesh", "firewall", "modem", "hypervisor", "server", "nas")
+
+
+def _wanted(c, e, s):
+    """Gewählte Arten; Ausfälle beobachteter Geräte (Wachliste) kommen immer mit, wenn „Wachliste“ gewählt ist."""
+    if e["kind"] in ("device_offline", "device_online") and e["device_id"] and "watch_change" in s["kinds"]:
+        from . import watch
+        if watch.is_watched(c, e["device_id"]):
+            return True
+    return e["kind"] in s["kinds"] and _relevant(c, e, s)
 
 
 def _relevant(c, e, s):

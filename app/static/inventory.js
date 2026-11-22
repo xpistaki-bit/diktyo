@@ -159,6 +159,7 @@ async function deviceDialog(ctx, did) {
       ${d.dns.name ? ` · ${t('Name im DNS')}: <span class="mono">${h(d.dns.name)}</span>` : ''} <span class="muted">· ${h(t(d.dns.window || '24 h'))}</span></p>` : ''}
     ${d && d.ips?.length ? `<div id="svcbox">${servicesBox(d, ctx.canEdit)}</div><div id="iperfbox"></div>` : ''}
     ${d && ctx.isOwner ? '<div id="actbox"></div>' : ''}
+    ${d && d.status === 'confirmed' ? '<div id="watchbox"></div>' : ''}
     ${d ? '<div id="healthbox"></div>' : ''}
     ${d && d.connected.length ? `<h4>${t('Verbundene Geräte')} (${d.connected.length})</h4><div class="table-wrap"><table class="compact"><thead><tr><th>${t('Name')}</th><th>${t('Verbindung')}</th><th>${t('IP')}</th><th>${t('MAC')}</th></tr></thead><tbody>
       ${d.connected.map(k => `<tr><td>${h(k.name)}</td><td>${t(MEDIUM_SHORT[k.medium])}${k.port_name ? ' · ' + t('Port') + ' ' + h(k.port_name) : ''}</td><td class="mono">${h(k.ip)}</td><td class="mono">${h(k.mac)}</td></tr>`).join('')}
@@ -182,6 +183,7 @@ async function deviceDialog(ctx, did) {
       if (d && $('#iperfbox', f)) iperfBox(ctx, d, $('#iperfbox', f));
       if (d && $('#smartbox', f)) smartBox(ctx, d, $('#smartbox', f));
       if (d && $('#actbox', f)) actionsBox(ctx, d.id, $('#actbox', f));
+      if (d && $('#watchbox', f)) watchBox(ctx, d.id, $('#watchbox', f));
       if (d && $('#healthbox', f)) deviceHealth(ctx, d.id, $('#healthbox', f));
       const bindIps = () => $$('[data-rmip]', f).forEach(b => b.onclick = () => b.closest('.iprow').remove());
       bindIps();

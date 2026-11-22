@@ -24,12 +24,12 @@ def test_layout_and_pins(monkeypatch):
     assert r["customized"] and pin["pin"]["title"] == port["title"] and pin["size"] == 8 and pin["id"].startswith("p_")
     assert cl.post(f"{P}/dashboard/pins", json={"pin": port}, headers=H).status_code == 400
     assert cl.post(f"{P}/dashboard/pins", json={"pin": {"keys": ["i999:wan:rx"]}}, headers=H).status_code == 400
-    # umordnen, ausblenden, Breite; unbekannte Felder fallen weg, fehlende eingebaute kommen hinten dazu
+    # umordnen, ausblenden, Breite; unbekannte Felder fallen weg, fehlende eingebaute kommen hinter ihren Vorgänger
     items = [pin, {"id": "rtt", "size": 12}, {"id": "wan", "hidden": True}, {"id": "quatsch"}]
     r = cl.put(f"{P}/dashboard/layout", json={"items": items}, headers=H).json()
     ids = [x["id"] for x in r["items"]]
-    assert ids[:3] == [pin["id"], "rtt", "wan"] and "quatsch" not in ids and "infra" in ids
-    assert r["items"][1]["size"] == 12 and r["items"][2]["hidden"]
+    assert ids[:3] == [pin["id"], "rtt", "infra"] and "quatsch" not in ids and ids.index("speed") == ids.index("wan") + 1
+    assert r["items"][1]["size"] == 12 and r["items"][ids.index("wan")]["hidden"]
     assert cl.get(f"{P}/dashboard").json()["layout"]["items"][0]["id"] == pin["id"]
     # Lesende dürfen nicht ändern
     with db() as c:

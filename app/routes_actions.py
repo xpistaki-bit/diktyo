@@ -208,3 +208,37 @@ def dashboard_pin_add(pid: int, body: dict = Body(...), user=Depends(require_use
             return dashlayout.add_pin(c, pid, body.get("pin"), body.get("size") or 6)
         except dashlayout.LayoutError as ex:
             raise HTTPException(400, str(ex))
+
+
+# ------------------------------------------------------------ Wachliste
+@router.get("/watch")
+def watch_get(pid: int, user=Depends(require_user)):
+    from . import watch
+    with db() as c:
+        profile_access(c, user, pid)
+        return watch.state(c, pid)
+
+
+@router.put("/devices/{did}/watch")
+def watch_put(pid: int, did: int, body: dict = Body(...), user=Depends(require_user)):
+    from . import watch
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        try:
+            if body.get("watch", True):
+                watch.add(c, pid, did, body.get("note") or "")
+            else:
+                watch.remove(c, pid, did)
+        except watch.WatchError as ex:
+            raise HTTPException(400, str(ex))
+        audit(c, "watch.add" if body.get("watch", True) else "watch.remove", user["id"], pid, dict(device_id=did))
+        return watch.state(c, pid)
+
+
+@router.post("/watch/ack")
+def watch_ack(pid: int, body: dict = Body(default={}), user=Depends(require_user)):
+    from . import watch
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        watch.ack(c, pid, int(body.get("device_id") or 0) or None)
+        return watch.state(c, pid)

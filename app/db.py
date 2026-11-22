@@ -383,6 +383,18 @@ MIGRATIONS = [
         last_sent REAL NOT NULL DEFAULT 0,
         last_error TEXT NOT NULL DEFAULT '');
     """,
+    # Wachliste: beobachtete Geräte, Alarm bis zum Quittieren (ack_* = letzte schon gesehene Änderung/Statuswechsel)
+    """
+    CREATE TABLE watch(
+        device_id INTEGER PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        created TEXT NOT NULL,
+        ack TEXT NOT NULL,
+        ack_change INTEGER NOT NULL DEFAULT 0,
+        ack_status INTEGER NOT NULL DEFAULT 0,
+        note TEXT NOT NULL DEFAULT '');
+    CREATE INDEX watch_profile ON watch(profile_id);
+    """,
 ]
 
 
