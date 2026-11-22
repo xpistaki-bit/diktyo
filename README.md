@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.27 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.27.1 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -165,7 +165,7 @@ labels are HTML, so they stay readable at every width. It refreshes every 30 sec
 The overview is **customizable** per profile (editors and owners): drag panels or move them with ◀ ▶, choose their
 width, hide or show them, and **pin your own charts** – the WAN of an integration, a specific switch port (with the
 device behind it), ASUS interfaces, DNS queries, or the response time or power of a specific device, as bars or a line
-with your own title. Integration cards and the device dialog have a 📌 button to pin a chart directly.
+with your own title. Integration cards and the device dialog have a pin button to pin a chart directly.
 
 A **watchlist** keeps an eye on important systems (e.g. a Proxmox quorum node): mark them with "Watch" in the device
 dialog, and the watchlist panel on the overview turns red while one is offline and yellow when it went down or changed

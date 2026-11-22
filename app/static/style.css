@@ -637,3 +637,31 @@ ul.ov-issues li.ok span.ic{color:var(--ok)}
 .wl-box{gap:10px;flex-wrap:wrap}
 @media (prefers-reduced-motion:reduce){.down>.wl-head .wl-dot,.wl-box.down .wl-dot{animation:none}}
 .wl-box input[data-wnote]{width:240px;max-width:100%}
+
+/* Neon-Pin */
+.pin-ic{vertical-align:-3px;color:var(--cyan);filter:drop-shadow(0 0 3px rgba(0,229,255,.9)) drop-shadow(0 0 8px rgba(0,229,255,.45))}
+button .pin-ic{margin-right:2px} .pinbtn .pin-ic{margin:0}
+.hud-h h3 .pin-ic{width:18px;height:18px}
+
+/* Kopfband der Kacheln: etwas hellerer Streifen oben über die ganze Breite, größere Schrift */
+.panel>.hud-h,.panel.integ>.int-h{margin:-18px -18px 14px;padding:11px 18px;background:linear-gradient(180deg,rgba(60,140,190,.26),rgba(40,110,160,.14));
+  border-bottom:1px solid rgba(0,229,255,.28);border-radius:6px 6px 0 0;box-shadow:inset 0 1px 0 rgba(160,240,255,.12)}
+.panel>.w-ctl+.hud-h{margin-top:0;border-radius:0}
+.panel>.hud-h h3{font-size:16px;letter-spacing:.12em;text-shadow:0 0 10px rgba(0,229,255,.35)}
+.panel>.hud-h h3 em{font-size:16px}
+.panel.integ>.int-h b{font-size:17px;letter-spacing:.03em;color:var(--ink);text-shadow:0 0 10px rgba(0,229,255,.25)}
+.kpi>.k-lab{margin:-14px -16px 2px;padding:9px 16px;background:linear-gradient(180deg,rgba(60,140,190,.26),rgba(40,110,160,.14));
+  border-bottom:1px solid rgba(0,229,255,.28);font-size:13px;color:var(--cyan)}
+.panel.watch.alarm>.hud-h{background:linear-gradient(180deg,rgba(255,77,106,.24),rgba(255,77,106,.10));border-bottom-color:rgba(255,77,106,.45)}
+
+/* Anmeldeseite: eigener Hintergrund (Glasfaser vor HUD-Ringen) */
+.auth{background:#01050f url(/login-bg.svg) center/cover no-repeat}
+.auth .panel{background:rgba(4,14,30,.78);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+@media (max-width:700px){.auth{background-position:70% center}}
+/* Kopfband auch für Kacheln mit schlichter Überschrift (Integrationen, Einstellungen, Profile …) */
+.panel>h3:first-child,.panel>.row.between:first-child:has(>h3){margin:-18px -18px 14px;padding:11px 18px;
+  background:linear-gradient(180deg,rgba(60,140,190,.26),rgba(40,110,160,.14));border-bottom:1px solid rgba(0,229,255,.28);
+  border-radius:6px 6px 0 0;box-shadow:inset 0 1px 0 rgba(160,240,255,.12)}
+.panel>h3:first-child,.panel>.row.between:first-child>h3{font-size:17px;letter-spacing:.04em;text-shadow:0 0 10px rgba(0,229,255,.25)}
+.panel>.row.between:first-child>h3{margin:0}
+.kpi>.k-lab{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.1em}

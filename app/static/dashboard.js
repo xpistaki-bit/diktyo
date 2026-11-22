@@ -164,7 +164,7 @@ const PIN_COLORS = ['#00E5FF', '#19F5C8', '#2D7BFF', '#FFB020'];
 
 function pinPanel(it) {
   const p = it.pin;
-  return `<div class="panel s${it.size} pinned"><div class="hud-h"><h3>📌 ${h(p.title)}</h3><span class="pin-now" data-now></span></div><div data-pin></div></div>`;
+  return `<div class="panel s${it.size} pinned"><div class="hud-h"><h3>${PIN_ICON} ${h(p.title)}</h3><span class="pin-now" data-now></span></div><div data-pin></div></div>`;
 }
 
 async function drawPin(el, pid, p, since) {
@@ -301,9 +301,9 @@ async function tabOverview(ctx) {
     });
     const bar = ctx.canEdit ? (st.edit
       ? `<div class="ov-bar editing"><b>${t('Übersicht anpassen')}</b><span class="muted small">${t('Felder ziehen oder mit ◀ ▶ verschieben, Breite wählen, ausblenden.')}</span><span class="grow"></span>
-          <button type="button" class="sm" data-addpin>📌 ${t('Diagramm anheften')}</button><button type="button" class="sm danger" data-reset>${t('Zurücksetzen')}</button>
+          <button type="button" class="sm" data-addpin>${PIN_ICON} ${t('Diagramm anheften')}</button><button type="button" class="sm danger" data-reset>${t('Zurücksetzen')}</button>
           <button type="button" class="sm" data-cancel>${t('Abbrechen')}</button><button type="button" class="sm pri" data-done>${t('Fertig')}</button></div>`
-      : `<div class="ov-bar"><span class="grow"></span><button type="button" class="sm" data-addpin>📌 ${t('Diagramm anheften')}</button><button type="button" class="sm" data-ovedit>${t('Anpassen')}</button></div>`) : '';
+      : `<div class="ov-bar"><span class="grow"></span><button type="button" class="sm" data-addpin>${PIN_ICON} ${t('Diagramm anheften')}</button><button type="button" class="sm" data-ovedit>${t('Anpassen')}</button></div>`) : '';
     box.innerHTML = `${bar}${kpiTiles(r, ctx.pid)}<p class="muted small" id="ovstamp"></p>`;
     box.insertBefore(grid, $('#ovstamp', box));
     $$('[data-dev]', box).forEach(a => a.onclick = ev => { ev.preventDefault(); if (!st.edit) deviceDialog(ctx, +a.dataset.dev); });
@@ -397,9 +397,12 @@ async function tabOverview(ctx) {
 }
 window.INV.uebersicht = tabOverview;
 
+/* Neon-Pin (eigenes Symbol statt Emoji) */
+const PIN_ICON = '<svg class="pin-ic" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 22.5 5.6 12.9A7.6 7.6 0 1 1 18.4 12.9Z"/><circle cx="12" cy="8.6" r="3"/></svg>';
+
 /* „An die Übersicht anheften“ aus Gerätedialog und Integrationskarten */
 function pinBtn(pin) {
-  return `<button type="button" class="sm pinbtn" data-pin='${h(JSON.stringify(pin))}' title="${h(t('An die Übersicht anheften'))}">📌</button>`;
+  return `<button type="button" class="sm pinbtn" data-pin='${h(JSON.stringify(pin))}' title="${h(t('An die Übersicht anheften'))}">${PIN_ICON}</button>`;
 }
 async function pinNow(pid, pin) {
   try { await api('POST', `/api/profiles/${pid}/dashboard/pins`, { pin, size: 6 }); toast(t('An die Übersicht angeheftet')); return true; }

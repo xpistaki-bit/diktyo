@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+  <!-- díktyo: Hintergrund der Anmeldeseite – Glasfaserkabel mit leuchtenden Fasern vor HUD-Ringen (eigener Entwurf) -->
+  <defs>
+    <radialGradient id="bg" cx="72%" cy="45%" r="75%">
+      <stop offset="0" stop-color="#0b3a7a"/><stop offset=".35" stop-color="#061f48"/><stop offset=".75" stop-color="#020a1c"/><stop offset="1" stop-color="#01050f"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#7ff6ff" stop-opacity=".95"/><stop offset=".25" stop-color="#00e5ff" stop-opacity=".45"/><stop offset="1" stop-color="#00e5ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cable" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8b95a3"/><stop offset=".45" stop-color="#3a414c"/><stop offset="1" stop-color="#14181e"/>
+    </linearGradient>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2"/></filter>
+    <filter id="blur6" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+    <pattern id="px" width="28" height="28" patternUnits="userSpaceOnUse"><rect x="4" y="4" width="18" height="18" fill="#2d7bff" opacity=".10"/></pattern>
+    <linearGradient id="fadeL" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".25" stop-color="#fff" stop-opacity=".9"/><stop offset=".6" stop-color="#fff" stop-opacity=".15"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <mask id="pxmask"><rect width="1600" height="1000" fill="url(#fadeL)"/></mask>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+
+  <!-- Pixelbänder links -->
+  <g mask="url(#pxmask)">
+    <rect x="0" y="220" width="1000" height="56" fill="url(#px)"/>
+    <rect x="0" y="560" width="900" height="84" fill="url(#px)"/>
+    <rect x="160" y="700" width="700" height="28" fill="url(#px)" opacity=".7"/>
+    <g fill="#2d7bff" opacity=".22">
+      <rect x="320" y="120" width="34" height="34"/><rect x="450" y="160" width="22" height="22"/><rect x="610" y="96" width="40" height="40"/>
+      <rect x="250" y="420" width="26" height="26"/><rect x="560" y="470" width="32" height="32"/><rect x="760" y="380" width="22" height="22"/>
+      <rect x="120" y="820" width="30" height="30"/><rect x="420" y="860" width="40" height="40"/><rect x="700" y="820" width="24" height="24"/>
+    </g>
+  </g>
+
+  <!-- HUD-Ringe rechts -->
+  <g transform="translate(1160 470)" fill="none" stroke="#2d7bff">
+    <circle r="430" stroke-opacity=".10" stroke-width="2"/>
+    <circle r="380" stroke-opacity=".28" stroke-width="10" stroke-dasharray="520 90 260 140 700 120"/>
+    <circle r="340" stroke-opacity=".18" stroke-width="2"/>
+    <circle r="318" stroke="#00e5ff" stroke-opacity=".22" stroke-width="14" stroke-dasharray="3 7"/>
+    <circle r="250" stroke-opacity=".25" stroke-width="2"/>
+    <circle r="160" stroke-opacity=".35" stroke-width="3" stroke-dasharray="180 40 90 60"/>
+    <circle r="90" stroke="#00e5ff" stroke-opacity=".25" stroke-width="1.5"/>
+    <path d="M-430 0H430M0-430V430" stroke-opacity=".14" stroke-width="1.5"/>
+    <path d="M-300-300L300 300M-300 300L300-300" stroke-opacity=".08" stroke-width="1.2"/>
+    <path d="M0-380A380 380 0 0 1 329 190" stroke="#00e5ff" stroke-opacity=".35" stroke-width="3"/>
+  </g>
+  <circle cx="1160" cy="470" r="300" fill="url(#glow)" opacity=".25"/>
+
+  <!-- Kabel -->
+  <path d="M-40 760C120 700 180 650 230 590 290 520 250 470 200 520 150 580 260 700 420 690 640 676 860 560 1080 440"
+        fill="none" stroke="#05070a" stroke-width="30" stroke-linecap="round" opacity=".6" filter="url(#blur6)" transform="translate(6 18)"/>
+  <path d="M-40 760C120 700 180 650 230 590 290 520 250 470 200 520 150 580 260 700 420 690 640 676 860 560 1080 440"
+        fill="none" stroke="url(#cable)" stroke-width="24" stroke-linecap="round"/>
+  <path d="M-40 752C120 692 180 642 228 582M420 682C640 668 860 552 1076 432" fill="none" stroke="#c9d3df" stroke-width="2.5" stroke-opacity=".55" stroke-linecap="round"/>
+  <ellipse cx="1082" cy="438" rx="9" ry="14" transform="rotate(-30 1082 438)" fill="#cfe9ff"/>
+  <circle cx="1084" cy="436" r="40" fill="url(#glow)"/>
+
+  <!-- Fasern -->
+  <g fill="none" stroke-linecap="round">
+    <g stroke="#00e5ff" stroke-width="5" opacity=".35" filter="url(#soft)">
+      <path d="M1084 436C1180 360 1260 320 1360 300"/><path d="M1084 436C1190 400 1290 380 1400 372"/><path d="M1084 436C1200 430 1300 440 1390 452"/>
+      <path d="M1084 436C1170 330 1230 270 1310 230"/><path d="M1084 436C1180 470 1260 500 1340 520"/>
+    </g>
+    <g stroke="#7ff6ff" stroke-width="1.6" opacity=".9">
+      <path d="M1084 436C1180 360 1260 320 1360 300"/><path d="M1084 436C1190 400 1290 380 1400 372"/><path d="M1084 436C1200 430 1300 440 1390 452"/>
+      <path d="M1084 436C1170 330 1230 270 1310 230"/><path d="M1084 436C1180 470 1260 500 1340 520"/>
+      <path d="M1084 436C1160 380 1220 350 1290 336"/><path d="M1084 436C1170 410 1240 404 1320 404"/><path d="M1084 436C1160 450 1220 470 1280 488"/>
+      <path d="M1084 436C1150 350 1190 300 1250 266"/><path d="M1084 436C1200 380 1300 350 1420 330"/><path d="M1084 436C1160 470 1210 520 1260 560"/>
+      <path d="M1084 436C1140 390 1180 370 1230 362"/><path d="M1084 436C1150 430 1200 432 1250 440"/>
+    </g>
+    <g fill="#e8ffff">
+      <circle cx="1360" cy="300" r="3.5"/><circle cx="1400" cy="372" r="3.5"/><circle cx="1390" cy="452" r="3.5"/><circle cx="1310" cy="230" r="3.5"/>
+      <circle cx="1340" cy="520" r="3.5"/><circle cx="1290" cy="336" r="3"/><circle cx="1320" cy="404" r="3"/><circle cx="1280" cy="488" r="3"/>
+      <circle cx="1250" cy="266" r="3"/><circle cx="1420" cy="330" r="3.5"/><circle cx="1260" cy="560" r="3"/><circle cx="1230" cy="362" r="2.5"/><circle cx="1250" cy="440" r="2.5"/>
+    </g>
+    <g fill="url(#glow)">
+      <circle cx="1360" cy="300" r="16"/><circle cx="1400" cy="372" r="16"/><circle cx="1390" cy="452" r="16"/><circle cx="1310" cy="230" r="16"/>
+      <circle cx="1340" cy="520" r="16"/><circle cx="1420" cy="330" r="14"/><circle cx="1260" cy="560" r="12"/><circle cx="1250" cy="266" r="12"/>
+    </g>
+  </g>
+</svg>

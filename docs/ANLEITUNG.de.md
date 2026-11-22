@@ -95,10 +95,10 @@ Beim Öffnen eines Profils erscheint die **Übersicht** im HUD-Stil über die ga
 
 **Übersicht anpassen** (Rolle *Bearbeiten* oder *Besitzer*): Mit *Anpassen* lassen sich die Felder ziehen oder mit
 ◀ ▶ verschieben, ihre Breite wählen (S, M, L, XL oder ganze Breite) und Felder aus- und wieder einblenden; *Fertig*
-speichert, *Zurücksetzen* stellt den Standard wieder her. Mit **📌 Diagramm anheften** kommen eigene Diagramme dazu:
+speichert, *Zurücksetzen* stellt den Standard wieder her. Mit **Diagramm anheften** (Stecknadel-Symbol) kommen eigene Diagramme dazu:
 WAN einer Integration, ein bestimmter Switch-Port (mit dem Gerät dahinter), ASUS-Schnittstellen (LAN, WLAN-Bänder),
 DNS-Anfragen, die Antwortzeit oder Leistung eines bestimmten Geräts – als Balken oder Linie, mit eigenem Titel. Den
-📌-Knopf gibt es auch direkt an den Diagrammen der Integrationskarten (WAN, gewählter Port, DNS) und im Gerätedialog
+Stecknadel-Knopf gibt es auch direkt an den Diagrammen der Integrationskarten (WAN, gewählter Port, DNS) und im Gerätedialog
 (Antwortzeit, Leistung). Angeheftete Diagramme zeigen oben rechts den aktuellen Wert und folgen dem Zeitraum des
 WAN-Diagramms. Das Layout gilt für das ganze Profil, also für alle, mit denen es geteilt ist.
 

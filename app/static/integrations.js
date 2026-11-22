@@ -94,7 +94,7 @@ DRIVER_STEPS.mikrotik = [
   'Eigenen Benutzer anlegen – nur lesen:<pre>/user group add name=diktyo-read policy=read,rest-api,api,ssh,!local,!telnet,!ftp,!winbox,!web\n/user add name=diktyo group=diktyo-read password=GEHEIM</pre>Für <b>Aktionen</b> (Port, PoE, WLAN, Neustart, Wake-on-LAN) stattdessen <span class="mono">policy=read,write,reboot,test,rest-api,api,ssh</span>.',
   'Konfigurations-Backup liest „/export“ per SSH (Dienst ssh, Port 22) mit demselben Benutzer – Passwörter sind im Export nicht enthalten.',
 ];
-const EVENT = { device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät', action_undo_failed: 'Zurückschalten fehlgeschlagen', quarantined: 'Neues Gerät in Quarantäne', schedule_failed: 'Zeitplan fehlgeschlagen', firmware_update: 'Firmware-Update verfügbar' };
+const EVENT = { watch_change: 'Wachliste: Änderung', device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät', action_undo_failed: 'Zurückschalten fehlgeschlagen', quarantined: 'Neues Gerät in Quarantäne', schedule_failed: 'Zeitplan fehlgeschlagen', firmware_update: 'Firmware-Update verfügbar' };
 const RANGES = [[7200, '2 h'], [86400, '24 h'], [172800, '2 Tage'], [604800, '7 Tage']];
 const fmtBps = v => {
   if (v == null || isNaN(v)) return '–';
@@ -188,7 +188,7 @@ async function tabIntegrations(ctx) {
     </div>
     <div class="grid-out" style="margin-top:16px"><div id="speedbox"></div><div id="notifybox"></div></div>
     <div id="ints" class="ints-grid" style="margin-top:16px">${r.integrations.map(i => `<div class="panel integ ${BIG_CARDS.includes(i.driver) ? 'big' : ''}" data-id="${i.id}">
-        <div class="row between"><div class="row"><span class="dot ${st(i)}"></span><b>${h(i.name)}</b><span class="muted mono small">${h(i.host)}</span>
+        <div class="row between int-h"><div class="row"><span class="dot ${st(i)}"></span><b>${h(i.name)}</b><span class="muted mono small">${h(i.host)}</span>
           ${i.name !== drv[i.driver]?.name ? `<span class="badge">${h(drv[i.driver]?.name || i.driver)}</span>` : ''}${i.enabled ? '' : `<span class="badge">${t('pausiert')}</span>`}</div>
           <div class="row">${ctx.canEdit ? `<button class="sm" data-poll>${t('Jetzt abfragen')}</button><button class="sm" data-edit>${t('Bearbeiten')}</button><button class="sm danger" data-del>${t('Löschen')}</button>` : ''}</div></div>
         <p class="muted small" style="margin:4px 0 0">${i.last_ok ? t('zuletzt erfolgreich {d}', { d: h(ago(i.last_ok)) }) : t('noch nicht abgefragt')} · ${t('alle {n}', { n: i.interval_s < 60 ? i.interval_s + ' s' : i.interval_s / 60 + ' min' })}
@@ -251,7 +251,7 @@ async function tabIntegrations(ctx) {
       const draw = () => drawChart(ch, ctx.pid, keys(), names, tabIntegrations.since || 7200, dnsChart ? { fmt: v => fmtInt(Math.round(v)) } : {}).catch(() => { });
       if (ctx.canEdit) {
         const pb = document.createElement('button');
-        pb.type = 'button'; pb.className = 'sm pinbtn-dyn'; pb.textContent = '📌 ' + t('An die Übersicht anheften');
+        pb.type = 'button'; pb.className = 'sm pinbtn-dyn'; pb.innerHTML = PIN_ICON + ' ' + h(t('An die Übersicht anheften'));
         pb.onclick = () => {
           const port = card.dataset.port || ch.dataset.port;
           pinNow(ctx.pid, dnsChart ? { title: `DNS · ${i.name}`, keys: keys(), names: ['Anfragen/min', 'blockiert/min'], unit: 'count', style: 'bars', mirror: false }

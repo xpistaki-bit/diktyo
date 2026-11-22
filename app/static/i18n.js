@@ -980,6 +980,7 @@ Object.assign(window.I18N_EN, {
   'Beobachtete Systeme erscheinen in der Übersicht und melden Ausfälle sowie Wechsel von IP, MAC, Name oder Anschluss – bis jemand quittiert.': 'Watched systems appear on the overview and report outages and changes of IP, MAC, name or connection – until someone acknowledges.',
   'Noch leer. Im Gerätedialog mit „Beobachten“ ein System auf die Wachliste setzen – das Feld meldet dann Ausfälle und Wechsel von IP, MAC, Name oder Anschluss.': 'Empty so far. Use “Watch” in the device dialog to put a system on the watchlist – this panel then reports outages and changes of IP, MAC, name or connection.',
   'Wachliste: Ausfall oder Änderung': 'Watchlist: outage or change',
+  'Wachliste: Änderung': 'Watchlist: change',
   'Topologie': 'Topology', 'Topologie-Grafik': 'Topology graphic', 'Schnell-Ping': 'Quick ping', 'Alle Gruppen aufklappen': 'Expand all groups', 'Alle zuklappen': 'Collapse all',
   'Stand {d}': 'as of {d}', '{n} WLAN-Geräte': '{n} Wi-Fi devices', '{n} VMs / Container': '{n} VMs / containers', '{n} online': '{n} online', 'aufklappen': 'expand',
   'Ohne Verbindung': 'Not connected', 'Details': 'Details', 'Detailansicht': 'Detail view', 'Ping': 'Ping', 'Ping: {n} von {m} online': 'Ping: {n} of {m} online',
