@@ -395,6 +395,35 @@ MIGRATIONS = [
         note TEXT NOT NULL DEFAULT '');
     CREATE INDEX watch_profile ON watch(profile_id);
     """,
+    # Kabel und Patchpanels: Patchfelder/Dosen und Kabelwege (Switch-Port – Patchfeld – Dose – Gerät, mit Kabelnummern)
+    """
+    CREATE TABLE patch_panels(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL DEFAULT 'panel' CHECK(kind IN ('panel', 'outlet')),
+        name TEXT NOT NULL,
+        location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL,
+        ports INTEGER NOT NULL DEFAULT 24,
+        note TEXT NOT NULL DEFAULT '',
+        created TEXT NOT NULL);
+    CREATE INDEX patch_panels_profile ON patch_panels(profile_id);
+    CREATE TABLE cable_runs(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        switch_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+        switch_port INTEGER,
+        panel_id INTEGER REFERENCES patch_panels(id) ON DELETE SET NULL,
+        panel_port INTEGER,
+        outlet_id INTEGER REFERENCES patch_panels(id) ON DELETE SET NULL,
+        outlet_port INTEGER,
+        device_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+        cable_a TEXT NOT NULL DEFAULT '',
+        cable_b TEXT NOT NULL DEFAULT '',
+        cable_c TEXT NOT NULL DEFAULT '',
+        note TEXT NOT NULL DEFAULT '',
+        updated TEXT NOT NULL);
+    CREATE INDEX cable_runs_profile ON cable_runs(profile_id);
+    """,
 ]
 
 

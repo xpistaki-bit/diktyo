@@ -35,6 +35,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Benachrichtigungen | E-Mail und ntfy je Profil, Ereignisse wählbar, gebündelt; neue Ereignisse: Internet langsam, Backup fehlgeschlagen, Integration gestört | 0.21 |
 | Aktionen und Shelly | UniFi: Gerät neu starten, PoE-Port neu starten; Omada: Gerät neu starten, PoE ein/aus/neu starten; Shelly/Tasmota direkt: Leistung, Energie, Ausgänge schalten, Firmware | 0.22 |
 | Geräte | Typen alphabetisch und erweitert (Saugroboter, 3D-Drucker, Türklingel, Hub, ESP …), Software/Betriebssystem-Feld, Proxmox-Gäste übernehmen Software/Standort vom Host, Vermutung verwerfen, WLAN bei Geräten ohne Buchse, Gerätedialog ohne Verlauf, KI-Katalog ohne erfundene Ports | 0.24 |
+| Verkabelung | Patchfelder und Netzwerkdosen mit Port-Belegung, Kabelwege Switch-Port → Patchfeld → Dose → Gerät mit Kabelnummern, Abgleich mit der erkannten Verbindung (✓/⚠), im Gerätedialog, im PDF und in der Sicherung; Wachliste jetzt auch in der Sicherung | 0.29 |
 | QR-Etiketten | Aufkleber mit QR-Code zum Gerätedialog (Direktlink, auch über die Anmeldung hinweg), Name/IP/MAC/Standort; A4-Bögen (Avery 3474, L7163, 3657) und Etikettendrucker (Brother 62 × 29, Dymo 54 × 25), Startposition für angebrochene Bögen, Schnittlinien; einzeln aus dem Gerätedialog | 0.28 |
 | Aussehen | Kacheln mit hellerem Kopfband und größerer Überschrift (Übersicht, Integrationen, überall), Neon-Pin statt 📌, eigener Anmelde-Hintergrund (Glasfaser vor HUD-Ringen) | 0.27.1 |
 | Wachliste | Systeme im Gerätedialog beobachten; Feld in der Übersicht meldet Ausfall und Wechsel von IP, MAC, Name oder Anschluss (alt → neu) bis zum Quittieren; eigene Änderungen zählen nicht; Benachrichtigung per E-Mail/ntfy; neue Felder landen in gespeicherten Layouts an ihrer Standardstelle | 0.27 |
@@ -49,7 +50,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | P2.4 | Weitere Integrationen: Netgear (Smart Switches/Router), devolo (Powerline) | Docker erledigt in 0.16 |
 | P2.8 | Passive DHCP-Erkennung (Fingerprinting aus DHCP-Anfragen) | braucht einen Lauscher im Netz bzw. DHCP-Logs vom Router |
 | ~~Phase 3~~ | ~~Änderungsverlauf zwischen Scans~~ | erledigt in 0.14 |
-| Phase 3 | Kabel- und Patchpanel-Dokumentation | Patchfelder, Dosen, Kabelnummern zwischen Port und Gerät |
+| Phase 3 | ~~Kabel- und Patchpanel-Dokumentation~~ – erledigt in 0.29 | Patchfelder, Dosen, Kabelnummern zwischen Port und Gerät |
 | Phase 3 | Prometheus-Endpunkt | Messwerte für Grafana |
 | Phase 3 | REST-API mit Tokens | für Skripte, Home Assistant, eigene Auswertungen |
 
@@ -130,7 +131,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 |---|---|---|
 | ~~Änderungsverlauf je Gerät~~ – erledigt in 0.14 | ★★★ | M |
 | Grundriss/Raumplan mit Geräten, Rack-Ansicht | ★★ | L |
-| Kabel und Patchpanels | ★★ | M |
+| ~~Kabel und Patchpanels~~ – erledigt in 0.29 | ★★ | M |
 | Export nach draw.io / SVG / PNG, Netzplan als Poster-PDF | ★★ | S |
 | ~~QR-Etiketten für Geräte (Aufkleber mit Link zum Gerät in díktyo)~~ – erledigt in 0.28 | ★★ | S |
 | VLAN-Plan grafisch (welcher Port in welchem VLAN) | ★★ | M |

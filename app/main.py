@@ -8,7 +8,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import catalog, mailer, twofa, routes_actions, routes_backup, routes_catalog, routes_integrations, routes_inventory, routes_scan, routes_speed, security, users
+from . import catalog, mailer, twofa, routes_actions, routes_backup, routes_catalog, routes_integrations, routes_inventory, routes_scan, routes_speed, routes_cabling, security, users
 from .scan import ident
 from .auth import (COOKIE, ROLES, client_ip, current_user, lang_of, profile_access, rate_limit, require_admin, require_user,
                    start_session, text, touch)
@@ -31,6 +31,7 @@ app.include_router(routes_scan.router)
 app.include_router(routes_integrations.router)
 app.include_router(routes_actions.router)
 app.include_router(routes_speed.router)
+app.include_router(routes_cabling.router)
 
 
 def owner_count(c, pid):

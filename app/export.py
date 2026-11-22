@@ -6,7 +6,7 @@ import io
 from . import catalog, inventory, ipam
 from .pdf import Doc
 
-SECTIONS = ("topology", "devices", "ipplan", "vlans", "ports", "wlan", "notes")
+SECTIONS = ("topology", "devices", "ipplan", "vlans", "ports", "cabling", "wlan", "notes")
 MEDIUM = {"de": {"lan": "LAN", "wlan": "WLAN", "mesh": "Mesh-Backhaul", "virtual": "virtuell"},
           "en": {"lan": "LAN", "wlan": "Wi-Fi", "mesh": "Mesh backhaul", "virtual": "virtual"}}
 KIND = {"de": {"static": "statisch", "dhcp": "DHCP", "reserved": "reserviert"}, "en": {"static": "static", "dhcp": "DHCP", "reserved": "reserved"}}
@@ -26,7 +26,11 @@ S = {
     "speed": ("Geschwindigkeit", "Speed"), "clients": ("{n} Geräte", "{n} devices"), "none": ("Keine Einträge.", "No entries."),
     "created": ("Erstellt am {d}", "Created on {d}"), "page": ("Seite", "Page"), "title": ("Netzwerk-Dokumentation", "Network documentation"),
     "in_dhcp": (" (im DHCP-Bereich)", " (in DHCP range)"), "tags": ("Tags", "Tags"), "status": ("Status", "Status"),
-    "free_more": ("… und {n} weitere Bereiche", "… and {n} more ranges"), "devices_n": ("{n} Geräte", "{n} devices"),
+    "free_more": ("… und {n} weitere Bereiche", "… and {n} more ranges"),
+    "cabling": ("Verkabelung", "Cabling"), "switch_port": ("Switch · Port", "Switch · port"), "panel": ("Patchfeld · Port", "Patch panel · port"),
+    "outlet": ("Dose", "Outlet"), "cable_a": ("Patchkabel", "Patch cable"), "cable_b": ("Verlegekabel", "Installed cable"),
+    "cable_c": ("Anschlusskabel", "Device cable"), "panels": ("Patchfelder und Dosen", "Patch panels and outlets"),
+    "ports_n": ("{n} Ports", "{n} ports"), "devices_n": ("{n} Geräte", "{n} devices"),
 }
 
 
@@ -198,6 +202,22 @@ def profile_pdf(c, pid, sections=SECTIONS, lang="de"):
                             MEDIUM[lang].get((pt["peer"] or {}).get("medium", ""), "") if pt["peer"] else ""] for pt in det["ports"]], size=2.7)
             if not any_ports:
                 doc.para(tr("none", lang))
+        elif s == "cabling":
+            from . import cabling
+            doc.heading(tr("cabling", lang))
+            rows = cabling.pdf_rows(c, pid, lang)
+            if not rows:
+                doc.para(tr("none", lang))
+            else:
+                doc.table([(tr("switch_port", lang), 34, False), (tr("cable_a", lang), 18, True), (tr("panel", lang), 30, False),
+                           (tr("cable_b", lang), 18, True), (tr("outlet", lang), 28, False), (tr("cable_c", lang), 18, True), (tr("device", lang), 36, False)],
+                          rows, size=2.7)
+                pans = cabling.overview(c, pid)["panels"]
+                if pans:
+                    doc.heading(tr("panels", lang), size=4)
+                    doc.table([(tr("name", lang), 50, False), (tr("kind", lang), 30, False), (tr("location", lang), 50, False), (tr("port", lang), 52, False)],
+                              [[x["name"], tr("panel" if x["kind"] == "panel" else "outlet", lang).split(" ·")[0],
+                                x["location"], f'{len(x["used"])} / {tr("ports_n", lang, n=x["ports"])}'] for x in pans], size=2.7)
         elif s == "wlan":
             doc.heading(tr("wlan", lang))
             by_ap = {}

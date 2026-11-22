@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.28 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.29 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -380,6 +380,14 @@ prefilled catalog dialog for review. Serial number and UUID are never stored in 
 Claude API with web search and fills in type, ports, Wi-Fi and key data ("Complete with AI" in the catalog dialog, or
 directly from system info). The suggestion shows its sources, a confidence rating and the approximate cost; only
 manufacturer, model and detected key data are sent. Default model Claude Opus 5.5, selectable.
+
+## Cabling (cables and patch panels)
+
+The **Cabling** tab documents which switch port leads through which patch panel and wall outlet to which device,
+with the numbers on the cables: switch port → patch cable → patch panel port → installed cable → outlet → device
+cable → device (each part optional). Patch panels and outlets are shown as port grids; click a free port to add a
+cable run. Each run is checked against the connection detected on the switch port (✓ matches, ⚠ something else is
+connected there). Cable runs also appear in the device dialog, in the PDF ("Cabling" section) and in backups.
 
 ## Output
 

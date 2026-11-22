@@ -230,7 +230,7 @@ function profileDialog(title, p, ok, save) {
     { ok, onOk: f => save(fd(f)) });
 }
 
-const TABS = [['uebersicht', 'Übersicht'], ['geraete', 'Geräte'], ['topologie', 'Topologie'], ['verlauf', 'Verlauf'], ['posteingang', 'Posteingang'], ['netzscan', 'Netzscan'], ['integrationen', 'Integrationen'], ['ipam', 'IPAM'], ['standorte', 'Standorte'], ['ausgabe', 'Ausgabe'], ['freigabe', 'Freigabe']];
+const TABS = [['uebersicht', 'Übersicht'], ['geraete', 'Geräte'], ['topologie', 'Topologie'], ['verlauf', 'Verlauf'], ['posteingang', 'Posteingang'], ['netzscan', 'Netzscan'], ['integrationen', 'Integrationen'], ['ipam', 'IPAM'], ['standorte', 'Standorte'], ['verkabelung', 'Verkabelung'], ['ausgabe', 'Ausgabe'], ['freigabe', 'Freigabe']];
 async function viewProfile(pid, tab, sub, keep = null) {
   if (!TABS.some(x => x[0] === tab)) tab = 'uebersicht';
   let r;

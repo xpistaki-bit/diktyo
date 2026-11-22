@@ -91,6 +91,7 @@ def export_data(c):
         vlans=q("SELECT * FROM vlans"), subnets=q("SELECT * FROM subnets"), ip_addresses=q("SELECT * FROM ip_addresses"),
         port_vlans=q("SELECT * FROM port_vlans"), topo_positions=q("SELECT * FROM topo_positions"),
         changes=q("SELECT * FROM changes"),
+        patch_panels=q("SELECT * FROM patch_panels"), cable_runs=q("SELECT * FROM cable_runs"), watch=q("SELECT * FROM watch"),
         device_models=[m for m in models if m["custom"]],
         ident_rules=q("SELECT * FROM ident_rules WHERE custom=1"),
         integrations=[dict(r, secret=_move_secret(r["secret"], f), state="{}") for r in q("SELECT * FROM integrations")],
@@ -296,6 +297,21 @@ def _import_profiles(c, exp, umap, rename, fernet=None):
             c.execute("INSERT INTO changes(profile_id, device_id, ts, kind, field, old, new, source, user_id, detail) VALUES(?,?,?,?,?,?,?,?,?,?)",
                       (pmap[x["profile_id"]], dmap.get(x["device_id"]), x["ts"], x["kind"], x["field"], x["old"], x["new"], x["source"],
                        umap.get(x["user_id"]), x["detail"]))
+    panmap = {}
+    for x in exp.get("patch_panels", []):  # Kabel und Patchpanels
+        if x["profile_id"] in pmap:
+            panmap[x["id"]] = _insert(c, "patch_panels", dict(x, profile_id=pmap[x["profile_id"]], location_id=lmap.get(x["location_id"])))
+    for x in exp.get("cable_runs", []):
+        if x["profile_id"] in pmap:
+            _insert(c, "cable_runs", dict(x, profile_id=pmap[x["profile_id"]], switch_id=dmap.get(x["switch_id"]), device_id=dmap.get(x["device_id"]),
+                                          panel_id=panmap.get(x["panel_id"]), outlet_id=panmap.get(x["outlet_id"]),
+                                          panel_port=x["panel_port"] if x["panel_id"] in panmap else None,
+                                          outlet_port=x["outlet_port"] if x["outlet_id"] in panmap else None))
+    for x in exp.get("watch", []):  # Wachliste (beim Import gilt alles bis jetzt als gesehen)
+        if x["device_id"] in dmap and x["profile_id"] in pmap:
+            c.execute("INSERT OR IGNORE INTO watch(device_id, profile_id, created, ack, ack_change, ack_status, note) VALUES(?,?,?,?,"
+                      "(SELECT COALESCE(MAX(id), 0) FROM changes), (SELECT COALESCE(MAX(id), 0) FROM status_events), ?)",
+                      (dmap[x["device_id"]], pmap[x["profile_id"]], x["created"], x["ack"], x.get("note", "")))
     for new_pid in pmap.values():  # erster Abgleich nach dem Import still (sonst stünde jedes Gerät als „neu“ im Verlauf)
         st = json.loads(c.execute("SELECT settings FROM profiles WHERE id=?", (new_pid,)).fetchone()["settings"] or "{}")
         if st.pop("history_since", None) is not None:

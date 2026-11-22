@@ -531,6 +531,25 @@ pveum acl modify / --tokens 'diktyo@pve!diktyo' --roles DiktyoPower
 
 ## 9. Ausgabe und Sicherung
 
+### Verkabelung (Kabel und Patchpanels)
+
+Der Reiter **Verkabelung** hält fest, welcher Switch-Port über welches Patchfeld und welche Netzwerkdose zu welchem
+Gerät führt – mit den Nummern auf den Kabeln.
+
+1. **+ Patchfeld** bzw. **+ Dose** anlegen: Name (z. B. „PP1 Keller“, „Dose Wohnzimmer 2“), Anzahl Ports, Standort.
+   Patchfelder und Dosen sind keine Geräte – sie erscheinen nicht in der Geräteliste, Topologie oder Überwachung.
+2. **Kabelweg** eintragen – über **+ Kabelweg** oder einen Klick auf einen freien Port im Patchfeld bzw. in der Dose:
+   Switch-Port → *Patchkabel-Nr.* → Patchfeld-Port → *Verlegekabel-Nr.* → Dose → *Anschlusskabel-Nr.* → Gerät. Jeder
+   Teil ist optional (z. B. Switch direkt auf eine Dose oder Patchfeld direkt auf ein Gerät im Rack). Bei der
+   Port-Auswahl steht, was laut Netz am Port hängt; hängt dort genau ein Gerät, wird es vorgeschlagen. Jeder Port kann
+   nur in einem Kabelweg vorkommen.
+3. **Abgleich:** Sind Switch-Port und Gerät eingetragen, vergleicht díktyo mit der erkannten Verbindung (Integrationen,
+   Scan oder von Hand): **✓** passt, **⚠** laut Netz hängt dort etwas anderes (das Gerät wird genannt), **–** nicht
+   prüfbar. Belegte Ports im Patchfeld sind grün (passt), gelb (Abweichung) oder cyan (nicht prüfbar).
+
+Im **Gerätedialog** stehen die Kabelwege des Geräts (beim Switch alle seine Ports). Im PDF (*Ausgabe*) gibt es den
+Abschnitt *Verkabelung* mit allen Kabelwegen und Patchfeldern. Die Sicherung enthält alles.
+
 - *Ausgabe:* PDF (Topologie-Grafik, Geräteliste, IP-Plan, VLANs, Portbelegung, WLAN-Übersicht, Notizen – wählbar) und CSV.
 - **QR-Etiketten** (*Ausgabe → QR-Etiketten*): Aufkleber für die Geräte. Der QR-Code öffnet mit dem Handy direkt den
   Gerätedialog in díktyo – ist man nicht angemeldet, geht es nach der Anmeldung dorthin. Neben dem Code stehen Name und

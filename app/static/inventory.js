@@ -4,7 +4,7 @@ const MEDIUM = { lan: 'LAN', wlan: 'WLAN', mesh: 'Mesh-Backhaul', virtual: 'Virt
 const MEDIUM_SHORT = { lan: 'LAN', wlan: 'WLAN', mesh: 'Mesh', virtual: 'virtuell' };
 const PORT_KINDS = ['rj45', 'sfp', 'sfp+', 'sfp28', 'coax', 'dsl', 'fiber', 'usb'];
 const IP_KIND = { static: 'statisch', dhcp: 'DHCP', reserved: 'reserviert' };
-const SECTIONS = [['topology', 'Topologie-Grafik'], ['devices', 'Geräteliste'], ['ipplan', 'IP-Plan pro Subnetz'], ['vlans', 'VLAN-Übersicht'], ['ports', 'Portbelegung pro Switch'],
+const SECTIONS = [['topology', 'Topologie-Grafik'], ['devices', 'Geräteliste'], ['ipplan', 'IP-Plan pro Subnetz'], ['vlans', 'VLAN-Übersicht'], ['ports', 'Portbelegung pro Switch'], ['cabling', 'Verkabelung (Patchfelder, Dosen, Kabelwege)'],
   ['wlan', 'WLAN-Übersicht'], ['notes', 'Notizen']];
 let META = null, META_LANG = null;
 async function meta(pid) {
@@ -164,6 +164,7 @@ async function deviceDialog(ctx, did) {
     ${d && d.ips?.length ? `<div id="svcbox">${servicesBox(d, ctx.canEdit)}</div><div id="iperfbox"></div>` : ''}
     ${d && ctx.isOwner ? '<div id="actbox"></div>' : ''}
     ${d && d.status === 'confirmed' ? `<div class="row between qr-row"><span class="muted small">${t('Aufkleber mit QR-Code, der dieses Gerät in díktyo öffnet.')}</span><button type="button" class="sm" data-qrlabel>${QR_ICON} ${t('QR-Etikett')}</button></div><div id="watchbox"></div>` : ''}
+    ${d ? '<div id="cablebox"></div>' : ''}
     ${d ? '<div id="healthbox"></div>' : ''}
     ${d && d.connected.length ? `<h4>${t('Verbundene Geräte')} (${d.connected.length})</h4><div class="table-wrap"><table class="compact"><thead><tr><th>${t('Name')}</th><th>${t('Verbindung')}</th><th>${t('IP')}</th><th>${t('MAC')}</th></tr></thead><tbody>
       ${d.connected.map(k => `<tr><td>${h(k.name)}</td><td>${t(MEDIUM_SHORT[k.medium])}${k.port_name ? ' · ' + t('Port') + ' ' + h(k.port_name) : ''}</td><td class="mono">${h(k.ip)}</td><td class="mono">${h(k.mac)}</td></tr>`).join('')}
@@ -188,6 +189,7 @@ async function deviceDialog(ctx, did) {
       if (d && $('#smartbox', f)) smartBox(ctx, d, $('#smartbox', f));
       if (d && $('#actbox', f)) actionsBox(ctx, d.id, $('#actbox', f));
       if (d && $('#watchbox', f)) watchBox(ctx, d.id, $('#watchbox', f));
+      if (d && $('#cablebox', f)) cableBox(ctx, d.id, $('#cablebox', f));
       const ql = $('[data-qrlabel]', f);
       if (ql) ql.onclick = () => openLabels(ctx.pid, [d.id], labelPrefs());
       if (d && $('#healthbox', f)) deviceHealth(ctx, d.id, $('#healthbox', f));
