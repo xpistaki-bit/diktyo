@@ -153,55 +153,206 @@ function dnsPanel(dns, pid) {
       <span class="mono muted"> · ${fmtInt(x.blocked)} ${t('von')} ${fmtInt(x.queries)}</span></div>`).join('')}` : ''}</div>`;
 }
 
+/* ---------- angeheftete Diagramme ---------- */
+const PIN_FMT = {
+  bps: fmtBps, ms: fmtMs, W: fmtW, count: v => fmtInt(Math.round(v)),
+  pct: v => `${nf(v, 1)} %`,
+};
+const PIN_SPLIT = { bps: splitBps, ms: v => [v == null ? '–' : nf(v, v < 10 ? 1 : 0), 'ms'], W: v => { const s = fmtW(v).split(' '); return [s[0], s[1] || '']; },
+  count: v => [v == null ? '–' : fmtInt(Math.round(v)), ''], pct: v => [v == null ? '–' : nf(v, 1), '%'] };
+const PIN_COLORS = ['#00E5FF', '#19F5C8', '#2D7BFF', '#FFB020'];
+
+function pinPanel(it) {
+  const p = it.pin;
+  return `<div class="panel s${it.size} pinned"><div class="hud-h"><h3>📌 ${h(p.title)}</h3><span class="pin-now" data-now></span></div><div data-pin></div></div>`;
+}
+
+async function drawPin(el, pid, p, since) {
+  const box = $('[data-pin]', el), now = $('[data-now]', el);
+  const r = await api('GET', `/api/profiles/${pid}/metrics?keys=${p.keys.join(',')}&since=${since}&points=${p.style === 'bars' ? 96 : 200}`);
+  const series = p.keys.map((k, i) => ({ name: t(p.names[i] || ''), color: PIN_COLORS[i % 4], points: r.series[k] || [] }));
+  const fmt = PIN_FMT[p.unit] || fmtBps;
+  box.innerHTML = p.style === 'line' ? chartSvg(series, since, { height: 200, fmt }) : hudBars(series, since, { height: 200, fmt, mirror: p.mirror, step: r.step });
+  now.innerHTML = series.map(s => { const last = s.points.length ? s.points[s.points.length - 1][1] : null;
+    return `<span class="pn" style="--c:${s.color}"><small>${h(s.name)}</small>${bigVal((PIN_SPLIT[p.unit] || splitBps)(last))}</span>`; }).join('');
+}
+
+/* Dialog: Diagramm anheften oder bearbeiten */
+async function pinDialog(pid, cands, cur) {
+  const groups = [...new Set(cands.map(c => c.group))];
+  const sel = cur ? -1 : 0;
+  const html = `${cur ? '' : `<label>${t('Messreihe')}</label><select name="cand" required>${groups.map(g => `<optgroup label="${h(t(g))}">${cands.map((c, i) => c.group === g ? `<option value="${i}">${h(c.title)}</option>` : '').join('')}</optgroup>`).join('')}</select>`}
+    <label>${t('Titel')}</label><input name="title" maxlength="80" value="${h(cur ? cur.pin.title : cands[0]?.title || '')}">
+    <div class="grid2"><div><label>${t('Darstellung')}</label><select name="style"><option value="bars">${t('Balken')}</option><option value="line">${t('Linie')}</option></select></div>
+      <div><label>${t('Breite')}</label><select name="size">${[[3, 'schmal'], [4, 'ein Drittel'], [6, 'halb'], [8, 'zwei Drittel'], [12, 'ganze Breite']].map(([v, n]) => `<option value="${v}">${t(n)}</option>`).join('')}</select></div></div>
+    <p class="muted small">${t('Angeheftete Diagramme folgen dem Zeitraum des WAN-Diagramms. Mit „Anpassen“ lassen sie sich verschieben, umbenennen und entfernen.')}</p>`;
+  return dialog(cur ? t('Diagramm bearbeiten') : t('Diagramm anheften'), html, {
+    ok: cur ? t('Übernehmen') : t('Anheften'),
+    onOpen: f => {
+      const c0 = cur ? cur.pin : cands[0];
+      f.style.value = c0?.style || 'bars'; f.size.value = String(cur ? cur.size : 6);
+      if (f.cand) f.cand.onchange = () => { const c = cands[+f.cand.value]; f.title.value = c.title; f.style.value = c.style; };
+    },
+    onOk: f => {
+      const v = fd(f);
+      const base = cur ? cur.pin : cands[+v.cand];
+      return { pin: { ...base, title: v.title.trim() || base.title, style: v.style }, size: +v.size };
+    },
+  });
+}
+
+/* ---------- Übersicht ---------- */
+const BUILTIN_NAME = { wan: 'WAN-Traffic', speed: 'Internet-Geschwindigkeit', issues: 'Braucht Aufmerksamkeit', ports: 'Aktivste Ports', live: 'Gerade aktiv',
+  today: 'Top-Verbraucher (24 h)', rtt: 'Antwortzeiten Infrastruktur', infra: 'Infrastruktur', dns: 'DNS-Filter', recent: 'Letzte Änderungen' };
+const SIZE_NAME = [[3, 'S'], [4, 'M'], [5, 'M+'], [6, 'L'], [8, 'XL'], [12, '▭']];
+
 async function tabOverview(ctx) {
   await meta(ctx.pid);
   const P = `/api/profiles/${ctx.pid}`;
   const since = () => tabOverview.since || 86400;
+  const st = tabOverview.st = { edit: false, items: null, r: null, cands: null };
   ctx.el.innerHTML = `<div id="ov"><p class="muted">${t('lade …')}</p></div>`;
-  const render = async () => {
-    let r;
-    try { r = await api('GET', `${P}/dashboard`); } catch (e) { $('#ov', ctx.el).innerHTML = `<p class="errtxt">${h(e.message)}</p>`; return; }
-    const w = r.wan;
-    // Neu aufbauen ohne Flackern: erst abseits fertig zeichnen (auch die Diagramme), dann in einem Schritt austauschen
+
+  const builtins = r => ({
+    wan: () => wanPanel(r.wan, since()), speed: () => speedHud(r.speed, ctx.canEdit, ctx.pid), issues: () => issuesPanel(r, ctx.pid),
+    ports: () => portsPanel(r.ports), live: () => livePanel(r.top_now), today: () => todayPanel(r.top_today), rtt: () => rttPanel(r.rtt),
+    infra: () => infraPanel(r.infra, ctx.pid), dns: () => dnsPanel(r.dns, ctx.pid),
+    recent: () => `<div class="panel s4"><div class="hud-h"><h3>${t('Letzte Änderungen')}</h3><a class="small" href="#/p/${ctx.pid}/verlauf">${t('Verlauf')} →</a></div>
+      ${r.recent.length ? histList(r.recent) : `<p class="muted">${t('Keine Änderungen in den letzten 7 Tagen.')}</p>`}</div>`,
+  });
+
+  const ctl = (it, i, n) => !st.edit ? '' : `<div class="w-ctl" data-ctl="${h(it.id)}">
+      <span class="w-grip" title="${h(t('Ziehen zum Verschieben'))}">⠿</span>
+      <button type="button" class="sm" data-mv="-1" ${i ? '' : 'disabled'} title="${h(t('nach vorne'))}">◀</button>
+      <button type="button" class="sm" data-mv="1" ${i < n - 1 ? '' : 'disabled'} title="${h(t('nach hinten'))}">▶</button>
+      <select data-sz title="${h(t('Breite'))}">${SIZE_NAME.map(([v, l]) => `<option value="${v}" ${v === it.size ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      ${it.pin ? `<button type="button" class="sm" data-ped title="${h(t('Bearbeiten'))}">✎</button><button type="button" class="sm danger" data-prm title="${h(t('Entfernen'))}">✕</button>`
+        : `<button type="button" class="sm" data-hide>${it.hidden ? t('Einblenden') : t('Ausblenden')}</button>`}</div>`;
+
+  const paint = async () => {
+    const r = st.r, items = st.edit ? st.items : r.layout.items, mk = builtins(r);
     const box = document.createElement('div');
-    box.innerHTML = `${kpiTiles(r, ctx.pid)}
-      <div class="ovg">
-        ${wanPanel(w, since())}
-        ${speedHud(r.speed, ctx.canEdit, ctx.pid)}
-        ${issuesPanel(r, ctx.pid)}
-        ${portsPanel(r.ports)}
-        ${livePanel(r.top_now)}
-        ${todayPanel(r.top_today)}
-        ${rttPanel(r.rtt)}
-        ${infraPanel(r.infra, ctx.pid)}
-        ${dnsPanel(r.dns, ctx.pid)}
-        <div class="panel s4"><div class="hud-h"><h3>${t('Letzte Änderungen')}</h3><a class="small" href="#/p/${ctx.pid}/verlauf">${t('Verlauf')} →</a></div>
-          ${r.recent.length ? histList(r.recent) : `<p class="muted">${t('Keine Änderungen in den letzten 7 Tagen.')}</p>`}</div>
-      </div>
-      <p class="muted small" id="ovstamp"></p>`;
-    $$('[data-dev]', box).forEach(a => a.onclick = ev => { ev.preventDefault(); deviceDialog(ctx, +a.dataset.dev); });
-    $$('[data-hdev]', box).forEach(a => a.onclick = ev => { ev.preventDefault(); deviceDialog(ctx, +a.dataset.hdev); });
-    const elWan = $('[data-ch=wan]', box), elDns = $('[data-ch=dns]', box);  // vor dem Umhängen merken
+    const visible = items.filter(it => st.edit || !it.hidden);
+    const grid = document.createElement('div');
+    grid.className = 'ovg';
+    visible.forEach((it, i) => {
+      let html = it.pin ? pinPanel(it) : mk[it.id] ? mk[it.id]() : '';
+      if (!html && st.edit) html = `<div class="panel s4"><div class="hud-h"><h3>${t(BUILTIN_NAME[it.id] || it.id)}</h3></div><p class="muted">${t('Zurzeit keine Daten – das Feld erscheint, sobald es etwas zu zeigen gibt.')}</p></div>`;
+      if (!html) return;
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      const el = tmp.firstElementChild;
+      el.className = el.className.replace(/\bs\d+\b/, '') + ` s${it.size}` + (st.edit ? ' editing' : '') + (it.hidden ? ' w-hidden' : '');
+      el.dataset.w = it.id;
+      if (st.edit) { el.draggable = true; el.insertAdjacentHTML('afterbegin', ctl(it, i, visible.length)); }
+      grid.appendChild(el);
+    });
+    const bar = ctx.canEdit ? (st.edit
+      ? `<div class="ov-bar editing"><b>${t('Übersicht anpassen')}</b><span class="muted small">${t('Felder ziehen oder mit ◀ ▶ verschieben, Breite wählen, ausblenden.')}</span><span class="grow"></span>
+          <button type="button" class="sm" data-addpin>📌 ${t('Diagramm anheften')}</button><button type="button" class="sm danger" data-reset>${t('Zurücksetzen')}</button>
+          <button type="button" class="sm" data-cancel>${t('Abbrechen')}</button><button type="button" class="sm pri" data-done>${t('Fertig')}</button></div>`
+      : `<div class="ov-bar"><span class="grow"></span><button type="button" class="sm" data-addpin>📌 ${t('Diagramm anheften')}</button><button type="button" class="sm" data-ovedit>${t('Anpassen')}</button></div>`) : '';
+    box.innerHTML = `${bar}${kpiTiles(r, ctx.pid)}<p class="muted small" id="ovstamp"></p>`;
+    box.insertBefore(grid, $('#ovstamp', box));
+    $$('[data-dev]', box).forEach(a => a.onclick = ev => { ev.preventDefault(); if (!st.edit) deviceDialog(ctx, +a.dataset.dev); });
+    $$('[data-hdev]', box).forEach(a => a.onclick = ev => { ev.preventDefault(); if (!st.edit) deviceDialog(ctx, +a.dataset.hdev); });
+    // Diagramme: Elemente vor dem Umhängen merken
+    const elWan = $('[data-ch=wan]', box), elDns = $('[data-ch=dns]', box);
+    const pins = items.filter(it => it.pin && (st.edit || !it.hidden)).map(it => [$(`[data-w="${it.id}"]`, box), it.pin]).filter(x => x[0]);
     const charts = () => {
       const s = since();
       return Promise.allSettled([
-        w && drawBars(elWan, ctx.pid, w.keys, [t('Download'), t('Upload')], s, { height: 300, mirror: true }),
-        r.dns && drawBars(elDns, ctx.pid, r.dns.keys, [t('Anfragen/min'), t('blockiert/min')], s, { fmt: v => fmtInt(Math.round(v)), height: 120, colors: ['#00E5FF', '#FFB020'] }),
+        elWan && drawBars(elWan, ctx.pid, r.wan.keys, [t('Download'), t('Upload')], s, { height: 300, mirror: true }),
+        elDns && drawBars(elDns, ctx.pid, r.dns.keys, [t('Anfragen/min'), t('blockiert/min')], s, { fmt: v => fmtInt(Math.round(v)), height: 120, colors: ['#00E5FF', '#FFB020'] }),
+        ...pins.map(([el, p]) => drawPin(el, ctx.pid, p, s)),
       ]);
     };
     bindSpeedRun(ctx, box, () => render());
-    $$('[data-range]', box).forEach(b => b.onclick = () => { tabOverview.since = +b.dataset.range; $$('[data-range]', box).forEach(x => x.classList.toggle('on', x === b)); charts(); });
+    $$('[data-range]', box).forEach(b => b.onclick = () => { tabOverview.since = +b.dataset.range; $$('[data-range]', ctx.el).forEach(x => x.classList.toggle('on', x === b)); charts(); });
+    bindEdit(box);
     await charts();
     const ov = $('#ov', ctx.el);
     if (!ov) return;
     ov.replaceChildren(...box.childNodes);
-    $('#ovstamp', ctx.el).textContent = t('Stand {d} · aktualisiert sich alle 30 Sekunden', { d: new Date().toLocaleTimeString(LANG === 'en' ? 'en-GB' : 'de-DE') });
+    $('#ovstamp', ctx.el).textContent = st.edit ? '' : t('Stand {d} · aktualisiert sich alle 30 Sekunden', { d: new Date().toLocaleTimeString(LANG === 'en' ? 'en-GB' : 'de-DE') });
+  };
+
+  const save = async (body) => {
+    try { const l = await api('PUT', `${P}/dashboard/layout`, body); st.r.layout = l; return l; } catch (e) { toast(e.message, true); return null; }
+  };
+  const addPin = async () => {
+    if (!st.cands) st.cands = (await api('GET', `${P}/dashboard/layout?lang=${LANG}`)).candidates;
+    if (!st.cands.length) return toast(t('Noch keine Messreihen – sie entstehen mit den Integrationen und der Online-Überwachung.'), true);
+    const v = await pinDialog(ctx.pid, st.cands);
+    if (!v) return;
+    if (st.edit) { st.items.push({ id: 'p_' + Math.random().toString(16).slice(2, 10).padEnd(8, '0'), size: v.size, pin: v.pin }); return paint(); }
+    try { st.r.layout = await api('POST', `${P}/dashboard/pins`, v); toast(t('An die Übersicht angeheftet')); paint(); } catch (e) { toast(e.message, true); }
+  };
+
+  function bindEdit(box) {
+    const b = sel => $(sel, box);
+    if (b('[data-addpin]')) b('[data-addpin]').onclick = addPin;
+    if (b('[data-ovedit]')) b('[data-ovedit]').onclick = () => { st.edit = true; st.items = structuredClone(st.r.layout.items); paint(); };
+    if (b('[data-cancel]')) b('[data-cancel]').onclick = () => { st.edit = false; paint(); };
+    if (b('[data-done]')) b('[data-done]').onclick = async () => { if (await save({ items: st.items })) { st.edit = false; toast(t('gespeichert')); paint(); } };
+    if (b('[data-reset]')) b('[data-reset]').onclick = async () => {
+      if (!await confirmDlg(t('Übersicht zurücksetzen'), t('Reihenfolge, Breiten und ausgeblendete Felder auf den Standard zurücksetzen und alle angehefteten Diagramme entfernen?'), t('Zurücksetzen'))) return;
+      if (await save({ reset: true })) { st.edit = false; paint(); }
+    };
+    if (!st.edit) return;
+    const idx = id => st.items.findIndex(x => x.id === id);
+    const move = (from, to) => { const [x] = st.items.splice(from, 1); st.items.splice(to, 0, x); paint(); };
+    // ◀ ▶ verschieben unter den sichtbaren Feldern: Nachbar im angezeigten Raster suchen
+    $$('[data-ctl]', box).forEach(c => {
+      const id = c.dataset.ctl, it = st.items[idx(id)];
+      $$('[data-mv]', c).forEach(btn => btn.onclick = () => {
+        const shown = $$('.ovg>[data-w]', ctx.el).map(e => e.dataset.w);
+        const nb = shown[shown.indexOf(id) + +btn.dataset.mv];
+        if (nb) move(idx(id), idx(nb));
+      });
+      $('[data-sz]', c).onchange = e => { it.size = +e.target.value; paint(); };
+      const hide = $('[data-hide]', c);
+      if (hide) hide.onclick = () => { it.hidden = !it.hidden; paint(); };
+      const ped = $('[data-ped]', c);
+      if (ped) ped.onclick = async () => { const v = await pinDialog(ctx.pid, [], it); if (v) { it.pin = v.pin; it.size = v.size; paint(); } };
+      const prm = $('[data-prm]', c);
+      if (prm) prm.onclick = () => { st.items.splice(idx(id), 1); paint(); };
+    });
+    // Ziehen und Ablegen
+    let drag = null;
+    $$('.panel.editing', box).forEach(el => {
+      el.addEventListener('dragstart', e => { drag = el.dataset.w; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', drag); });
+      el.addEventListener('dragend', () => { el.classList.remove('dragging'); $$('.drop-at').forEach(x => x.classList.remove('drop-at')); });
+      el.addEventListener('dragover', e => { if (drag && drag !== el.dataset.w) { e.preventDefault(); el.classList.add('drop-at'); } });
+      el.addEventListener('dragleave', () => el.classList.remove('drop-at'));
+      el.addEventListener('drop', e => { e.preventDefault(); if (drag && drag !== el.dataset.w) move(idx(drag), idx(el.dataset.w)); drag = null; });
+    });
+  }
+
+  const render = async () => {
+    try { st.r = await api('GET', `${P}/dashboard`); } catch (e) { $('#ov', ctx.el).innerHTML = `<p class="errtxt">${h(e.message)}</p>`; return; }
+    await paint();
   };
   await render();
   clearInterval(tabOverview.timer);
   tabOverview.timer = setInterval(() => {
     if (!document.body.contains(ctx.el) || !location.hash.match(/\/p\/\d+(\/uebersicht)?$/)) return clearInterval(tabOverview.timer);
-    if (!$('#dlg').open) render();
+    if (!$('#dlg').open && !st.edit) render();
   }, 30000);
 }
 window.INV.uebersicht = tabOverview;
+
+/* „An die Übersicht anheften“ aus Gerätedialog und Integrationskarten */
+function pinBtn(pin) {
+  return `<button type="button" class="sm pinbtn" data-pin='${h(JSON.stringify(pin))}' title="${h(t('An die Übersicht anheften'))}">📌</button>`;
+}
+async function pinNow(pid, pin) {
+  try { await api('POST', `/api/profiles/${pid}/dashboard/pins`, { pin, size: 6 }); toast(t('An die Übersicht angeheftet')); return true; }
+  catch (e) { toast(e.message, true); return false; }
+}
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest('.pinbtn');
+  if (!b) return;
+  const pid = (location.hash.match(/#\/p\/(\d+)/) || [])[1];
+  if (pid && await pinNow(pid, JSON.parse(b.dataset.pin))) b.disabled = true;
+});

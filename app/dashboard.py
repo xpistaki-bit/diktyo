@@ -116,7 +116,9 @@ def build(c, pid):
                               if x["type"] in ("router", "firewall", "modem", "switch") else 9, x["name"].lower()))
     avail = [x["a24"]["pct"] for x in infra if x["a24"]]
     rtt_keys = _rtt(c, pid, [x for x in infra if x["rtt"] is not None][:10])
+    from . import dashlayout
     return dict(
+        layout=dashlayout.get(c, pid),
         counts=dict(devices=len(confirmed), online=sum(1 for d in confirmed if d["online"] == 1), offline=len(offline),
                     inbox=sum(1 for d in devs if d["status"] == "discovered"), firmware=len(fw_up), quarantine=quarantine,
                     availability=round(sum(avail) / len(avail), 2) if avail else None),

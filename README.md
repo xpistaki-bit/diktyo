@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.25 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.26 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -160,7 +160,12 @@ firmware updates, inbox, changes since yesterday); WAN traffic as a bar chart (d
 speed test as two gauges with ping and jitter plus its history; a "needs attention" list; the busiest switch ports with
 the **device behind each port**; devices moving data right now; response times per infrastructure device (24-hour
 average, maximum and sparkline); infrastructure cards with availability ring; Pi-hole/AdGuard and recent changes. Chart
-labels are HTML, so they stay readable at every width. It refreshes every 30 seconds without flicker. On the
+labels are HTML, so they stay readable at every width. It refreshes every 30 seconds without flicker.
+
+The overview is **customizable** per profile (editors and owners): drag panels or move them with ◀ ▶, choose their
+width, hide or show them, and **pin your own charts** – the WAN of an integration, a specific switch port (with the
+device behind it), ASUS interfaces, DNS queries, or the response time or power of a specific device, as bars or a line
+with your own title. Integration cards and the device dialog have a 📌 button to pin a chart directly. On the
 integrations page, cards with charts or port lists take two columns, simple ones one.
 
 In the topology, **Throughput** shows the current traffic on every connection, with line width following the load:

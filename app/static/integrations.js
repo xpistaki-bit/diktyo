@@ -249,6 +249,17 @@ async function tabIntegrations(ctx) {
         : [`i${i.id}:port:${card.dataset.port || ch.dataset.port}:rx`, `i${i.id}:port:${card.dataset.port || ch.dataset.port}:tx`];
       const names = dnsChart ? [t('Anfragen/min'), t('blockiert/min')] : wanChart ? [t('Download'), t('Upload')] : [t('empfangen'), t('gesendet')];
       const draw = () => drawChart(ch, ctx.pid, keys(), names, tabIntegrations.since || 7200, dnsChart ? { fmt: v => fmtInt(Math.round(v)) } : {}).catch(() => { });
+      if (ctx.canEdit) {
+        const pb = document.createElement('button');
+        pb.type = 'button'; pb.className = 'sm pinbtn-dyn'; pb.textContent = '📌 ' + t('An die Übersicht anheften');
+        pb.onclick = () => {
+          const port = card.dataset.port || ch.dataset.port;
+          pinNow(ctx.pid, dnsChart ? { title: `DNS · ${i.name}`, keys: keys(), names: ['Anfragen/min', 'blockiert/min'], unit: 'count', style: 'bars', mirror: false }
+            : wanChart ? { title: `WAN · ${i.name}`, keys: keys(), names: ['Download', 'Upload'], unit: 'bps', style: 'bars', mirror: true }
+            : { title: `${i.name} · ${t('Port')} ${port}`, keys: [`i${i.id}:port:${port}:tx`, `i${i.id}:port:${port}:rx`], names: ['gesendet', 'empfangen'], unit: 'bps', style: 'bars', mirror: true });
+        };
+        ch.after(pb);
+      }
       $$('[data-range]', card).forEach(b => b.onclick = () => { tabIntegrations.since = +b.dataset.range; $$('[data-range]', card).forEach(x => x.classList.toggle('on', x === b)); draw(); });
       $$('[data-port]', card).forEach(b => b.onclick = () => { card.dataset.port = b.dataset.port; $$('.pstrip [data-port]', card).forEach(x => x.classList.toggle('sel', x === b)); $('.pname', card).textContent = b.title; draw(); });
       waits.push(draw());
@@ -444,7 +455,7 @@ async function deviceHealth(ctx, did, el) {
     ${r.today ? `<p class="small">${t('Letzte 24 Stunden')}: <b class="mono">↓ ${fmtBytes(r.today.rx)} · ↑ ${fmtBytes(r.today.tx)}</b> <span class="muted">· ${h(r.today.source)}</span></p>` : ''}
     ${a['24'] || a['168'] ? `<div class="hcells">${cell(a['24'], '24 Stunden')}${cell(a['168'], '7 Tage')}${cell(a['720'], '30 Tage')}
       <div class="hcell"><span class="muted small">${t('Ø Antwortzeit (24 h)')}</span><b class="mono">${fmtMs(r.rtt_24h)}</b></div></div>` : ''}
-    ${r.rtt_24h != null ? `<div class="row between" style="margin-top:8px"><b class="small">${t('Antwortzeit')}</b>${rangeButtons(deviceHealth.since || 86400)}</div><div class="chartbox"></div>` : ''}`;
+    ${r.rtt_24h != null ? `<div class="row between" style="margin-top:8px"><b class="small">${t('Antwortzeit')}</b><span class="row">${ctx.canEdit ? pinBtn({ title: `${r.name || ''} · ${t('Antwortzeit')}`.replace(/^ · /, ''), keys: [`d${did}:rtt`], names: ['Antwortzeit'], unit: 'ms', style: 'line' }) : ''}${rangeButtons(deviceHealth.since || 86400)}</span></div><div class="chartbox"></div>` : ''}`;
   const ch = $('.chartbox', el);
   if (ch) {
     const draw = () => drawChart(ch, ctx.pid, [`d${did}:rtt`], [t('Antwortzeit')], deviceHealth.since || 86400, { fmt: fmtMs, height: 120 }).catch(() => { });
@@ -584,7 +595,7 @@ function smartBox(ctx, d, el) {
       ${s.energy_kwh != null ? `<span>${t('Energie gesamt')} <b class="mono">${s.energy_kwh.toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: 2 })} kWh</b></span>` : ''}
       ${s.voltage ? `<span>${t('Spannung')} <b class="mono">${(+s.voltage).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: 1 })} V</b></span>` : ''}
       ${(s.channels || []).map(c => `<span>${h(t(c.name))} <b class="${c.on ? 'okc' : 'offc'}">${c.on ? t('an') : t('aus')}</b></span>`).join('')}</div>
-    <div class="row between" style="margin-top:6px"><span class="muted small">${t('Stand {d}', { d: h(fmtDate(s.ts)) })}</span>${rangeButtons(smartBox.since || 86400)}</div>
+    <div class="row between" style="margin-top:6px"><span class="muted small">${t('Stand {d}', { d: h(fmtDate(s.ts)) })}</span><span class="row">${ctx.canEdit ? pinBtn({ title: `${d.name} · ${t('Leistung')}`, keys: [`d${d.id}:power`], names: ['Leistung'], unit: 'W', style: 'line' }) : ''}${rangeButtons(smartBox.since || 86400)}</span></div>
     <div class="chartbox" data-power></div>`;
   const draw = () => drawChart($('[data-power]', el), ctx.pid, [`d${d.id}:power`], [t('Leistung')], smartBox.since || 86400, { fmt: fmtW, height: 110 }).catch(() => { });
   $$('[data-range]', el).forEach(b => b.onclick = () => { smartBox.since = +b.dataset.range; $$('[data-range]', el).forEach(x => x.classList.toggle('on', x === b)); draw(); });

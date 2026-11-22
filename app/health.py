@@ -57,7 +57,8 @@ def device(c, pid, did):
     from . import clienttraffic
     live, today = clienttraffic.device(*clienttraffic.collect(c, pid), clienttraffic.macs_of(c, did))
     web_ip = ((json.loads(d["data"] or "{}") if d else {}).get("smart") or {}).get("ip")
-    return dict(availability={h: availability(c, did, h) for h in (24, 168, 720)}, rtt_24h=rtt_avg(c, pid, did), firmware=fw, web_ip=web_ip,
+    return dict(name=(c.execute("SELECT name FROM devices WHERE id=?", (did,)).fetchone() or {"name": ""})["name"],
+                availability={h: availability(c, did, h) for h in (24, 168, 720)}, rtt_24h=rtt_avg(c, pid, did), firmware=fw, web_ip=web_ip,
                 today=today, live=live)
 
 

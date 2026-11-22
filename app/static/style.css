@@ -598,3 +598,21 @@ a.kpi:hover{border-color:var(--cyan);box-shadow:0 0 18px rgba(0,229,255,.25)}
   .rrow .spark{grid-column:1/-1;grid-row:2}
   .fl-val{min-width:0;flex-direction:row;gap:12px}
 }
+
+/* Anpassbare Übersicht */
+.ov-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;margin:-4px 0 12px}
+.ov-bar.editing{padding:10px 14px;border:1px dashed var(--cyan);background:rgba(0,229,255,.06)}
+.panel.editing{outline:1px dashed rgba(0,229,255,.45);outline-offset:3px;cursor:grab;padding-top:52px}
+.panel.editing a,.panel.editing button:not(.w-ctl button){pointer-events:none}
+.panel.w-hidden{opacity:.38}
+.panel.dragging{opacity:.4}
+.panel.drop-at{outline:2px solid var(--cyan);box-shadow:0 0 22px rgba(0,229,255,.45)}
+.w-ctl{position:absolute;top:10px;left:14px;right:14px;display:flex;align-items:center;gap:6px;z-index:2;cursor:default}
+.w-ctl select{width:auto;padding:2px 6px;font-size:12.5px}
+.w-grip{font-size:18px;color:var(--cyan);cursor:grab;padding:0 4px}
+.pin-now{display:flex;gap:16px;flex-wrap:wrap}
+.pn{display:flex;flex-direction:column;align-items:flex-end;line-height:1.1}
+.pn small{font:11px var(--mono);color:var(--c);letter-spacing:.06em}
+.pn .hval b{font-size:20px;color:var(--c)}
+.pinbtn-dyn{margin-top:6px}
+.panel.w-hidden{opacity:1}.panel.w-hidden>*:not(.w-ctl){opacity:.35}

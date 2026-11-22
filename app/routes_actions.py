@@ -178,3 +178,33 @@ def dashboard_get(pid: int, user=Depends(require_user)):
     with db() as c:
         profile_access(c, user, pid)
         return dashboard.build(c, pid)
+
+
+@router.get("/dashboard/layout")
+def dashboard_layout_get(pid: int, lang: str = "de", user=Depends(require_user)):
+    from . import dashlayout
+    with db() as c:
+        profile_access(c, user, pid)
+        return dict(dashlayout.get(c, pid), candidates=dashlayout.candidates(c, pid, lang), sizes=list(dashlayout.SIZES))
+
+
+@router.put("/dashboard/layout")
+def dashboard_layout_put(pid: int, body: dict = Body(...), user=Depends(require_user)):
+    from . import dashlayout
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        try:
+            return dashlayout.save(c, pid, None if body.get("reset") else body.get("items"))
+        except dashlayout.LayoutError as ex:
+            raise HTTPException(400, str(ex))
+
+
+@router.post("/dashboard/pins")
+def dashboard_pin_add(pid: int, body: dict = Body(...), user=Depends(require_user)):
+    from . import dashlayout
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        try:
+            return dashlayout.add_pin(c, pid, body.get("pin"), body.get("size") or 6)
+        except dashlayout.LayoutError as ex:
+            raise HTTPException(400, str(ex))
