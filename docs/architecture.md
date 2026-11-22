@@ -93,6 +93,7 @@ Phase 2:
 | P3.4 | notifications by e-mail and ntfy (bundled, per-profile event selection, new events) | done (0.21.0) |
 | P3.5 | actions via UniFi/Omada (restart, PoE), Shelly/Tasmota integration (power, switching, firmware) | done (0.22.0), not yet tested on real hardware |
 | P3.6 | Pi-hole / AdGuard Home integration (host names, per-device query stats, blocking toggle) | done (0.23.0) |
+| P3.7 | overview redesign (HUD, full width): KPI tiles, WAN bar chart, speed gauges, ports with the device behind them, response-time sparklines, infrastructure cards; shared HUD components in `static/hud.js` with HTML axis labels; integrations in a grid | done (0.25.0) |
 | P3.2 | speed tests: internet (Cloudflare, scheduled, history, slow-line hint) and iperf3 to a device | done (0.19.0) |
 | P2.16 | live traffic per client (Omada, UniFi stat/sta, MikroTik registrations/Kid Control, OPNsense top talkers, Proxmox guests) in topology, device dialog and overview; illustrated getting-started guide | done (0.18.0), client rates not yet tested on real hardware |
  Phase 3: change history between scans, cable and patch-panel documentation,

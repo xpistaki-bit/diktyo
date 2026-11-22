@@ -35,6 +35,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Benachrichtigungen | E-Mail und ntfy je Profil, Ereignisse wählbar, gebündelt; neue Ereignisse: Internet langsam, Backup fehlgeschlagen, Integration gestört | 0.21 |
 | Aktionen und Shelly | UniFi: Gerät neu starten, PoE-Port neu starten; Omada: Gerät neu starten, PoE ein/aus/neu starten; Shelly/Tasmota direkt: Leistung, Energie, Ausgänge schalten, Firmware | 0.22 |
 | Geräte | Typen alphabetisch und erweitert (Saugroboter, 3D-Drucker, Türklingel, Hub, ESP …), Software/Betriebssystem-Feld, Proxmox-Gäste übernehmen Software/Standort vom Host, Vermutung verwerfen, WLAN bei Geräten ohne Buchse, Gerätedialog ohne Verlauf, KI-Katalog ohne erfundene Ports | 0.24 |
+| Übersicht neu | HUD-Stil über die volle Breite: Kennzahl-Kacheln mit Segmentbalken/Ring, WAN als Balkendiagramm, Speedtest als Tachos, Ports mit dem Gerät dahinter, Antwortzeiten mit Verlaufslinie, Infrastruktur als Karten; lesbare Diagrammbeschriftung überall; Integrationen im Raster | 0.25 |
 | DNS-Filter | Pi-hole (v6, v5) und AdGuard Home: Hostnamen, Anfragen/Blockierte je Gerät, Statistik und Diagramm in der Übersicht, Werbeblocker schalten | 0.23 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan
@@ -96,6 +97,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 | ~~Datendurchsatz je Gerät in der Topologie~~ – erledigt in 0.17 (kabelgebunden), 0.17.1 (ASUS-Tagesmenge) und 0.18 (Live-Raten aus Omada, UniFi, MikroTik, OPNsense, Proxmox) | ★★★ | M |
 | ~~Übersichtsseite (Dashboard)~~ – erledigt in 0.17 | ★★★ | M |
 | Übersicht anpassbar: eigene Diagramme anheften (z. B. bestimmter Port, bestimmtes Gerät) | ★★ | S |
+| **Wachliste / Alarm in der Übersicht:** ausgewählte Systeme (z. B. Proxmox-Quorum-Knoten) gezielt überwachen; Feld in der Übersicht zeigt sofort, wenn eines ausgefallen ist, seine IP gewechselt hat oder sich sonst geändert hat – bis zum Quittieren; Auswahl im Gerätedialog, optional mit Benachrichtigung | ★★★ | M |
 | **Gruppen in der Topologie:** eigene Gruppen („IoT“, „Kameras“, „Kinderzimmer“), die als eigene Box unter ihrem Access Point/Switch erscheinen; alternativ nach Standort oder Tag gruppieren; Schwellwerte fürs automatische Zusammenfassen einstellbar | ★★ | M |
 
 ### Monitoring
@@ -171,7 +173,8 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 
 1. ~~Anmeldung mit zweitem Faktor (TOTP) und Sitzungsverwaltung~~ – erledigt in 0.20.
 2. ~~Benachrichtigungen per E-Mail und ntfy~~ – erledigt in 0.21.
-3. **Übersicht anpassbar** (Diagramme anheften) und **Verfügbarkeitsbericht als PDF**.
+3. **Wachliste / Alarm in der Übersicht** (siehe Abschnitt 4, Wünsche aus dem Test), danach **Übersicht anpassbar**
+   (Diagramme anheften) und **Verfügbarkeitsbericht als PDF**.
 4. **Quarantäne und Internetsperre auch über OPNsense/MikroTik** (bisher Quarantäne nur über die FRITZ!Box).
 5. Rückmeldungen der Tester (UniFi, MikroTik, OPNsense, Docker) einarbeiten; weitere Integrationen nach Bedarf
-   (Pi-hole/AdGuard, NAS-Systeme, OpenWrt).
+   (NAS-Systeme, OpenWrt).

@@ -72,7 +72,7 @@ async function speedSettings(ctx, el) {
   let r;
   try { r = await api('GET', `${P}/speedtest`); } catch (e) { el.innerHTML = `<p class="errtxt">${h(e.message)}</p>`; return; }
   const s = r.settings, dis = ctx.canEdit ? '' : 'disabled';
-  const rows = r.history.slice(0, 15);
+  const rows = r.history.slice(0, 8);
   el.innerHTML = `<div class="panel"><div class="row between"><h3 style="margin:0">${t('Speedtest')}</h3>${ctx.canEdit ? `<button class="sm" data-speedrun>${t('Jetzt messen')}</button>` : ''}</div>
     <p class="muted small" style="margin-top:4px">${t('Misst Ping, Download und Upload vom díktyo-Rechner ins Internet (gegen speed.cloudflare.com). Das Ergebnis gilt für díktyos Weg – steht díktyo hinter einem weiteren Router, misst es dessen Anbindung mit. Je Messung fließen einige hundert MB.')}</p>
     <div data-speedjob></div>
@@ -85,7 +85,7 @@ async function speedSettings(ctx, el) {
     ${rows.length ? `<div class="table-wrap"><table class="compact"><thead><tr><th>${t('Zeit')}</th><th>↓</th><th>↑</th><th>${t('Ping')}</th><th>${t('Jitter')}</th><th>${t('Server')}</th></tr></thead><tbody>
       ${rows.map(x => `<tr><td class="mono small">${h(fmtDate(x.ts))}${x.scheduled ? ` <span class="badge">${t('geplant')}</span>` : ''}</td><td class="mono small">${fmtMbit(x.down_bps)}</td><td class="mono small">${fmtMbit(x.up_bps)}</td>
         <td class="mono small">${fmtMs(x.ping_ms)}</td><td class="mono small">${fmtMs(x.jitter_ms)}</td><td class="small">${h(x.server)}</td></tr>`).join('')}</tbody></table></div>
-      ${r.history.length > rows.length ? `<p class="muted small">${t('{n} Messungen gespeichert, die letzten 15 sind aufgeführt.', { n: r.history.length })}</p>` : ''}` : ''}</div>`;
+      ${r.history.length > rows.length ? `<p class="muted small">${t('{n} Messungen gespeichert, die letzten 8 sind aufgeführt.', { n: r.history.length })}</p>` : ''}` : ''}</div>`;
   $$('#speedform select', el).forEach(sel => sel.onchange = async () => {
     try { await api('PUT', `${P}/speedtest`, fd($('#speedform', el))); toast(t('gespeichert')); } catch (e) { toast(e.message, true); }
   });

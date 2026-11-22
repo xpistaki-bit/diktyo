@@ -239,7 +239,7 @@ async function viewProfile(pid, tab, sub, keep = null) {
   drawHeader();
   const p = r.profile, isOwner = p.role === 'owner', canEdit = p.role !== 'view';
   crumbs([[t('Profile'), '#/'], [p.name]]);
-  app.innerHTML = `<div class="page wide">
+  app.innerHTML = `<div class="page full">
     <div class="row between top">
       <div><h1>${h(p.name)}</h1>${p.description ? `<p class="sub">${h(p.description)}</p>` : ''}</div>
       <div class="row"><span class="badge ${p.role}">${t(ROLE[p.role])}</span>

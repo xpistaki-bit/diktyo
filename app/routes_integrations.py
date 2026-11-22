@@ -258,10 +258,10 @@ def monitor_put(pid: int, body: dict = Body(...), user=Depends(require_user)):
 
 
 @router.get("/api/profiles/{pid}/metrics")
-def metrics_get(pid: int, keys: str, since: int = 7200, user=Depends(require_user)):
+def metrics_get(pid: int, keys: str, since: int = 7200, points: int = 240, user=Depends(require_user)):
     with db() as c:
         profile_access(c, user, pid)
-        return metrics.query(c, pid, [k for k in keys.split(",") if k][:20], since)
+        return metrics.query(c, pid, [k for k in keys.split(",") if k][:20], since, points=max(20, min(points, 400)))
 
 
 @router.put("/api/settings/metrics")

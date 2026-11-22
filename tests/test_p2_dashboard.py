@@ -53,4 +53,7 @@ def test_dashboard(monkeypatch):
     assert [x["name"] for x in r["offline"]] == ["Fernseher"] and r["firmware"][0]["latest"] == "8.02"
     assert r["broken"][0]["error"] == "Keine Antwort" and r["failed"][0]["message"] == "zweiter Faktor nötig"
     assert [p["port_no"] for p in r["ports"]] == [1, 5] and r["ports"][0]["keys"][0] == f"i{d['siid']}:port:1:rx"
+    # Übersicht nennt das Gerät hinter dem Port (Verbindungen) und den Switch einmal mit Gerätenamen
+    assert [[x["name"] for x in p["peers"]] for p in r["ports"]] == [["FRITZ!Box"], ["Fernseher"]]
+    assert {p["device"] for p in r["ports"]} == {"Switch"} and r["ports"][0]["device_id"] == d["sw"]
     assert {x["name"] for x in r["infra"]} == {"FRITZ!Box", "Switch"} and next(x for x in r["infra"] if x["name"] == "FRITZ!Box")["fw_update"]

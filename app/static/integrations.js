@@ -103,24 +103,25 @@ const fmtBps = v => {
 };
 const fmtUptime = s => { if (!s) return '–'; const d = Math.floor(s / 86400), hh = Math.floor(s % 86400 / 3600); return d ? t('{d} Tage {h} h', { d, h: hh }) : t('{h} h', { h: hh }); };
 
-/* Liniendiagramm als SVG. series = [{name, color, points: [[ts, v], ...]}] */
+/* Liniendiagramm. series = [{name, color, points: [[ts, v], ...]}]. Achsenbeschriftung als HTML (bleibt lesbar). */
 function chartSvg(series, since, { height = 150, fmt = fmtBps } = {}) {
-  const W = 720, H = height, L = 86, R = 8, T = 10, B = 22;
-  const now = Date.now() / 1000, t0 = now - since;
-  const max = Math.max(1, ...series.flatMap(s => s.points.map(p => p[1])));
-  const x = ts => L + (ts - t0) / since * (W - L - R), y = v => T + (1 - v / max) * (H - T - B);
+  const W = 1000, H = 100, now = Date.now() / 1000, t0 = now - since;
+  const max = niceMax(Math.max(1, ...series.flatMap(s => s.points.map(p => p[1]))));
+  const x = ts => (ts - t0) / since * W, y = v => H - v / max * (H - 1);
   const lines = series.map(s => {
     if (!s.points.length) return '';
-    const d = s.points.map((p, i) => `${i ? 'L' : 'M'}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join('');
-    const area = `${d}L${x(s.points[s.points.length - 1][0]).toFixed(1)},${y(0)}L${x(s.points[0][0]).toFixed(1)},${y(0)}Z`;
-    return `<path d="${area}" fill="${s.color}" opacity=".12"/><path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.6"/>`;
+    const d = s.points.map((p, i) => `${i ? 'L' : 'M'}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(2)}`).join('');
+    const area = `${d}L${x(s.points[s.points.length - 1][0]).toFixed(1)},${H}L${x(s.points[0][0]).toFixed(1)},${H}Z`;
+    return `<path d="${area}" fill="${s.color}" opacity=".12"/><path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.8" vector-effect="non-scaling-stroke"/>`;
   }).join('');
-  const grid = [0, .5, 1].map(f => `<line x1="${L}" x2="${W - R}" y1="${y(max * f)}" y2="${y(max * f)}" class="grid"/><text x="${L - 6}" y="${y(max * f) + 4}" text-anchor="end" class="ax">${fmt(max * f)}</text>`).join('');
-  const tl = ts => new Date(ts * 1000).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE', since >= 86400 ? { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' });
   const empty = series.every(s => !s.points.length);
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">${grid}${lines}
-    <text x="${L}" y="${H - 6}" class="ax">${tl(t0)}</text><text x="${W - R}" y="${H - 6}" class="ax" text-anchor="end">${tl(now)}</text>
-    ${empty ? `<text x="${(W + L) / 2}" y="${H / 2}" text-anchor="middle" class="ax">${t('Noch keine Messwerte – sie entstehen mit jeder Abfrage.')}</text>` : ''}</svg>
+  return `<div class="hbc line" style="--h:${height}px">
+      <div class="hb-y">${[[0, max], [50, max / 2], [100, 0]].map(([p, v]) => `<span style="top:${p}%">${h(v ? fmt(v) : '0')}</span>`).join('')}</div>
+      <div class="hb-plot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img">
+        ${[0, 25, 50, 75].map(g => `<line x1="0" x2="${W}" y1="${g}" y2="${g}" class="hb-grid"/>`).join('')}<line x1="0" x2="${W}" y1="${H}" y2="${H}" class="hb-zero"/>${lines}</svg>
+        ${empty ? `<div class="hb-empty">${t('Noch keine Messwerte – sie entstehen mit jeder Abfrage.')}</div>` : ''}</div>
+      <div></div><div class="hb-x"><span>${h(timeLabel(t0, since))}</span><span>${h(timeLabel(t0 + since / 2, since))}</span><span>${h(timeLabel(now, since))}</span></div>
+    </div>
     <div class="legend">${series.map(s => `<span><i style="background:${s.color}"></i>${h(s.name)}</span>`).join('')}</div>`;
 }
 
@@ -160,6 +161,9 @@ function rangeButtons(cur) {
   return `<span class="ranges">${RANGES.map(([s, n]) => `<button type="button" class="sm ${s === cur ? 'on' : ''}" data-range="${s}">${t(n)}</button>`).join('')}</span>`;
 }
 
+/* Integrationen mit Diagrammen oder Port-/Gerätelisten bekommen im Raster doppelte Breite */
+const BIG_CARDS = ['fritzbox', 'snmp', 'asuswrt', 'proxmox', 'omada', 'unifi', 'mikrotik', 'opnsense'];
+
 async function tabIntegrations(ctx) {
   await meta(ctx.pid);  // Auswahllisten für den Gerätedialog („Gerät öffnen“)
   const P = `/api/profiles/${ctx.pid}`;
@@ -183,7 +187,7 @@ async function tabIntegrations(ctx) {
           <button class="pri" data-add="docker">${t('+ Docker')}</button><button class="pri" data-add="shelly">${t('+ Shelly / Tasmota')}</button><button class="pri" data-add="dnsfilter">${t('+ Pi-hole / AdGuard')}</button></div>` : ''}</div>
     </div>
     <div class="grid-out" style="margin-top:16px"><div id="speedbox"></div><div id="notifybox"></div></div>
-    <div id="ints" class="stack" style="margin-top:16px">${r.integrations.map(i => `<div class="panel integ" data-id="${i.id}">
+    <div id="ints" class="ints-grid" style="margin-top:16px">${r.integrations.map(i => `<div class="panel integ ${BIG_CARDS.includes(i.driver) ? 'big' : ''}" data-id="${i.id}">
         <div class="row between"><div class="row"><span class="dot ${st(i)}"></span><b>${h(i.name)}</b><span class="muted mono small">${h(i.host)}</span>
           ${i.name !== drv[i.driver]?.name ? `<span class="badge">${h(drv[i.driver]?.name || i.driver)}</span>` : ''}${i.enabled ? '' : `<span class="badge">${t('pausiert')}</span>`}</div>
           <div class="row">${ctx.canEdit ? `<button class="sm" data-poll>${t('Jetzt abfragen')}</button><button class="sm" data-edit>${t('Bearbeiten')}</button><button class="sm danger" data-del>${t('Löschen')}</button>` : ''}</div></div>

@@ -74,11 +74,28 @@ einmalig **10 Wiederherstellungscodes** – sicher aufbewahren, jeder ersetzt ei
 
 ### Übersicht
 
-Beim Öffnen eines Profils erscheint die **Übersicht**: Geräte online/offline, Internet mit aktuellem Traffic,
-Verfügbarkeit der Infrastruktur, Firmware-Updates, Posteingang und Änderungen seit gestern. Darunter *Braucht
-Aufmerksamkeit* (offline, Updates, Integrationen mit Fehlern, fehlgeschlagene Aktionen), die Diagramme für WAN-Traffic,
-Antwortzeiten der Infrastruktur und die aktivsten Ports, eine Infrastruktur-Tabelle und die letzten Änderungen. Die
-Seite aktualisiert sich alle 30 Sekunden.
+Beim Öffnen eines Profils erscheint die **Übersicht** im HUD-Stil über die ganze Bildschirmbreite:
+
+- **Kennzahlen oben:** Geräte online (Segmentbalken, rot = offline), Internet mit Download/Upload im Verhältnis zur
+  Leitung, Verfügbarkeit der Infrastruktur (Ring), Firmware-Updates, Posteingang, Änderungen seit gestern. Kacheln, die
+  etwas zu tun bedeuten, sind farbig hinterlegt.
+- **WAN-Traffic** als Balkendiagramm: Download nach oben, Upload nach unten (je eigene Skala), links die aktuellen Werte
+  und die Leitung; Zeitraum 2 h bis 7 Tage.
+- **Internet-Geschwindigkeit:** letzte Messung als zwei Tachos (gelb/rot, wenn deutlich unter der Leitung), Ping und
+  Jitter, darunter der Verlauf der Messungen.
+- **Braucht Aufmerksamkeit:** offline, Updates, Integrationen mit Fehlern, fehlgeschlagene Aktionen, Posteingang.
+- **Aktivste Ports:** Switch einmal oben genannt, je Port das **Gerät dahinter** (aus den Verbindungen der Topologie)
+  mit Balken und Werten ↓ zum Gerät / ↑ vom Gerät.
+- **Gerade aktiv:** Geräte mit Live-Raten aus den Integrationen; die Quelle steht einmal im Titel.
+- **Antwortzeiten Infrastruktur:** je Gerät Mittelwert und Höchstwert der letzten 24 Stunden mit Verlaufslinie
+  (gelb ab 15 ms, rot ab 50 ms oder offline).
+- **Infrastruktur:** Karten mit Typ, Name, Verfügbarkeit (Ring, 24 h), 7-Tage-Wert und Antwortzeit; ein Klick öffnet
+  das Gerät.
+- Dazu DNS-Filter (Pi-hole/AdGuard), Top-Verbraucher (ASUS) und die letzten Änderungen.
+
+Alle Beschriftungen der Diagramme bleiben unabhängig von der Breite lesbar. Die Seite aktualisiert sich alle 30
+Sekunden. Auf *Integrationen* stehen die Karten nebeneinander: Integrationen mit Diagrammen oder Portlisten nehmen zwei
+Spalten ein, einfache eine.
 
 ## 3. Geräte, IPAM, Standorte
 

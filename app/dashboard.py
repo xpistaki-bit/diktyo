@@ -38,10 +38,17 @@ def build(c, pid):
                 total = (p.get("in_bps") or 0) + (p.get("out_bps") or 0)
                 wan_if = (res.get("wan") or {}).get("iface")
                 if total > 0 and not (wan_if and p.get("iface") == wan_if):  # WAN-Port steht schon oben
-                    ports.append(dict(integration=r["id"], device=r["name"], port_no=p["port_no"], name=p.get("name") or str(p["port_no"]),
-                                      in_bps=p.get("in_bps"), out_bps=p.get("out_bps"), total=total,
-                                      keys=[f"i{r['id']}:port:{p['port_no']}:rx", f"i{r['id']}:port:{p['port_no']}:tx"]))
+                    ports.append(dict(integration=r["id"], device=r["name"], device_id=r["device_id"], port_no=p["port_no"],
+                                      name=p.get("name") or str(p["port_no"]), in_bps=p.get("in_bps"), out_bps=p.get("out_bps"), total=total,
+                                      speed=p.get("speed") or 0, keys=[f"i{r['id']}:port:{p['port_no']}:rx", f"i{r['id']}:port:{p['port_no']}:tx"]))
     ports.sort(key=lambda x: -x["total"])
+    ports = ports[:6]
+    for p in ports:  # Gerätename statt Integrationsname, und was am Port hängt
+        p.update(_port_peer(c, p["device_id"], p["port_no"]))
+        if p["device_id"]:
+            n = c.execute("SELECT name FROM devices WHERE id=?", (p["device_id"],)).fetchone()
+            if n:
+                p["device"] = n["name"]
     top_today = []
     by_mac = {r["mac"]: (r["device_id"], r["name"]) for r in c.execute(
         "SELECT i.mac, d.id AS device_id, d.name FROM interfaces i JOIN devices d ON d.id=i.device_id WHERE d.profile_id=? AND i.mac<>''", (pid,))}
@@ -102,16 +109,44 @@ def build(c, pid):
         if d["type"] not in INFRA:
             continue
         a24 = health.availability(c, d["id"], 24)
-        infra.append(dict(id=d["id"], name=d["name"], type=d["type"], online=d["online"], a24=a24, rtt=health.rtt_avg(c, pid, d["id"]),
+        infra.append(dict(id=d["id"], name=d["name"], type=d["type"], online=d["online"], a24=a24, a7=health.availability(c, d["id"], 168),
+                          rtt=health.rtt_avg(c, pid, d["id"]),
                           fw_update=bool((json.loads(d["data"] or "{}").get("firmware") or {}).get("update"))))
     infra.sort(key=lambda x: (x["online"] != 0, (x["a24"] or {}).get("pct", 100), ["router", "firewall", "modem", "switch"].index(x["type"])
                               if x["type"] in ("router", "firewall", "modem", "switch") else 9, x["name"].lower()))
     avail = [x["a24"]["pct"] for x in infra if x["a24"]]
-    rtt_keys = [dict(id=x["id"], name=x["name"], key=f"d{x['id']}:rtt") for x in infra if x["rtt"] is not None][:4]
+    rtt_keys = _rtt(c, pid, [x for x in infra if x["rtt"] is not None][:10])
     return dict(
         counts=dict(devices=len(confirmed), online=sum(1 for d in confirmed if d["online"] == 1), offline=len(offline),
                     inbox=sum(1 for d in devs if d["status"] == "discovered"), firmware=len(fw_up), quarantine=quarantine,
                     availability=round(sum(avail) / len(avail), 2) if avail else None),
-        wan=wan, speed=speed, dns=dns, top_today=top_today, top_now=top_now, offline=offline[:12], firmware=fw_up[:12], broken=broken, failed=failed[:10], ports=ports[:4], infra=infra[:12],
+        wan=wan, speed=speed, dns=dns, top_today=top_today, top_now=top_now, offline=offline[:12], firmware=fw_up[:12], broken=broken, failed=failed[:10], ports=ports, infra=infra[:16],
         rtt=rtt_keys, recent=[x for x in changes.timeline(c, pid, limit=12) if x["cat"] in ("change", "action", "quarantine")][:8],
         summary=changes.summary(c, pid))
+
+
+def _port_peer(c, did, port_no):
+    """Welche Geräte hängen an diesem Port (Verbindungen in der Topologie)? -> dict(peers=[{id, name}])"""
+    if not did:
+        return dict(peers=[])
+    r = c.execute("SELECT id FROM interfaces WHERE device_id=? AND role='port' AND port_no=?", (did, port_no)).fetchone()
+    if not r:
+        return dict(peers=[])
+    rows = c.execute("""SELECT d.id, d.name FROM links l JOIN interfaces i ON i.id = CASE WHEN l.b_if=? THEN l.a_if ELSE l.b_if END
+                        JOIN devices d ON d.id=i.device_id WHERE (l.a_if=? OR l.b_if=?) AND d.id<>? ORDER BY d.name""",
+                     (r["id"], r["id"], r["id"], did)).fetchall()
+    return dict(peers=[dict(id=x["id"], name=x["name"]) for x in rows])
+
+
+def _rtt(c, pid, infra):
+    """Antwortzeiten der Infrastruktur: Mittel, Höchstwert und Verlauf der letzten 24 Stunden je Gerät."""
+    from . import metrics
+    keys = [f"d{x['id']}:rtt" for x in infra]
+    q = metrics.query(c, pid, keys, 86400, points=72)["series"] if keys else {}
+    out = []
+    for x, k in zip(infra, keys):
+        pts = q.get(k) or []
+        vals = [v for _, v in pts]
+        out.append(dict(id=x["id"], name=x["name"], type=x["type"], online=x["online"], key=k, avg=x["rtt"],
+                        max=max(vals) if vals else None, last=vals[-1] if vals else None, spark=vals))
+    return out

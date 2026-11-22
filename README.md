@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.18 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.25 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -154,11 +154,14 @@ without a connection are listed separately.
 
 ## Overview
 
-Each profile opens with an **overview**: devices online/offline, internet with current traffic, infrastructure
-availability, firmware updates, inbox and changes since yesterday; a "needs attention" list (offline devices, updates,
-failing integrations and actions); charts for WAN traffic, infrastructure response times and the busiest ports; an
-infrastructure table and recent changes, the top consumers of the last 24 hours (ASUS) and the devices moving data
-right now. It refreshes every 30 seconds without flicker.
+Each profile opens with an **overview** in HUD style that uses the full screen width: large key figures (devices
+online as a segment bar, internet with download/upload against the line rate, infrastructure availability as a ring,
+firmware updates, inbox, changes since yesterday); WAN traffic as a bar chart (download up, upload down); the last
+speed test as two gauges with ping and jitter plus its history; a "needs attention" list; the busiest switch ports with
+the **device behind each port**; devices moving data right now; response times per infrastructure device (24-hour
+average, maximum and sparkline); infrastructure cards with availability ring; Pi-hole/AdGuard and recent changes. Chart
+labels are HTML, so they stay readable at every width. It refreshes every 30 seconds without flicker. On the
+integrations page, cards with charts or port lists take two columns, simple ones one.
 
 In the topology, **Throughput** shows the current traffic on every connection, with line width following the load:
 
