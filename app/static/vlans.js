@@ -39,7 +39,7 @@ async function tabVlans(ctx) {
     st.switches.forEach(s => s.ports.forEach(p => { const m = p[key()]; if (!m) return; if (m.u) (count[m.u] = count[m.u] || [0, 0])[0]++; m.t.forEach(x => (count[x] = count[x] || [0, 0])[1]++); }));
     return `<div class="vp-legend">${st.vlans.filter(v => ui.mode === 'plan' || !v.planned).map(v => `<button type="button" class="vp-chip ${v.planned ? 'planned' : ''}" data-vl="${v.id}" style="--vc:${v.color}">
         <i></i><b class="mono">${v.vid}</b><span>${h(v.name || '')}</span>
-        <small class="muted">${v.planned ? `<em>${t('geplant')}</em> · ` : ''}${v.subnets.length ? h(v.subnets.join(', ')) : t('kein Subnetz')} · ${count[v.id] ? `${count[v.id][0]} U / ${count[v.id][1]} T` : t('ungenutzt')}</small></button>`).join('')}
+        <small class="muted">${v.planned ? `<em>${t('geplant')}</em> · ` : ''}${v.subnets.length ? h(v.subnets.join(', ')) : `<span class="vp-nosub">${t('kein Subnetz – zuordnen')}</span>`} · ${count[v.id] ? `${count[v.id][0]} U / ${count[v.id][1]} T` : t('ungenutzt')}</small></button>`).join('')}
       ${ctx.canEdit ? `<button type="button" class="sm" data-addvl>+ ${ui.mode === 'plan' ? t('VLAN (geplant)') : t('VLAN')}</button>` : ''}</div>`;
   }
 
@@ -84,6 +84,13 @@ async function tabVlans(ctx) {
       </tbody></table></div><p class="muted small">${t('U = untagged (Zugangs-VLAN des Ports), T = tagged (Trunk, z. B. zu Switch, Access Point, Router oder Hypervisor).')}</p>`;
   }
 
+  function swPanel(s, vm) {
+    return `<div class="panel vp-sw"><div class="hud-h"><h3>${h(s.name)}<em>${h(typeName(s.type))}</em></h3>
+      <span class="row">${s.snmp ? `<span class="badge" title="${h(t('Produktiver Stand kommt per SNMP vom Switch und lässt sich hier nicht ändern.'))}">${t('vom Switch (SNMP)')}</span>` : `<span class="badge">${t('von Hand')}</span>`}
+      ${editable(s) ? `<button type="button" class="sm" data-selall="${s.id}">${t('alle wählen')}</button>` : ''}</span></div>
+      <div class="vp-ports">${s.ports.map(p => portTile(s, p, vm)).join('')}</div></div>`;
+  }
+
   function draw() {
     const vm = vmap();
     const planBar = ui.mode === 'plan' ? (st.plan
@@ -103,10 +110,10 @@ async function tabVlans(ctx) {
           ${!anyData ? `<p class="warnc small">${t('Noch kein produktiver Stand erfasst. Für Switches mit SNMP-Integration liest díktyo ihn bei der nächsten Abfrage, sonst zuerst im Modus „Produktiv“ eintragen (z. B. alle Ports VLAN 1).')}</p>` : ''}
           ${ctx.canEdit ? `<label>${t('Worum geht es? (optional)')}</label><input id="vpnote" maxlength="300" placeholder="${h(t('z. B. IoT und Gäste trennen'))}"><p><button type="button" class="pri" data-start>${t('Plan starten')}</button></p>` : ''}</div>` : `
       ${legend(vm)}
-      ${ui.view === 'matrix' ? matrix(vm) : `<div class="vp-switches">${st.switches.map(s => `<div class="panel vp-sw"><div class="hud-h"><h3>${h(s.name)}<em>${h(typeName(s.type))}</em></h3>
-          <span class="row">${s.snmp ? `<span class="badge" title="${h(t('Produktiver Stand kommt per SNMP vom Switch und lässt sich hier nicht ändern.'))}">${t('vom Switch (SNMP)')}</span>` : `<span class="badge">${t('von Hand')}</span>`}
-          ${editable(s) ? `<button type="button" class="sm" data-selall="${s.id}">${t('alle wählen')}</button>` : ''}</span></div>
-          <div class="vp-ports">${s.ports.map(p => portTile(s, p, vm)).join('')}</div></div>`).join('') || `<p class="muted">${t('Noch keine Geräte mit Ports (Switch, Router).')}</p>`}</div>`}
+      ${ui.view === 'matrix' ? matrix(vm) : `<div class="vp-switches">${st.switches.filter(s => s.infra).map(s => swPanel(s, vm)).join('') || `<p class="muted">${t('Noch keine Geräte mit Ports (Switch, Router).')}</p>`}</div>
+        ${st.switches.some(s => !s.infra) ? `<details class="vp-more" ${ui.more ? 'open' : ''}><summary><b>${t('Endgeräte mit eigenem Netzwerkport ({n})', { n: st.switches.filter(s => !s.infra).length })}</b>
+            <span class="muted small">${t('PC, Laptop … – ihr VLAN legt meist der Switch-Port fest. Ist ein Gerät eigentlich ein Server oder Hypervisor, den Typ im Gerätedialog ändern.')}</span></summary>
+          <div class="vp-switches">${st.switches.filter(s => !s.infra).map(s => swPanel(s, vm)).join('')}</div></details>` : ''}`}
       ${warnings()}${changeList(vm)}`}
       ${selBar(vm)}`;
     bind();
@@ -116,6 +123,8 @@ async function tabVlans(ctx) {
     const el = ctx.el;
     $$('[data-mode]', el).forEach(b => b.onclick = () => { ui.mode = b.dataset.mode; ui.sel.clear(); draw(); });
     $$('[data-view]', el).forEach(b => b.onclick = () => { ui.view = b.dataset.view; draw(); });
+    const more = $('.vp-more', el);
+    if (more) more.ontoggle = () => { ui.more = more.open; };
     const sb = $('[data-start]', el);
     if (sb) sb.onclick = async () => { if (await save('POST', '/vlanplan/plan', { note: $('#vpnote', el).value }, t('Plan angelegt'))) { ui.mode = 'plan'; draw(); } };
     const fin = $('[data-finish]', el);
@@ -169,13 +178,20 @@ async function tabVlans(ctx) {
 
   async function vlanEdit(v) {
     const isNew = !v.id;
+    let subnets = [];
+    try { subnets = (await api('GET', `${P}/subnets`)).subnets; } catch { }
+    const vids = Object.fromEntries(st.vlans.map(x => [x.id, x.vid]));
     const ok = await dialog(isNew ? (v.planned ? t('Neues VLAN (geplant)') : t('Neues VLAN')) : `VLAN ${v.vid}`, `
       <div class="grid2"><div><label>${t('VLAN-ID')}</label><input name="vid" type="number" min="1" max="4094" required value="${h(v.vid || '')}"></div>
         <div><label>${t('Name')}</label><input name="name" maxlength="80" value="${h(v.name || '')}" placeholder="${h(t('z. B. IoT'))}"></div></div>
       <div class="grid2"><div><label>${t('Farbe')}</label><input name="color" type="color" value="${h(v.color || '#00E5FF')}"></div><div></div></div>
       <label>${t('Beschreibung')}</label><input name="description" maxlength="2000" value="${h(v.description || '')}">
       ${isNew && v.planned ? `<p class="muted small">${t('Das VLAN gibt es zunächst nur im Plan. Verwirfst du den Plan, fällt es weg.')}</p>` : ''}
-      <p class="muted small">${t('Subnetz und Gateway des VLANs legst du unter IPAM an – dann prüft der Plan auch die Adressen der Geräte.')}</p>
+      <label>${t('Subnetze dieses VLANs')}</label>
+      ${subnets.length ? `<div class="vp-subs">${subnets.map(s => `<label class="chk"><input type="checkbox" data-sub="${s.id}" ${v.id && s.vlan_id === v.id ? 'checked' : ''}>
+          <span class="mono">${h(s.cidr)}</span> ${h(s.name || '')}${s.vlan_id && s.vlan_id !== v.id && vids[s.vlan_id] ? ` <span class="muted small">(${t('jetzt VLAN {n}', { n: vids[s.vlan_id] })})</span>` : ''}</label>`).join('')}</div>`
+        : `<p class="muted small">${t('Noch keine Subnetze – unter IPAM anlegen.')}</p>`}
+      <p class="muted small">${t('Mit Subnetz prüft der Plan auch, ob die Adressen der Geräte zum neuen VLAN passen. Neue Subnetze legst du unter IPAM an.')}</p>
       ${isNew ? '' : `<p><button type="button" class="sm danger" data-vldel>${t('VLAN löschen')}</button></p>`}`, {
       onOpen: (f, close) => {
         const d = $('[data-vldel]', f);
@@ -187,6 +203,7 @@ async function tabVlans(ctx) {
       },
       onOk: async f => {
         const body = fd(f); if (isNew) body.planned = !!v.planned;
+        if (subnets.length) body.subnets = $$('[data-sub]', f).filter(x => x.checked).map(x => +x.dataset.sub);
         await (isNew ? api('POST', `${P}/vlans`, body) : api('PUT', `${P}/vlans/${v.id}`, body));
         return true;
       },

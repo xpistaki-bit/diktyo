@@ -538,9 +538,12 @@ pveum acl modify / --tokens 'diktyo@pve!diktyo' --roles DiktyoPower
 
 ### VLAN-Plan (welcher Port in welchem VLAN)
 
-Der Reiter **VLAN-Plan** zeigt je Switch/Router (auch Access Points, Server, Hypervisor, NAS – keine Endgeräte) die Ports als Kacheln: die große Zahl ist das **untagged** VLAN
+Der Reiter **VLAN-Plan** zeigt je Switch/Router (auch Access Points, Server, Hypervisor, NAS) die Ports als Kacheln: die große Zahl ist das **untagged** VLAN
 (Zugangs-VLAN, Farbe des VLANs), farbige Streifen unten sind **tagged** VLANs (Trunk), darunter steht das
-angeschlossene Gerät. Die Ansicht **Matrix** zeigt dasselbe als Tabelle Port × VLAN (U/T).
+angeschlossene Gerät. Die Ansicht **Matrix** zeigt dasselbe als Tabelle Port × VLAN (U/T). Endgeräte mit eigenem Netzwerkport (PC, Laptop …)
+stehen eingeklappt darunter – ist ein Gerät eigentlich ein Server oder Hypervisor, im Gerätedialog den Typ ändern.
+Ein Klick auf ein VLAN öffnet den VLAN-Dialog; dort ordnest du ihm die **Subnetze** aus IPAM zu (z. B. VLAN 1 = dein
+bisheriges Heimnetz). Erst dann prüft der Plan, ob die Adressen der Geräte zum neuen VLAN passen.
 
 **Produktiv** ist der Ist-Stand. Bei Switches mit SNMP-Integration liest díktyo ihn bei jeder Abfrage aus dem Switch
 (Q-BRIDGE-MIB, nur lesend; Kennzeichen *vom Switch (SNMP)*) – dort lässt er sich nicht von Hand ändern. Bei anderen

@@ -167,8 +167,13 @@ def _vlan_save(c, pid, body, vid_id=None):
     else:
         from .vlanplan import plan_info
         planned = 1 if body.get("planned") and plan_info(c, pid) else 0
-        c.execute("INSERT INTO vlans(profile_id, vid, name, description, color, planned) VALUES(?,?,?,?,?,?)",
-                  (pid, v["vid"], v["name"], v["description"], color, planned))
+        vid_id = c.execute("INSERT INTO vlans(profile_id, vid, name, description, color, planned) VALUES(?,?,?,?,?,?)",
+                           (pid, v["vid"], v["name"], v["description"], color, planned)).lastrowid
+    if isinstance(body.get("subnets"), list):  # Subnetze aus IPAM diesem VLAN zuordnen
+        ids = [int(x) for x in body["subnets"] if str(x).isdigit()]
+        c.execute("UPDATE subnets SET vlan_id=NULL WHERE profile_id=? AND vlan_id=?", (pid, vid_id))
+        if ids:
+            c.execute(f"UPDATE subnets SET vlan_id=? WHERE profile_id=? AND id IN ({','.join('?' * len(ids))})", (vid_id, pid, *ids))
 
 
 @router.get("/vlans")

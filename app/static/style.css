@@ -750,3 +750,10 @@ button .pin-ic{margin-right:2px} .pinbtn .pin-ic{margin:0}
 .vp-matrix tr.chg td:first-child{box-shadow:inset 3px 0 0 var(--warn)}
 .vp-start{max-width:820px}
 @media (max-width:560px){.vp-port{width:64px;height:78px}}
+
+.vp-more{margin:0 0 16px}
+.vp-more>summary{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;cursor:pointer;padding:10px 14px;border:1px solid var(--line);border-radius:6px;background:rgba(6,20,40,.6)}
+.vp-more[open]>summary{margin-bottom:12px}
+.vp-nosub{color:var(--warn)}
+.vp-subs{display:flex;flex-direction:column;gap:2px;max-height:200px;overflow:auto;padding:6px 10px;border:1px solid var(--line);border-radius:5px}
+.vp-no{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
