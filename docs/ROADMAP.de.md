@@ -35,6 +35,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Benachrichtigungen | E-Mail und ntfy je Profil, Ereignisse wählbar, gebündelt; neue Ereignisse: Internet langsam, Backup fehlgeschlagen, Integration gestört | 0.21 |
 | Aktionen und Shelly | UniFi: Gerät neu starten, PoE-Port neu starten; Omada: Gerät neu starten, PoE ein/aus/neu starten; Shelly/Tasmota direkt: Leistung, Energie, Ausgänge schalten, Firmware | 0.22 |
 | Geräte | Typen alphabetisch und erweitert (Saugroboter, 3D-Drucker, Türklingel, Hub, ESP …), Software/Betriebssystem-Feld, Proxmox-Gäste übernehmen Software/Standort vom Host, Vermutung verwerfen, WLAN bei Geräten ohne Buchse, Gerätedialog ohne Verlauf, KI-Katalog ohne erfundene Ports | 0.24 |
+| VLAN-Plan | Ports je Switch grafisch mit VLAN-Farben (untagged/tagged) und als Matrix; produktiver Stand per SNMP vom Switch (Q-BRIDGE-MIB, nur lesend) oder von Hand; Plan-Modus mit geplanten VLANs, Mehrfachauswahl, Umstellungsliste, Prüfungen (Adresse/Subnetz, Uplinks), automatisch abgehakt bei SNMP; im PDF | 0.30 |
 | Verkabelung | Patchfelder und Netzwerkdosen mit Port-Belegung, Kabelwege Switch-Port → Patchfeld → Dose → Gerät mit Kabelnummern, Abgleich mit der erkannten Verbindung (✓/⚠), im Gerätedialog, im PDF und in der Sicherung; Wachliste jetzt auch in der Sicherung | 0.29 |
 | QR-Etiketten | Aufkleber mit QR-Code zum Gerätedialog (Direktlink, auch über die Anmeldung hinweg), Name/IP/MAC/Standort; A4-Bögen (Avery 3474, L7163, 3657) und Etikettendrucker (Brother 62 × 29, Dymo 54 × 25), Startposition für angebrochene Bögen, Schnittlinien; einzeln aus dem Gerätedialog | 0.28 |
 | Aussehen | Kacheln mit hellerem Kopfband und größerer Überschrift (Übersicht, Integrationen, überall), Neon-Pin statt 📌, eigener Anmelde-Hintergrund (Glasfaser vor HUD-Ringen) | 0.27.1 |
@@ -134,7 +135,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 | ~~Kabel und Patchpanels~~ – erledigt in 0.29 | ★★ | M |
 | Export nach draw.io / SVG / PNG, Netzplan als Poster-PDF | ★★ | S |
 | ~~QR-Etiketten für Geräte (Aufkleber mit Link zum Gerät in díktyo)~~ – erledigt in 0.28 | ★★ | S |
-| VLAN-Plan grafisch (welcher Port in welchem VLAN) | ★★ | M |
+| ~~VLAN-Plan grafisch (welcher Port in welchem VLAN)~~ – erledigt in 0.30 (mit Plan-Modus) | ★★ | M |
 
 ### Automatisierung
 

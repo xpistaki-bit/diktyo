@@ -27,6 +27,8 @@ S = {
     "created": ("Erstellt am {d}", "Created on {d}"), "page": ("Seite", "Page"), "title": ("Netzwerk-Dokumentation", "Network documentation"),
     "in_dhcp": (" (im DHCP-Bereich)", " (in DHCP range)"), "tags": ("Tags", "Tags"), "status": ("Status", "Status"),
     "free_more": ("… und {n} weitere Bereiche", "… and {n} more ranges"),
+    "vlan_ports": ("VLANs je Port (produktiv)", "VLANs per port (productive)"), "vlan_changes": ("Geplante Umstellung", "Planned changes"),
+    "untagged": ("Untagged", "Untagged"), "tagged": ("Tagged", "Tagged"), "now": ("Jetzt", "Now"), "planned": ("Geplant", "Planned"),
     "cabling": ("Verkabelung", "Cabling"), "switch_port": ("Switch · Port", "Switch · port"), "panel": ("Patchfeld · Port", "Patch panel · port"),
     "outlet": ("Dose", "Outlet"), "cable_a": ("Patchkabel", "Patch cable"), "cable_b": ("Verlegekabel", "Installed cable"),
     "cable_c": ("Anschlusskabel", "Device cable"), "panels": ("Patchfelder und Dosen", "Patch panels and outlets"),
@@ -186,6 +188,14 @@ def profile_pdf(c, pid, sections=SECTIONS, lang="de"):
             doc.table([(tr("vid", lang), 10, True), (tr("name", lang), 20, False), (tr("subnets", lang), 25, True), (tr("description", lang), 45, False)],
                       [[str(v["vid"]), v["name"], ", ".join(subs.get(v["id"], [])), v["description"]]
                        for v in c.execute("SELECT * FROM vlans WHERE profile_id=? ORDER BY vid", (pid,))])
+            from . import vlanplan
+            per, chg = vlanplan.pdf_tables(c, pid, lang)
+            for name, rows in per:
+                doc.heading(f'{tr("vlan_ports", lang)} · {name}', size=4)
+                doc.table([(tr("port", lang), 22, False), (tr("peer", lang), 70, False), (tr("untagged", lang), 30, True), (tr("tagged", lang), 60, True)], rows, size=2.7)
+            if chg:
+                doc.heading(tr("vlan_changes", lang), size=4)
+                doc.table([(tr("device", lang), 50, False), (tr("port", lang), 22, False), (tr("now", lang), 55, True), (tr("planned", lang), 55, True)], chg, size=2.7)
         elif s == "ports":
             doc.heading(tr("ports", lang))
             any_ports = False

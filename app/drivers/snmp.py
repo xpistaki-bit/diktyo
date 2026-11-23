@@ -48,6 +48,10 @@ BASE_PORT_IF = "1.3.6.1.2.1.17.1.4.1.2"
 QFDB_PORT, FDB_PORT = "1.3.6.1.2.1.17.7.1.2.2.1.2", "1.3.6.1.2.1.17.4.3.1.2"
 LLDP_NAME, LLDP_PORTID, LLDP_PORTDESC, LLDP_CHASSIS = ("1.0.8802.1.1.2.1.4.1.1.9", "1.0.8802.1.1.2.1.4.1.1.7",
                                                        "1.0.8802.1.1.2.1.4.1.1.8", "1.0.8802.1.1.2.1.4.1.1.5")
+# Q-BRIDGE-MIB (IEEE 802.1Q): VLAN-Namen, Mitglieds- und Untagged-Ports als Bitmaske über Bridge-Ports, PVID je Port
+QV_NAME, QV_EGRESS, QV_UNTAG = "1.3.6.1.2.1.17.7.1.4.3.1.1", "1.3.6.1.2.1.17.7.1.4.3.1.2", "1.3.6.1.2.1.17.7.1.4.3.1.4"
+QV_CUR_EGRESS, QV_CUR_UNTAG = "1.3.6.1.2.1.17.7.1.4.2.1.4", "1.3.6.1.2.1.17.7.1.4.2.1.5"
+QV_PVID = "1.3.6.1.2.1.17.7.1.4.5.1.1"
 PHYS_TYPES = {6, 62, 69, 117}  # ethernetCsmacd, fastEther, fastEtherFX, gigabitEthernet
 # Logische Schnittstellen, die manche Switches trotzdem als Ethernet melden (Trunk/LAG, VLAN, CPU, Management …)
 LOGICAL = re.compile(r"trunk|\blag|port-?channel|^po\d|^ae\d|vlan|cpu|mgmt|management|loopback|bond|^br\d|tunnel|stack|null|internal", re.I)
@@ -81,6 +85,56 @@ def physical_ports(types, names, descr, bridge_ifs=(), expected=None):
 
 class DriverError(Exception):
     pass
+
+
+def _bits(v):
+    """Port-Bitmaske (OCTET STRING) -> Bridge-Ports; Bit 1 ist das höchste Bit des ersten Bytes."""
+    if not isinstance(v, (bytes, bytearray)):
+        return set()
+    return {i * 8 + b + 1 for i, byte in enumerate(v) for b in range(8) if byte & (0x80 >> b)}
+
+
+def read_vlans(c, ports, to_if):
+    """VLANs je Port aus der Q-BRIDGE-MIB. -> {"vlans": [{vid, name}], "ports": {port_no: {untagged, tagged}}} oder None"""
+    egress, untag = _col(c, QV_EGRESS), _col(c, QV_UNTAG)
+    if not egress:  # manche Switches füllen nur die aktuelle Tabelle (Index timeMark.vid)
+        egress = {k.split(".")[-1]: v for k, v in _col(c, QV_CUR_EGRESS).items()}
+        untag = {k.split(".")[-1]: v for k, v in _col(c, QV_CUR_UNTAG).items()}
+    if not egress:
+        return None
+    names = _col(c, QV_NAME)
+    pvid = {int(k): int(v) for k, v in _col(c, QV_PVID).items() if isinstance(v, int)}
+    by_if = {p["ifindex"]: p["port_no"] for p in ports}
+    out = {p["port_no"]: dict(untagged=None, tagged=[]) for p in ports}
+    untag_of = {}
+    for k, mask in egress.items():
+        try:
+            vid = int(k)
+        except ValueError:
+            continue
+        u = _bits(untag.get(k))
+        for b in _bits(mask):
+            no = by_if.get(to_if(b))
+            if no is None:
+                continue
+            if b in u:
+                untag_of.setdefault(no, []).append(vid)
+            else:
+                out[no]["tagged"].append(vid)
+    bp_of = {}
+    for b in pvid:
+        no = by_if.get(to_if(b))
+        if no is not None:
+            bp_of[no] = pvid[b]
+    for no, vids in untag_of.items():
+        # mehrere untagged VLANs (selten): das PVID-VLAN zählt als Zugangs-VLAN, die übrigen als tagged
+        u = bp_of.get(no) if bp_of.get(no) in vids else vids[0]
+        out[no]["untagged"] = u
+        out[no]["tagged"].extend(v for v in vids if v != u)
+    for p in out.values():
+        p["tagged"] = sorted(set(p["tagged"]) - {p["untagged"]})
+    vlans = sorted({int(k) for k in egress if k.isdigit()})
+    return dict(vlans=[dict(vid=v, name=snmplib.text(names.get(str(v))) or "") for v in vlans], ports=out)
 
 
 def _client(conf):
@@ -348,4 +402,10 @@ def poll(conf, state):
             p["lldp"] = dict(name=snmplib.text(v), port=snmplib.text(lpdesc.get(idx)) or snmplib.text(lpid.get(idx)),
                              chassis=snmplib.mac(ch) if isinstance(ch, bytes) and len(ch) == 6 else snmplib.text(ch))
     res = dict(info=info, ports=ports, fdb_size=len(entries))
+    try:
+        vl = read_vlans(c, ports, to_if)
+        if vl:
+            res["vlans"] = vl
+    except Exception:
+        pass  # Switch ohne Q-BRIDGE-MIB: VLANs bleiben von Hand gepflegt
     return res, metrics, dict(counters=counters)

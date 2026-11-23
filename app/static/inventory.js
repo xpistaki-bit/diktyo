@@ -4,7 +4,7 @@ const MEDIUM = { lan: 'LAN', wlan: 'WLAN', mesh: 'Mesh-Backhaul', virtual: 'Virt
 const MEDIUM_SHORT = { lan: 'LAN', wlan: 'WLAN', mesh: 'Mesh', virtual: 'virtuell' };
 const PORT_KINDS = ['rj45', 'sfp', 'sfp+', 'sfp28', 'coax', 'dsl', 'fiber', 'usb'];
 const IP_KIND = { static: 'statisch', dhcp: 'DHCP', reserved: 'reserviert' };
-const SECTIONS = [['topology', 'Topologie-Grafik'], ['devices', 'Geräteliste'], ['ipplan', 'IP-Plan pro Subnetz'], ['vlans', 'VLAN-Übersicht'], ['ports', 'Portbelegung pro Switch'], ['cabling', 'Verkabelung (Patchfelder, Dosen, Kabelwege)'],
+const SECTIONS = [['topology', 'Topologie-Grafik'], ['devices', 'Geräteliste'], ['ipplan', 'IP-Plan pro Subnetz'], ['vlans', 'VLANs (Übersicht, Ports, geplante Umstellung)'], ['ports', 'Portbelegung pro Switch'], ['cabling', 'Verkabelung (Patchfelder, Dosen, Kabelwege)'],
   ['wlan', 'WLAN-Übersicht'], ['notes', 'Notizen']];
 let META = null, META_LANG = null;
 async function meta(pid) {

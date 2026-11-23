@@ -147,8 +147,9 @@ def _vlans(c, pid):
     subs = {}
     for s in c.execute("SELECT vlan_id, cidr FROM subnets WHERE profile_id=? AND vlan_id IS NOT NULL", (pid,)):
         subs.setdefault(s["vlan_id"], []).append(s["cidr"])
-    return [dict(id=r["id"], vid=r["vid"], name=r["name"], description=r["description"], subnets=subs.get(r["id"], []))
-            for r in c.execute("SELECT * FROM vlans WHERE profile_id=? ORDER BY vid", (pid,))]
+    from .vlanplan import color_of
+    return [dict(id=r["id"], vid=r["vid"], name=r["name"], description=r["description"], subnets=subs.get(r["id"], []), color=color_of(r),
+                 planned=bool(r["planned"])) for r in c.execute("SELECT * FROM vlans WHERE profile_id=? ORDER BY vid", (pid,))]
 
 
 def _vlan_save(c, pid, body, vid_id=None):
@@ -156,12 +157,18 @@ def _vlan_save(c, pid, body, vid_id=None):
     dup = c.execute("SELECT id FROM vlans WHERE profile_id=? AND vid=?", (pid, v["vid"])).fetchone()
     if dup and dup["id"] != vid_id:
         raise HTTPException(409, f"VLAN {v['vid']} gibt es schon")
+    import re as _re
+    color = str(body.get("color") or "").strip()
+    color = color if _re.fullmatch(r"#[0-9A-Fa-f]{6}", color) else ""
     if vid_id:
-        if not c.execute("UPDATE vlans SET vid=?, name=?, description=? WHERE id=? AND profile_id=?",
-                         (v["vid"], v["name"], v["description"], vid_id, pid)).rowcount:
+        if not c.execute("UPDATE vlans SET vid=?, name=?, description=?, color=? WHERE id=? AND profile_id=?",
+                         (v["vid"], v["name"], v["description"], color, vid_id, pid)).rowcount:
             raise HTTPException(404, "VLAN nicht gefunden")
     else:
-        c.execute("INSERT INTO vlans(profile_id, vid, name, description) VALUES(?,?,?,?)", (pid, v["vid"], v["name"], v["description"]))
+        from .vlanplan import plan_info
+        planned = 1 if body.get("planned") and plan_info(c, pid) else 0
+        c.execute("INSERT INTO vlans(profile_id, vid, name, description, color, planned) VALUES(?,?,?,?,?,?)",
+                  (pid, v["vid"], v["name"], v["description"], color, planned))
 
 
 @router.get("/vlans")

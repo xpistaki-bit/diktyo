@@ -89,7 +89,7 @@ def export_data(c):
         locations=q("SELECT * FROM locations"), devices=devices,
         interfaces=q("SELECT * FROM interfaces"), links=q("SELECT * FROM links"),
         vlans=q("SELECT * FROM vlans"), subnets=q("SELECT * FROM subnets"), ip_addresses=q("SELECT * FROM ip_addresses"),
-        port_vlans=q("SELECT * FROM port_vlans"), topo_positions=q("SELECT * FROM topo_positions"),
+        port_vlans=q("SELECT * FROM port_vlans"), port_vlans_plan=q("SELECT * FROM port_vlans_plan"), topo_positions=q("SELECT * FROM topo_positions"),
         changes=q("SELECT * FROM changes"),
         patch_panels=q("SELECT * FROM patch_panels"), cable_runs=q("SELECT * FROM cable_runs"), watch=q("SELECT * FROM watch"),
         device_models=[m for m in models if m["custom"]],
@@ -290,7 +290,11 @@ def _import_profiles(c, exp, umap, rename, fernet=None):
             configbackup.path(cid).write_bytes(security.encrypt_bytes(data))
     for x in exp.get("port_vlans", []):
         if x["interface_id"] in imap and x["vlan_id"] in vmap:
-            c.execute("INSERT OR IGNORE INTO port_vlans(interface_id, vlan_id, tagged) VALUES(?,?,?)",
+            c.execute("INSERT OR IGNORE INTO port_vlans(interface_id, vlan_id, tagged, source) VALUES(?,?,?,?)",
+                      (imap[x["interface_id"]], vmap[x["vlan_id"]], x["tagged"], x.get("source", "manual")))
+    for x in exp.get("port_vlans_plan", []):
+        if x["interface_id"] in imap and x["vlan_id"] in vmap:
+            c.execute("INSERT OR IGNORE INTO port_vlans_plan(interface_id, vlan_id, tagged) VALUES(?,?,?)",
                       (imap[x["interface_id"]], vmap[x["vlan_id"]], x["tagged"]))
     for x in exp.get("changes", []):  # Änderungsverlauf mitnehmen
         if x["profile_id"] in pmap:

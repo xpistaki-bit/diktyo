@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.29 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.30 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -380,6 +380,16 @@ prefilled catalog dialog for review. Serial number and UUID are never stored in 
 Claude API with web search and fills in type, ports, Wi-Fi and key data ("Complete with AI" in the catalog dialog, or
 directly from system info). The suggestion shows its sources, a confidence rating and the approximate cost; only
 manufacturer, model and detected key data are sent. Default model Claude Opus 5.5, selectable.
+
+## VLAN plan
+
+The **VLAN plan** tab shows which port is in which VLAN: each switch/router as a row of port tiles (untagged VLAN as
+colour and number, tagged VLANs as stripes, connected device below) or as a port × VLAN matrix. **Productive** is the
+current state – read from switches with an SNMP integration (Q-BRIDGE-MIB, read-only), otherwise entered by hand.
+**Plan** is a separate copy for a migration: add planned VLANs, select ports (shift-click for ranges) and assign
+untagged/tagged VLANs. díktyo lists every port to change (productive → plan), warns when a device's static address
+doesn't fit the new VLAN's subnet or an uplink doesn't carry a VLAN used on the other switch, and ticks ports off
+automatically once an SNMP switch reports the new state. díktyo never writes to the switches.
 
 ## Cabling (cables and patch panels)
 

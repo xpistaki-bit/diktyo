@@ -531,6 +531,35 @@ pveum acl modify / --tokens 'diktyo@pve!diktyo' --roles DiktyoPower
 
 ## 9. Ausgabe und Sicherung
 
+### VLAN-Plan (welcher Port in welchem VLAN)
+
+Der Reiter **VLAN-Plan** zeigt je Switch/Router die Ports als Kacheln: die große Zahl ist das **untagged** VLAN
+(Zugangs-VLAN, Farbe des VLANs), farbige Streifen unten sind **tagged** VLANs (Trunk), darunter steht das
+angeschlossene Gerät. Die Ansicht **Matrix** zeigt dasselbe als Tabelle Port × VLAN (U/T).
+
+**Produktiv** ist der Ist-Stand. Bei Switches mit SNMP-Integration liest díktyo ihn bei jeder Abfrage aus dem Switch
+(Q-BRIDGE-MIB, nur lesend; Kennzeichen *vom Switch (SNMP)*) – dort lässt er sich nicht von Hand ändern. Bei anderen
+Geräten trägst du ihn selbst ein. VLANs, die der Switch meldet, legt díktyo automatisch an.
+
+**Plan** ist für die Umstellung:
+1. *Plan* → **Plan starten** (optional mit Stichwort, z. B. „IoT und Gäste trennen“). Der Plan beginnt als Kopie des
+   produktiven Stands; der gelb gestreifte Balken zeigt, dass du im Plan arbeitest – am Netz ändert sich nichts.
+2. Neue VLANs mit **+ VLAN (geplant)** anlegen (ID, Name, Farbe). Subnetz und Gateway dazu unter *IPAM*, dann prüft
+   der Plan auch die Adressen.
+3. Ports **anklicken** (mit Umschalt-Klick einen Bereich, *alle wählen* für ein ganzes Gerät), unten in der Leiste das
+   **Untagged**-VLAN wählen und **Tagged**-VLANs antippen (+ hinzufügen, − entfernen), *Zuweisen*.
+4. Geänderte Ports tragen ein **Δ**. Die **Umstellungsliste** nennt Port für Port, was am Switch umzustellen ist
+   (produktiv → Plan). **Hinweise** warnen z. B., wenn die statische Adresse eines Geräts nicht ins Subnetz seines
+   neuen VLANs passt oder ein Uplink zu einem anderen Switch ein dort genutztes VLAN nicht weiterführt.
+5. Umstellen am Switch. Bei SNMP-Switches verschwindet ein Port von selbst aus der Liste, sobald der Switch den neuen
+   Stand meldet; bei von Hand gepflegten Geräten **✓ umgesetzt** klicken.
+6. **Plan abschließen** übernimmt den Rest bei von Hand gepflegten Geräten und macht geplante VLANs zu normalen.
+   **Plan verwerfen** löscht den Plan und die nur geplanten VLANs; der produktive Stand bleibt.
+
+díktyo schreibt nichts auf die Switches. Tipp: zuerst die Uplinks (Trunks) mit den neuen VLANs tagged versehen, dann
+die Zugangs-Ports umstellen – und den Port, über den du den Switch verwaltest, zuletzt. Im PDF (*Ausgabe*, Abschnitt
+*VLANs*) stehen die VLANs je Port und die geplante Umstellung.
+
 ### Verkabelung (Kabel und Patchpanels)
 
 Der Reiter **Verkabelung** hält fest, welcher Switch-Port über welches Patchfeld und welche Netzwerkdose zu welchem

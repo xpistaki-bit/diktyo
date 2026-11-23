@@ -362,7 +362,11 @@ def apply_snmp(c, row, res):
             if set_auto_uplink(c, pid, by_mac[target]["id"], sw, "lan", port_id=pid_port, source="snmp"):
                 links += 1
     up = sum(1 for p in res.get("ports", []) if p["oper"] == "up")
-    return dict(device_id=sw, ports=len(res.get("ports", [])), up=up, links=links, macs=res.get("fdb_size", 0))
+    vlans = 0
+    if res.get("vlans"):
+        from . import vlanplan
+        vlans = vlanplan.apply_switch(c, pid, sw, res["vlans"])
+    return dict(device_id=sw, ports=len(res.get("ports", [])), up=up, links=links, macs=res.get("fdb_size", 0), vlan_ports=vlans)
 
 
 def live_ports(c, did):

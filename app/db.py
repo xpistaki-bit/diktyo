@@ -424,6 +424,17 @@ MIGRATIONS = [
         updated TEXT NOT NULL);
     CREATE INDEX cable_runs_profile ON cable_runs(profile_id);
     """,
+    # VLAN-Plan: Farbe und „nur geplant“ je VLAN, Herkunft der produktiven Zuordnung, geplante Zuordnung
+    """
+    ALTER TABLE vlans ADD COLUMN color TEXT NOT NULL DEFAULT '';
+    ALTER TABLE vlans ADD COLUMN planned INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE port_vlans ADD COLUMN source TEXT NOT NULL DEFAULT 'manual';
+    CREATE TABLE port_vlans_plan(
+        interface_id INTEGER NOT NULL REFERENCES interfaces(id) ON DELETE CASCADE,
+        vlan_id INTEGER NOT NULL REFERENCES vlans(id) ON DELETE CASCADE,
+        tagged INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY(interface_id, vlan_id));
+    """,
 ]
 
 
