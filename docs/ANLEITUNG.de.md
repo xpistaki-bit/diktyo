@@ -377,6 +377,33 @@ an echter Hardware.
   Assistant gemeldet werden; ein Versionswechsel steht im Verlauf.
 - *Integrationen → Erreichbarkeit & Firmware* zeigt alles auf einen Blick – Geräte mit Problemen zuerst.
 
+### Anmeldung über OIDC (Authentik, Keycloak, Logto …)
+
+Unter *Einstellungen → Anmeldung über OIDC (SSO)* (nur Administratoren) lässt sich ein eigener Identity Provider
+anbinden. Auf der Anmeldeseite erscheint dann **Anmelden mit …**; die Anmeldung mit Passwort bleibt daneben möglich.
+
+1. Beim Anbieter eine Anwendung/einen Client anlegen und die angezeigte **Redirect-URI** eintragen
+   (`…/api/auth/oidc/callback`). Läuft díktyo hinter einem Reverse-Proxy oder mit HTTPS, zuerst unter
+   *E-Mail-Versand* die **Adresse der Weboberfläche** eintragen – daraus entsteht die Redirect-URI.
+   - **Authentik:** Anwendung mit Provider „OAuth2/OpenID“ (vertraulich). Issuer:
+     `https://<host>/application/o/<slug>/`. Gruppen kommen im Claim `groups`.
+   - **Keycloak:** Client „OpenID Connect“, *Client authentication* an, *Standard flow*. Issuer:
+     `https://<host>/realms/<realm>`. Für Gruppen einen Mapper „Group Membership“ (Claim `groups`, ohne vollen Pfad).
+   - **Logto:** Anwendung „Traditional Web“. Issuer: `https://<host>/oidc`. Für Rollen den Scope `roles` ergänzen und
+     als Gruppen-Claim `roles` eintragen.
+2. In díktyo **Aussteller (Issuer-URL)**, **Client-ID** und **Client-Secret** eintragen, *Verbindung testen*,
+   *Eingeschaltet* ankreuzen und speichern. Am besten in einem privaten Fenster *Anmelden mit …* ausprobieren.
+3. **Konten:** Beim ersten Anmelden wird ein bestehendes díktyo-Konto mit gleicher E-Mail-Adresse verknüpft – nur wenn
+   der Anbieter die Adresse als bestätigt meldet (sonst ließe sich mit einer fremden, unbestätigten Adresse ein Konto
+   übernehmen). Weicht die Adresse ab, verknüpft man unter *Einstellungen → Mein Konto* mit **Mit … verknüpfen**.
+   *Konten automatisch anlegen* gibt jedem, der sich beim Anbieter anmelden darf, ein díktyo-Konto (ohne Profile, bis
+   jemand sie teilt). Optional: nur Mitglieder einer Gruppe zulassen, und Mitglieder einer Admin-Gruppe werden
+   Administratoren (díktyo entzieht die Rolle nie automatisch).
+
+Den zweiten Faktor übernimmt bei dieser Anmeldung der Anbieter – der Code aus der Authenticator-App von díktyo wird
+dann nicht abgefragt. *Abmelden* meldet nur bei díktyo ab, nicht beim Anbieter. Geprüft werden PKCE, state, nonce
+und die Signatur des ID-Tokens (RS…, PS…, ES… – Logto nutzt ES384 – und HS… mit dem Client-Secret).
+
 ### Prometheus und Grafana
 
 *Integrationen → Prometheus / Grafana* stellt die Messwerte des Profils für **Prometheus** bereit; **Grafana** zeigt

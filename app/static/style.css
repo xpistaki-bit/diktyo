@@ -761,3 +761,11 @@ button .pin-ic{margin-right:2px} .pinbtn .pin-ic{margin:0}
 .prom-tok{margin:10px 0;padding:10px 12px;border:1px solid var(--warn);border-radius:6px;background:rgba(255,176,32,.08)}
 .prom-tok .secret{margin-top:6px;word-break:break-all}
 .prom-yml{width:100%;white-space:pre;resize:vertical}
+
+/* Anmeldung über OIDC */
+.sso{display:flex;align-items:center;gap:12px;margin:18px 0 12px;color:var(--mute);font-size:12px;text-transform:uppercase;letter-spacing:.12em}
+.sso::before,.sso::after{content:"";flex:1;height:1px;background:var(--line2)}
+.sso-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:10px 14px;font-weight:600}
+.oidc-help{margin-top:12px} .oidc-help summary{cursor:pointer;color:var(--cyan)} .oidc-help p{font-size:13px;margin:8px 0}
+.okc{color:var(--ok)}
+.oidc-res{margin-top:12px} .oidc-res p{margin:3px 0}

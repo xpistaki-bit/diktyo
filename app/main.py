@@ -8,7 +8,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import catalog, mailer, twofa, routes_actions, routes_backup, routes_catalog, routes_integrations, routes_inventory, routes_scan, routes_speed, routes_cabling, routes_vlans, routes_prometheus, security, users
+from . import catalog, mailer, oidc, twofa, routes_actions, routes_backup, routes_catalog, routes_integrations, routes_inventory, routes_scan, routes_speed, routes_cabling, routes_vlans, routes_prometheus, routes_oidc, security, users
 from .scan import ident
 from .auth import (COOKIE, ROLES, client_ip, current_user, lang_of, profile_access, rate_limit, require_admin, require_user,
                    start_session, text, touch)
@@ -34,6 +34,7 @@ app.include_router(routes_speed.router)
 app.include_router(routes_cabling.router)
 app.include_router(routes_vlans.router)
 app.include_router(routes_prometheus.router)
+app.include_router(routes_oidc.router)
 
 
 def owner_count(c, pid):
@@ -68,7 +69,7 @@ def state(request: Request):
         first = users.count(c) == 0
         return dict(version=VERSION, repo=REPO_URL, first_run=first,
                     registration_open=first or bool(get_setting(c, "registration_open", False)),
-                    mail_enabled=mailer.enabled(c), min_pw=users.MIN_PW, user=current_user(request))
+                    mail_enabled=mailer.enabled(c), min_pw=users.MIN_PW, user=current_user(request), oidc=oidc.public(c))
 
 
 # ------------------------------------------------------------------ Anmeldung

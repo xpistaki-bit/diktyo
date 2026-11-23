@@ -69,7 +69,10 @@ def _settings_for_export(c, f):
     aiset = dict(get_setting(c, "ai", {}) or {})
     if aiset.get("key"):
         aiset["key"] = move(aiset["key"])
-    return dict(registration_open=get_setting(c, "registration_open", False), smtp=smtp, backup=bk, ai=aiset)
+    oid = dict(get_setting(c, "oidc", {}) or {})
+    if oid.get("client_secret"):
+        oid["client_secret"] = move(oid["client_secret"])
+    return dict(registration_open=get_setting(c, "registration_open", False), smtp=smtp, backup=bk, ai=aiset, oidc=oid)
 
 
 # ------------------------------------------------------------ Export
@@ -84,7 +87,7 @@ def export_data(c):
     return dict(
         format=FORMAT, version=1, app_version=VERSION, created=now(),
         secrets=dict(kdf="scrypt", salt=salt.hex()) if f else None,
-        users=q("SELECT id, email, pw_hash, is_admin, lang, created, last_login FROM users"),
+        users=q("SELECT id, email, pw_hash, is_admin, lang, created, last_login, oidc_sub FROM users"),
         profiles=q("SELECT * FROM profiles"), profile_members=q("SELECT * FROM profile_members"),
         locations=q("SELECT * FROM locations"), devices=devices,
         interfaces=q("SELECT * FROM interfaces"), links=q("SELECT * FROM links"),
@@ -371,6 +374,11 @@ def restore_all(c, exp, passphrase=""):
         aiset["key"] = back(aiset["key"], "Claude API")
     if aiset:
         set_setting(c, "ai", aiset)
+    oid = dict(st.get("oidc") or {})
+    if oid.get("client_secret"):
+        oid["client_secret"] = back(oid["client_secret"], "OIDC")
+    if oid:
+        set_setting(c, "oidc", oid)
     return dict(res, users=len(umap), secrets_dropped=sorted(set(dropped)))
 
 

@@ -435,6 +435,20 @@ MIGRATIONS = [
         tagged INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY(interface_id, vlan_id));
     """,
+    # Anmeldung über OIDC: Verknüpfung „issuer|sub“ je Konto, laufende Anmeldungen (state nur als Hash)
+    """
+    ALTER TABLE users ADD COLUMN oidc_sub TEXT NOT NULL DEFAULT '';
+    CREATE INDEX users_oidc ON users(oidc_sub);
+    CREATE TABLE oidc_states(
+        state_hash TEXT PRIMARY KEY,
+        nonce TEXT NOT NULL,
+        verifier TEXT NOT NULL,
+        redirect_uri TEXT NOT NULL,
+        next TEXT NOT NULL DEFAULT '',
+        link_user INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        bind_hash TEXT NOT NULL,
+        created REAL NOT NULL);
+    """,
 ]
 
 

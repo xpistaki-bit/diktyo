@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.31 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.32 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -192,6 +192,16 @@ Online monitoring also records the response time of every ping. The device dialo
 integrations: FRITZ!Box, ASUS, MikroTik (RouterOS and RouterBOOT), UniFi and Omada per device, Proxmox as pending
 package updates. Devices with an update are marked in the topology, version changes appear in the history, and new
 updates can be reported to Home Assistant. An overview lists problems first.
+
+## Sign-in with OIDC (Authentik, Keycloak, Logto …)
+
+Administrators can connect an OpenID Connect identity provider under Settings → Sign-in with OIDC (SSO); the sign-in
+page then shows "Sign in with …" next to the password form. díktyo uses the authorization code flow with PKCE, state
+(bound to the browser) and nonce, and verifies the ID token signature via the provider's JWKS (RS*, PS*, ES* – Logto
+uses ES384 – and HS* with the client secret) plus issuer, audience and expiry. Existing accounts are linked by e-mail
+only if the provider reports the address as verified (or the admin explicitly trusts it); users can also link their
+account in their own settings. Optional: create accounts automatically, allow only members of a group, grant admin
+via a group. The provider handles the second factor for these sign-ins.
 
 ## Prometheus and Grafana
 

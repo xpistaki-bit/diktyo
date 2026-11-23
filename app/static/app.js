@@ -176,6 +176,9 @@ function viewLogin(mode) {
     authFrame(t('Anmelden'), '', `<form id="f"><label>${t('E-Mail-Adresse')}</label><input name="email" type="email" autocomplete="username" required>
       <label>${t('Passwort')}</label><input name="password" type="password" autocomplete="current-password" required>
       <div class="actions"><a href="#/vergessen">${t('Passwort vergessen?')}</a><button class="pri">${t('Anmelden')}</button></div></form>
+      ${STATE.oidc?.enabled ? `<div class="sso"><span>${t('oder')}</span></div><a class="btn sso-btn" href="/api/auth/oidc/start?next=${encodeURIComponent(STATE.after || '')}">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg>
+        ${t('Anmelden mit {n}', { n: h(STATE.oidc.label) })}</a>` : ''}
       ${STATE.registration_open ? `<p class="hint">${t('Noch kein Konto?')} <a href="#/registrieren">${t('Konto anlegen')}</a></p>` : ''}`);
     $('#f').onsubmit = async ev => {
       ev.preventDefault();
@@ -316,6 +319,7 @@ async function viewSettings() {
       <div><label>${t('Passwort wiederholen')}</label><input name="password2" type="password" autocomplete="new-password" required></div>
     </div><div class="row" style="margin-top:14px"><button class="pri">${t('Passwort ändern')}</button><span class="muted">${t('Andere Sitzungen werden dabei abgemeldet.')}</span></div></form>
     <div id="acctsec" style="margin-top:14px"></div>
+    <div id="acctoidc"></div>
     ${u.is_admin ? `
     <h2>${t('Konten')}</h2>
     <div class="table-wrap"><table><thead><tr><th>${t('E-Mail-Adresse')}</th><th>${t('Rolle')}</th><th>${t('Profile')}</th><th>${t('Letzte Anmeldung')}</th><th></th></tr></thead><tbody>
@@ -340,11 +344,14 @@ async function viewSettings() {
       <label>${t('Adresse der Weboberfläche (für Links in E-Mails, optional)')}</label><input name="app_url" value="${h(smtp.app_url || '')}" placeholder="http://192.168.178.50:8090">
       <div class="row" style="margin-top:14px"><button class="pri">${t('Speichern')}</button><button type="button" data-test ${smtp.host ? '' : 'disabled'}>${t('Testmail an mich senden')}</button></div>
     </form>
+    <h2>${t('Anmeldung über OIDC (SSO)')}</h2><div id="oidcbox"></div>
     <h2>${t('Erkennung')}</h2><div id="detection"></div>
     <h2>${t('Sicherung')}</h2><div id="backup"></div>` : ''}
   </div>`;
 
   accountSecurity($('#acctsec', app));
+  oidcAccount($('#acctoidc', app));
+  if (u.is_admin) oidcSettings($('#oidcbox', app));
   $('#pw').onsubmit = async ev => {
     ev.preventDefault(); const v = fd(ev.target);
     if (v.password !== v.password2) return toast(t('Die Passwörter stimmen nicht überein'), true);
@@ -521,7 +528,10 @@ async function renderBackup(el) {
 (async () => {
   try { STATE = { ...STATE, ...await (await fetch('/api/state')).json() }; } catch { }
   if (STATE.user?.lang && STATE.user.lang !== LANG) { LANG = STATE.user.lang; try { localStorage.setItem('dk_lang', LANG); } catch { } }
-  route();
+  const oidcErr = new URLSearchParams(location.search).get('oidc_error');
+  if (oidcErr) history.replaceState(null, '', '/' + location.hash);
+  await route();
+  if (oidcErr) toast(t('Anmeldung über {n} fehlgeschlagen: {e}', { n: STATE.oidc?.label || 'OIDC', e: oidcErr }), true);
 })();
 
 /* Jedes Suchfeld bekommt ein ✕ zum Leeren (Firefox zeigt keins von selbst); löst „input“ aus, damit die Liste neu filtert */

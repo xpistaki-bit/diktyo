@@ -35,6 +35,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Benachrichtigungen | E-Mail und ntfy je Profil, Ereignisse wählbar, gebündelt; neue Ereignisse: Internet langsam, Backup fehlgeschlagen, Integration gestört | 0.21 |
 | Aktionen und Shelly | UniFi: Gerät neu starten, PoE-Port neu starten; Omada: Gerät neu starten, PoE ein/aus/neu starten; Shelly/Tasmota direkt: Leistung, Energie, Ausgänge schalten, Firmware | 0.22 |
 | Geräte | Typen alphabetisch und erweitert (Saugroboter, 3D-Drucker, Türklingel, Hub, ESP …), Software/Betriebssystem-Feld, Proxmox-Gäste übernehmen Software/Standort vom Host, Vermutung verwerfen, WLAN bei Geräten ohne Buchse, Gerätedialog ohne Verlauf, KI-Katalog ohne erfundene Ports | 0.24 |
+| Anmeldung über OIDC | Authentik, Keycloak, Logto u. a.: Authorization Code mit PKCE, state (an den Browser gebunden), nonce, Signaturprüfung (RS/PS/ES/HS), Verknüpfen über bestätigte E-Mail oder in den eigenen Einstellungen, optional automatisch anlegen, Gruppe nötig, Admin über Gruppe | 0.32 |
 | Prometheus/Grafana | Endpunkt je Profil mit Bearer-Token (nur Besitzer, nur Hash gespeichert), fertiger prometheus.yml-Eintrag, Grafana-Dashboard zum Import; Geräte, Antwortzeit, Verfügbarkeit, WAN, Ports, DNS, Speedtest, Integrationen, Firmware, Wachliste, VLAN-Plan | 0.31 |
 | VLAN-Plan | Endgeräte wieder sichtbar (eingeklappt unter den Netzwerkgeräten), Subnetze im VLAN-Dialog zuordnen, Hinweis „kein Subnetz – zuordnen“ | 0.30.2 |
 | Nur Netzwerkports | USB, HDMI, Thunderbolt, MagSafe, Kartenleser … bleiben im Katalog, werden am Gerät aber keine Ports mehr (Gerätedialog, Topologie, VLAN-Plan, Verkabelung, PDF); einmalige Umnummerierung bestehender Geräte; VLAN-Plan ohne Endgeräte | 0.30.1 |
@@ -163,7 +164,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 | REST-API mit Tokens, Webhooks | ★★ | M |
 | ~~Prometheus/Grafana~~ – erledigt in 0.31 | ★ | S |
 | Handy-Ansicht / installierbare Web-App (PWA) | ★★ | M |
-| Anmeldung über OIDC (Authentik, Keycloak …) | ★ | M |
+| ~~Anmeldung über OIDC (Authentik, Keycloak …)~~ – erledigt in 0.32 | ★ | M |
 | Import aus NetBox | ★ | M |
 
 ## 5. Verbesserungen an Bestehendem

@@ -98,3 +98,77 @@ function viewTotp(ticket) {
   };
   $('input[name=code]').focus();
 }
+
+/* Anmeldung über OIDC: im eigenen Konto verknüpfen/lösen */
+async function oidcAccount(el) {
+  let r;
+  try { r = await api('GET', '/api/auth/oidc/me'); } catch { return; }
+  if (!r.enabled) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="panel" style="margin-top:14px"><h3>${t('Anmeldung über {n}', { n: h(r.label) })}</h3>
+    ${r.linked ? `<p><span class="badge ok">${t('verknüpft')}</span> ${t('Du kannst dich mit deinem Konto bei {n} anmelden.', { n: h(r.label) })}</p>
+      <button class="sm danger" data-unlink>${t('Verknüpfung lösen')}</button>`
+      : `<p class="muted">${t('Verknüpft dein díktyo-Konto mit deinem Konto bei {n} – auch wenn die E-Mail-Adressen verschieden sind.', { n: h(r.label) })}</p>
+      <a class="btn pri sm" href="/api/auth/oidc/start?link=1">${t('Mit {n} verknüpfen', { n: h(r.label) })}</a>`}</div>`;
+  const ul = $('[data-unlink]', el);
+  if (ul) ul.onclick = async () => {
+    if (!await confirmDlg(t('Verknüpfung lösen'), t('Danach meldest du dich wieder mit E-Mail-Adresse und Passwort an.'), t('Lösen'))) return;
+    try { await api('DELETE', '/api/auth/oidc/link'); oidcAccount(el); } catch (e) { toast(e.message, true); }
+  };
+}
+
+/* Administratoren: OIDC-Anbieter einrichten (Authentik, Keycloak, Logto …) */
+async function oidcSettings(el) {
+  let s;
+  try { s = await api('GET', '/api/settings/oidc'); } catch (e) { el.innerHTML = `<p class="errtxt">${h(e.message)}</p>`; return; }
+  const chk = (k, label, hint = '') => `<label class="chk"><input type="checkbox" name="${k}" ${s[k] ? 'checked' : ''}> ${label}</label>${hint ? `<p class="muted small" style="margin:0 0 6px 26px">${hint}</p>` : ''}`;
+  el.innerHTML = `<form class="panel" id="oidcf">
+    <p class="muted" style="margin-top:0">${t('Anmeldung über einen eigenen Identity Provider per OpenID Connect – z. B. Authentik, Keycloak, Logto, Zitadel oder Authelia. Die Anmeldung mit Passwort bleibt daneben möglich. Den zweiten Faktor übernimmt dann der Anbieter.')}</p>
+    ${chk('enabled', `<b>${t('Eingeschaltet')}</b>`)}
+    <label>${t('Redirect-URI – beim Anbieter eintragen')}</label>
+    <div class="row"><input readonly class="mono" value="${h(s.redirect_uri)}"><button type="button" class="sm" data-copyru>${t('Kopieren')}</button></div>
+    ${s.app_url_set ? '' : `<p class="warnc small">${t('Hinter einem Reverse-Proxy oder mit HTTPS bitte unter „E-Mail-Versand“ die Adresse der Weboberfläche eintragen – sonst stimmt die Redirect-URI nicht.')}</p>`}
+    <div class="grid2">
+      <div><label>${t('Name auf dem Anmeldeknopf')}</label><input name="label" maxlength="40" value="${h(s.label)}" placeholder="Authentik"></div>
+      <div><label>${t('Scopes')}</label><input name="scopes" value="${h(s.scopes)}"></div>
+    </div>
+    <label>${t('Aussteller (Issuer-URL)')}</label><input name="issuer" class="mono" value="${h(s.issuer)}" placeholder="https://auth.example.com/application/o/diktyo/">
+    <div class="grid2">
+      <div><label>${t('Client-ID')}</label><input name="client_id" class="mono" autocomplete="off" value="${h(s.client_id)}"></div>
+      <div><label>${t('Client-Secret')}</label><input name="client_secret" type="password" autocomplete="new-password" value="${h(s.client_secret)}" placeholder="${h(t('leer bei öffentlichem Client (nur PKCE)'))}"></div>
+    </div>
+    <h4>${t('Konten')}</h4>
+    ${chk('auto_create', t('Konten automatisch anlegen'), t('Wer sich beim Anbieter anmelden darf, bekommt ein díktyo-Konto (ohne Profile, bis jemand sie teilt). Aus: nur bestehende Konten.'))}
+    ${chk('trust_email', t('E-Mail-Adresse auch ohne Bestätigung vertrauen'), t('Bestehende Konten werden über die E-Mail-Adresse verknüpft, wenn der Anbieter sie als bestätigt meldet. Nur einschalten, wenn bei deinem Anbieter niemand eine fremde Adresse eintragen kann.'))}
+    <div class="grid2">
+      <div><label>${t('Nur Mitglieder der Gruppe (optional)')}</label><input name="require_group" value="${h(s.require_group)}" placeholder="diktyo"></div>
+      <div><label>${t('Administratoren: Gruppe (optional)')}</label><input name="admin_group" value="${h(s.admin_group)}" placeholder="diktyo-admins"></div>
+      <div><label>${t('Gruppen stehen im Claim')}</label><input name="groups_claim" value="${h(s.groups_claim)}" placeholder="groups"></div>
+      <div style="align-self:end">${chk('verify_tls', t('TLS-Zertifikat des Anbieters prüfen'))}</div>
+    </div>
+    <details class="oidc-help"><summary>${t('Hinweise für Authentik, Keycloak und Logto')}</summary>
+      <p><b>Authentik:</b> ${t('Anwendung mit Provider „OAuth2/OpenID“ anlegen (vertraulich), Redirect-URI eintragen. Issuer: https://<host>/application/o/<slug>/ – Gruppen kommen im Claim „groups“.')}</p>
+      <p><b>Keycloak:</b> ${t('Client „OpenID Connect“, Client authentication an, Standard-Flow, Redirect-URI eintragen. Issuer: https://<host>/realms/<realm>. Für Gruppen einen Mapper „Group Membership“ (Claim „groups“, ohne vollen Pfad) zum Client hinzufügen.')}</p>
+      <p><b>Logto:</b> ${t('Anwendung „Traditional Web“, Redirect-URI eintragen. Issuer: https://<host>/oidc. Für Rollen den Scope „roles“ ergänzen und als Gruppen-Claim „roles“ eintragen.')}</p>
+    </details>
+    <div class="row" style="margin-top:14px"><button class="pri">${t('Speichern')}</button><button type="button" data-oidctest>${t('Verbindung testen')}</button></div>
+    <div id="oidcres"></div></form>`;
+  const f = $('#oidcf', el);
+  $('[data-copyru]', el).onclick = () => navigator.clipboard?.writeText(s.redirect_uri).then(() => toast(t('kopiert')));
+  const body = () => { const v = fd(f); ['enabled', 'auto_create', 'trust_email', 'verify_tls'].forEach(k => v[k] = !!f[k].checked); return v; };
+  f.onsubmit = async ev => {
+    ev.preventDefault();
+    try { s = await api('PUT', '/api/settings/oidc', body()); toast(t('gespeichert')); STATE.oidc = { enabled: s.enabled && !!s.issuer && !!s.client_id, label: s.label || 'SSO' }; }
+    catch (e) { toast(e.message, true); }
+  };
+  $('[data-oidctest]', el).onclick = async () => {
+    const res = $('#oidcres', el);
+    try {
+      await api('PUT', '/api/settings/oidc', body());
+      const r = await api('POST', '/api/settings/oidc/test');
+      res.innerHTML = `<div class="oidc-res small"><p class="okc">✓ ${t('Anbieter erreichbar, {n} Schlüssel', { n: r.keys })}</p>
+        <p>${t('Aussteller')}: <span class="mono">${h(r.issuer)}</span></p><p>${t('Anmeldung')}: <span class="mono">${h(r.authorization_endpoint)}</span></p>
+        <p>Token: <span class="mono">${h(r.token_endpoint)}</span></p>${r.algs.length ? `<p>${t('Signatur')}: <span class="mono">${h(r.algs.join(', '))}</span></p>` : ''}
+        <p class="muted">${t('Zum vollständigen Test in einem privaten Fenster „Anmelden mit …“ ausprobieren.')}</p></div>`;
+    } catch (e) { res.innerHTML = `<p class="errtxt">${h(e.message)}</p>`; }
+  };
+}
