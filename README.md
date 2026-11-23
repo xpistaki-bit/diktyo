@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.30.2 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.31 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -192,6 +192,16 @@ Online monitoring also records the response time of every ping. The device dialo
 integrations: FRITZ!Box, ASUS, MikroTik (RouterOS and RouterBOOT), UniFi and Omada per device, Proxmox as pending
 package updates. Devices with an update are marked in the topology, version changes appear in the history, and new
 updates can be reported to Home Assistant. An overview lists problems first.
+
+## Prometheus and Grafana
+
+Integrations → Prometheus / Grafana exposes the profile's metrics at `/api/profiles/<id>/prometheus` in the Prometheus
+text format, protected by a per-profile bearer token (shown once, stored hashed, owner only). The panel shows a ready
+`scrape_configs` entry and offers a ready-made **Grafana dashboard** to import. Metrics (prefix `diktyo_`) include
+devices online/offline and per device up, response time, 24 h availability, power, firmware updates, WAN traffic,
+traffic per switch port (with the connected device) and interface, DNS queries/blocked, last speed test, integration
+health, watchlist alarms, open VLAN plan changes and the inbox. díktyo serves the current state; Prometheus keeps the
+history.
 
 ## Notifications
 

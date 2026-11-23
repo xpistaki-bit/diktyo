@@ -377,6 +377,26 @@ an echter Hardware.
   Assistant gemeldet werden; ein Versionswechsel steht im Verlauf.
 - *Integrationen → Erreichbarkeit & Firmware* zeigt alles auf einen Blick – Geräte mit Problemen zuerst.
 
+### Prometheus und Grafana
+
+*Integrationen → Prometheus / Grafana* stellt die Messwerte des Profils für **Prometheus** bereit; **Grafana** zeigt
+sie mit einem fertigen Dashboard an.
+
+1. **Token erzeugen** (nur Besitzer des Profils). Es wird nur einmal angezeigt und gilt nur für dieses Profil und nur
+   zum Lesen der Messwerte; díktyo speichert lediglich einen Hash. *Neues Token* macht das alte ungültig,
+   *Ausschalten* löscht es.
+2. Den angezeigten **Eintrag für prometheus.yml** kopieren (Adresse, Pfad und Token sind schon eingesetzt) und in die
+   `scrape_configs` deiner Prometheus-Konfiguration übernehmen, Prometheus neu laden. Prometheus muss díktyo unter der
+   angezeigten Adresse erreichen können (bei Docker/LXC die Adresse im Heimnetz, nicht `localhost`).
+3. **Grafana-Dashboard herunterladen** und in Grafana unter *Dashboards → Neu → Importieren* hochladen, dabei die
+   Prometheus-Datenquelle wählen.
+
+Im Kasten steht, wann Prometheus zuletzt abgefragt hat. Bereitgestellt werden (Präfix `diktyo_`): Geräte gesamt/online/
+offline und je Gerät erreichbar (`device_up`), Antwortzeit, Verfügbarkeit 24 h (Infrastruktur), Leistung, Firmware-
+Updates, WAN-Traffic, Traffic je Switch-Port (mit angeschlossenem Gerät) und Schnittstelle, DNS-Anfragen/Blockierte,
+letzter Speedtest, Zustand der Integrationen, Wachliste, offene VLAN-Umstellungen, Posteingang. díktyo liefert jeweils
+den aktuellen Stand – den Verlauf speichert Prometheus.
+
 ### Benachrichtigungen (E-Mail, ntfy)
 
 *Integrationen → Benachrichtigungen* meldet Ereignisse des Profils per **E-Mail** (über den E-Mail-Versand unter

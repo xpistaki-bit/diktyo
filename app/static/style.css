@@ -757,3 +757,7 @@ button .pin-ic{margin-right:2px} .pinbtn .pin-ic{margin:0}
 .vp-nosub{color:var(--warn)}
 .vp-subs{display:flex;flex-direction:column;gap:2px;max-height:200px;overflow:auto;padding:6px 10px;border:1px solid var(--line);border-radius:5px}
 .vp-no{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+
+.prom-tok{margin:10px 0;padding:10px 12px;border:1px solid var(--warn);border-radius:6px;background:rgba(255,176,32,.08)}
+.prom-tok .secret{margin-top:6px;word-break:break-all}
+.prom-yml{width:100%;white-space:pre;resize:vertical}

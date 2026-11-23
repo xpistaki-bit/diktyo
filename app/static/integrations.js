@@ -186,7 +186,7 @@ async function tabIntegrations(ctx) {
           <button class="pri" data-add="mikrotik">${t('+ MikroTik')}</button><button class="pri" data-add="opnsense">${t('+ OPNsense')}</button>
           <button class="pri" data-add="docker">${t('+ Docker')}</button><button class="pri" data-add="shelly">${t('+ Shelly / Tasmota')}</button><button class="pri" data-add="dnsfilter">${t('+ Pi-hole / AdGuard')}</button></div>` : ''}</div>
     </div>
-    <div class="grid-out" style="margin-top:16px"><div id="speedbox"></div><div id="notifybox"></div></div>
+    <div class="grid-out" style="margin-top:16px"><div id="speedbox"></div><div id="notifybox"></div><div id="prombox"></div></div>
     <div id="ints" class="ints-grid" style="margin-top:16px">${r.integrations.map(i => `<div class="panel integ ${BIG_CARDS.includes(i.driver) ? 'big' : ''}" data-id="${i.id}">
         <div class="row between int-h"><div class="row"><span class="dot ${st(i)}"></span><b>${h(i.name)}</b><span class="muted mono small">${h(i.host)}</span>
           ${i.name !== drv[i.driver]?.name ? `<span class="badge">${h(drv[i.driver]?.name || i.driver)}</span>` : ''}${i.enabled ? '' : `<span class="badge">${t('pausiert')}</span>`}</div>
@@ -271,7 +271,7 @@ async function tabIntegrations(ctx) {
   { const sb = document.createElement('div'); sb.className = 'panel'; sb.style.marginTop = '16px'; sb.innerHTML = `<h3>${t('Zeitpläne')}</h3><div></div>`; ctx.el.appendChild(sb); waits.push(scheduleList(ctx, sb.lastElementChild)); }
   { const box = document.createElement('div'); box.id = 'recentact'; box.style.marginTop = '16px'; ctx.el.appendChild(box); waits.push(recentActions(ctx, box)); }
   clearTimeout(tabIntegrations.timer);
-  waits.push(speedSettings(ctx, $('#speedbox', ctx.el)), notifySettings(ctx, $('#notifybox', ctx.el)));
+  waits.push(speedSettings(ctx, $('#speedbox', ctx.el)), notifySettings(ctx, $('#notifybox', ctx.el)), promPanel(ctx, $('#prombox', ctx.el)));
   await Promise.allSettled(waits);
   // jede Minute aktualisieren: neue Ansicht unsichtbar fertig bauen und dann in einem Schritt tauschen
   tabIntegrations.timer = setTimeout(async () => {

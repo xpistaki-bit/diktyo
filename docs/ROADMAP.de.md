@@ -35,6 +35,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Benachrichtigungen | E-Mail und ntfy je Profil, Ereignisse wählbar, gebündelt; neue Ereignisse: Internet langsam, Backup fehlgeschlagen, Integration gestört | 0.21 |
 | Aktionen und Shelly | UniFi: Gerät neu starten, PoE-Port neu starten; Omada: Gerät neu starten, PoE ein/aus/neu starten; Shelly/Tasmota direkt: Leistung, Energie, Ausgänge schalten, Firmware | 0.22 |
 | Geräte | Typen alphabetisch und erweitert (Saugroboter, 3D-Drucker, Türklingel, Hub, ESP …), Software/Betriebssystem-Feld, Proxmox-Gäste übernehmen Software/Standort vom Host, Vermutung verwerfen, WLAN bei Geräten ohne Buchse, Gerätedialog ohne Verlauf, KI-Katalog ohne erfundene Ports | 0.24 |
+| Prometheus/Grafana | Endpunkt je Profil mit Bearer-Token (nur Besitzer, nur Hash gespeichert), fertiger prometheus.yml-Eintrag, Grafana-Dashboard zum Import; Geräte, Antwortzeit, Verfügbarkeit, WAN, Ports, DNS, Speedtest, Integrationen, Firmware, Wachliste, VLAN-Plan | 0.31 |
 | VLAN-Plan | Endgeräte wieder sichtbar (eingeklappt unter den Netzwerkgeräten), Subnetze im VLAN-Dialog zuordnen, Hinweis „kein Subnetz – zuordnen“ | 0.30.2 |
 | Nur Netzwerkports | USB, HDMI, Thunderbolt, MagSafe, Kartenleser … bleiben im Katalog, werden am Gerät aber keine Ports mehr (Gerätedialog, Topologie, VLAN-Plan, Verkabelung, PDF); einmalige Umnummerierung bestehender Geräte; VLAN-Plan ohne Endgeräte | 0.30.1 |
 | VLAN-Plan | Ports je Switch grafisch mit VLAN-Farben (untagged/tagged) und als Matrix; produktiver Stand per SNMP vom Switch (Q-BRIDGE-MIB, nur lesend) oder von Hand; Plan-Modus mit geplanten VLANs, Mehrfachauswahl, Umstellungsliste, Prüfungen (Adresse/Subnetz, Uplinks), automatisch abgehakt bei SNMP; im PDF | 0.30 |
@@ -54,7 +55,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | P2.8 | Passive DHCP-Erkennung (Fingerprinting aus DHCP-Anfragen) | braucht einen Lauscher im Netz bzw. DHCP-Logs vom Router |
 | ~~Phase 3~~ | ~~Änderungsverlauf zwischen Scans~~ | erledigt in 0.14 |
 | Phase 3 | ~~Kabel- und Patchpanel-Dokumentation~~ – erledigt in 0.29 | Patchfelder, Dosen, Kabelnummern zwischen Port und Gerät |
-| Phase 3 | Prometheus-Endpunkt | Messwerte für Grafana |
+| Phase 3 | ~~Prometheus-Endpunkt~~ – erledigt in 0.31 | Messwerte für Grafana |
 | Phase 3 | REST-API mit Tokens | für Skripte, Home Assistant, eigene Auswertungen |
 
 ## 3. An echter Hardware noch zu testen
@@ -160,7 +161,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 | Idee | Nutzen | Aufwand |
 |---|---|---|
 | REST-API mit Tokens, Webhooks | ★★ | M |
-| Prometheus/Grafana | ★ | S |
+| ~~Prometheus/Grafana~~ – erledigt in 0.31 | ★ | S |
 | Handy-Ansicht / installierbare Web-App (PWA) | ★★ | M |
 | Anmeldung über OIDC (Authentik, Keycloak …) | ★ | M |
 | Import aus NetBox | ★ | M |

@@ -56,3 +56,49 @@ async function notifySettings(ctx, el) {
     tb.disabled = false;
   };
 }
+
+/* Prometheus / Grafana: Endpunkt mit Token je Profil, Beispiel für prometheus.yml, Grafana-Dashboard zum Importieren */
+async function promPanel(ctx, el) {
+  const P = `/api/profiles/${ctx.pid}/prometheus`;
+  let r;
+  try { r = await api('GET', `${P}/settings`); } catch (e) { el.innerHTML = `<p class="errtxt">${h(e.message)}</p>`; return; }
+  const url = new URL(P, location.origin);
+  const yml = (tok) => `scrape_configs:
+  - job_name: diktyo
+    scrape_interval: 60s
+    scheme: ${url.protocol.replace(':', '')}
+    metrics_path: ${url.pathname}
+    authorization:
+      type: Bearer
+      credentials: ${tok || '<TOKEN>'}
+    static_configs:
+      - targets: ['${url.host}']`;
+  const draw = (tok = '') => {
+    el.innerHTML = `<div class="panel"><h3>${t('Prometheus / Grafana')}</h3>
+      <p class="muted small" style="margin-top:0">${t('Stellt die Messwerte dieses Profils für Prometheus bereit – Geräte online/offline, Antwortzeit, Verfügbarkeit, WAN, Switch-Ports, DNS, Speedtest, Integrationen, Firmware, Wachliste. Grafana zeigt sie dann mit dem fertigen Dashboard an.')}</p>
+      <p>${r.enabled ? `<span class="badge ok">${t('eingeschaltet')}</span> <span class="muted small">${t('Token seit {d}', { d: h(fmtDate(r.created)) })}${r.last_scrape ? ' · ' + t('zuletzt abgefragt {d}', { d: h(ago(r.last_scrape)) }) : ' · ' + t('noch nicht abgefragt')}</span>`
+        : `<span class="badge">${t('aus')}</span> <span class="muted small">${t('Zum Einschalten ein Token erzeugen.')}</span>`}</p>
+      <label>${t('Adresse für Prometheus')}</label><div class="row"><input readonly value="${h(url.href)}" class="mono"><button type="button" class="sm" data-copyurl>${t('Kopieren')}</button></div>
+      ${tok ? `<div class="prom-tok"><b>${t('Neues Token – wird nur jetzt angezeigt:')}</b><div class="secret">${h(tok)}</div></div>` : ''}
+      <label>${t('Eintrag für prometheus.yml')}</label><textarea readonly rows="11" class="mono small prom-yml">${h(yml(tok))}</textarea>
+      <div class="row" style="margin-top:6px"><button type="button" class="sm" data-copyyml>${t('Kopieren')}</button>
+        <a class="btn sm" href="${P}/grafana.json" download>${t('Grafana-Dashboard herunterladen')}</a></div>
+      <p class="muted small">${t('In Grafana: Prometheus als Datenquelle anlegen, dann Dashboards → Neu → Importieren und die Datei hochladen. Prometheus muss díktyo über diese Adresse erreichen können.')}</p>
+      ${ctx.isOwner ? `<div class="row" style="margin-top:10px"><button type="button" class="${r.enabled ? '' : 'pri'} sm" data-promtok>${r.enabled ? t('Neues Token (altes wird ungültig)') : t('Token erzeugen')}</button>
+        ${r.enabled ? `<button type="button" class="sm danger" data-promoff>${t('Ausschalten')}</button>` : ''}</div>` : `<p class="muted small">${t('Token erzeugen kann nur, wer das Profil besitzt.')}</p>`}</div>`;
+    const copy = text => navigator.clipboard?.writeText(text).then(() => toast(t('kopiert')), () => toast(t('Kopieren nicht möglich – bitte markieren'), true));
+    $('[data-copyurl]', el).onclick = () => copy(url.href);
+    $('[data-copyyml]', el).onclick = () => copy(yml(tok));
+    const nt = $('[data-promtok]', el);
+    if (nt) nt.onclick = async () => {
+      if (r.enabled && !await confirmDlg(t('Neues Token'), t('Ein neues Token erzeugen? Das bisherige funktioniert dann nicht mehr – in prometheus.yml ersetzen.'), t('Erzeugen'))) return;
+      try { const x = await api('POST', `${P}/token`); r = x; draw(x.token); } catch (e) { toast(e.message, true); }
+    };
+    const off = $('[data-promoff]', el);
+    if (off) off.onclick = async () => {
+      if (!await confirmDlg(t('Prometheus ausschalten'), t('Token löschen? Prometheus bekommt dann keine Messwerte mehr.'), t('Ausschalten'))) return;
+      try { r = await api('DELETE', `${P}/token`); draw(); } catch (e) { toast(e.message, true); }
+    };
+  };
+  draw();
+}
