@@ -463,6 +463,13 @@ def migrate():
     with open(DATA / ".migrate.lock", "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         _migrate()
+        from . import catalog
+        con = connect()
+        try:
+            catalog.network_ports_once(con)
+            con.commit()
+        finally:
+            con.close()
 
 
 def _migrate():

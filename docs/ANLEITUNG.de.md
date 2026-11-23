@@ -121,6 +121,11 @@ Spalten ein, einfache eine.
 - **Geräte:** Im Gerätedialog Katalogmodell wählen – damit entstehen die Ports (z. B. 24 × RJ45 + 4 × SFP+). Unter
   *Anschluss* legst du fest, woran das Gerät hängt: LAN an einen Port, WLAN bzw. Mesh an einen Access Point, virtuell
   an einen Host. Von Hand gesetzte Verbindungen überschreibt keine Integration.
+- **Nur Netzwerkanschlüsse am Gerät:** Der Katalog darf alle Anschlüsse eines Modells enthalten (USB, HDMI,
+  Thunderbolt, MagSafe, Kartenleser, Audio …). Am Gerät – und damit im Gerätedialog, in der Topologie, im VLAN-Plan,
+  bei der Verkabelung und im PDF – erscheinen nur Netzwerkanschlüsse (RJ45, SFP, Glasfaser, DSL, Koax), fortlaufend
+  nummeriert. Bestehende Geräte wurden mit 0.30.1 einmalig umgestellt; Verbindungen und Kabelwege bleiben am
+  richtigen Port.
 - **Hersteller, Modell, Software:** Hersteller und Modell meinen die **Hardware** (z. B. HP · EliteDesk 800 G4), das Feld
   *Software / Betriebssystem* das, was darauf läuft (z. B. Proxmox VE 9.2). Proxmox füllt es selbst: der Host bekommt
   „Proxmox VE …“, VMs und Container ihr Gast-Betriebssystem (über den Gast-Agent bzw. die Konfiguration), als
@@ -533,7 +538,7 @@ pveum acl modify / --tokens 'diktyo@pve!diktyo' --roles DiktyoPower
 
 ### VLAN-Plan (welcher Port in welchem VLAN)
 
-Der Reiter **VLAN-Plan** zeigt je Switch/Router die Ports als Kacheln: die große Zahl ist das **untagged** VLAN
+Der Reiter **VLAN-Plan** zeigt je Switch/Router (auch Access Points, Server, Hypervisor, NAS – keine Endgeräte) die Ports als Kacheln: die große Zahl ist das **untagged** VLAN
 (Zugangs-VLAN, Farbe des VLANs), farbige Streifen unten sind **tagged** VLANs (Trunk), darunter steht das
 angeschlossene Gerät. Die Ansicht **Matrix** zeigt dasselbe als Tabelle Port × VLAN (U/T).
 

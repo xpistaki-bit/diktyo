@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.30 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.30.1 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -368,6 +368,10 @@ Administrators can add their own entries, edit existing ones (they then count as
 by updates) and import a CSV (separator `;` or `,`, German or English column names). Ports are written as
 `count:kind:speed:label:poe`, groups separated by commas, for example `24:rj45:1G, 4:sfp+:10G` or
 `1:rj45:2.5G:WAN, 3:rj45:1G:LAN`. "CSV template" downloads an example.
+
+The catalog may list every connector of a model (USB, HDMI, Thunderbolt, MagSafe, card reader …), but devices only
+get **network ports** (RJ45, SFP, fiber, DSL, coax), numbered consecutively – so the device dialog, topology, VLAN plan,
+cabling and PDF show only what matters for the network.
 
 ### Catalog entry from system info
 

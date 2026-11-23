@@ -84,10 +84,28 @@ def format_ports(groups):
     return ", ".join(out)
 
 
-def expand_ports(groups):
-    """-> Liste der Ports mit port_no, name, kind, speed, poe."""
+# Anschlüsse, die im Katalog stehen dürfen, aber für die Netzwerk-Dokumentation keine Rolle spielen
+NON_NET = __import__("re").compile(
+    r"usb|hdmi|thunderbolt|magsafe|lightning|\bsd(xc|hc)?\b|micro-?sd|karten|\bcard|audio|klinke|kopfh|headphone|3[.,]5\s?mm|"
+    r"display\s?port|\bdp\b|mini-?dp|\bvga\b|\bdvi\b|netzteil|\blade|charg|dc[- ]?in|stromanschl|seriell|serial|rs-?232|konsole|console|"
+    r"toslink|s/?pdif|cinch|\brca\b", __import__("re").I)
+
+
+def is_network(g):
+    """Netzwerkanschluss? USB und Gruppen wie „HDMI“, „Thunderbolt“, „MagSafe“, „SDXC-Kartenleser“ zählen nicht."""
+    return str(g.get("kind") or "rj45").lower() != "usb" and not NON_NET.search(str(g.get("label") or g.get("name") or ""))
+
+
+def network_groups(groups):
+    return [g for g in clean_groups(groups) if is_network(g)]
+
+
+def expand_ports(groups, network_only=True):
+    """-> Liste der Ports mit port_no, name, kind, speed, poe. Standard: nur Netzwerkanschlüsse, fortlaufend nummeriert."""
     ports, no = [], 0
     for g in clean_groups(groups):
+        if network_only and not is_network(g):
+            continue
         for i in range(g["count"]):
             no += 1
             if g["label"]:
@@ -185,3 +203,45 @@ def export_csv(rows):
         w.writerow([r["type"], r["manufacturer"], r["model"], format_ports(d.get("ports")), d.get("wifi", ""),
                     "1" if d.get("managed") else "", d.get("driver", ""), "1" if d.get("verified") else "", d.get("note", "")])
     return "﻿" + buf.getvalue()
+
+
+def network_ports_once(c):
+    """Einmalig (0.30.1): Ports von Geräten auf reine Netzwerkanschlüsse umstellen. Bisher entstanden aus Katalog-Gruppen wie
+    USB, HDMI oder Thunderbolt eigene Ports, und die Nummern zählten über alle Gruppen. Netzwerkports werden auf die neue
+    Zählung umnummeriert (Kabelwege mit), Nicht-Netzwerkports gelöscht; die Gruppen am Gerät behalten nur Netzwerkanschlüsse.
+    Der Katalog selbst bleibt vollständig."""
+    if c.execute("SELECT value FROM settings WHERE key='ports_network_only'").fetchone():
+        return 0
+    n = 0
+    for d in c.execute("SELECT id, data FROM devices").fetchall():
+        data = json.loads(d["data"] or "{}")
+        groups = clean_groups(data.get("ports"))
+        if not groups or all(is_network(g) for g in groups):
+            continue
+        new_no, k, idx = {}, 0, 0  # alte Nummer (über alle Gruppen) -> neue Nummer (nur Netzwerkports)
+        for g in groups:
+            for _ in range(g["count"]):
+                idx += 1
+                if is_network(g):
+                    k += 1
+                    new_no[idx] = k
+        ifs = {r["port_no"]: r for r in c.execute("SELECT id, port_no, name FROM interfaces WHERE device_id=? AND role='port'", (d["id"],))}
+        for no, r in ifs.items():
+            if no not in new_no:
+                c.execute("DELETE FROM interfaces WHERE id=?", (r["id"],))
+                n += 1
+        for no, r in ifs.items():  # erst auf negative Nummern, dann auf die neuen (keine Überschneidung)
+            if no in new_no and new_no[no] != no:
+                c.execute("UPDATE interfaces SET port_no=? WHERE id=?", (-new_no[no], r["id"]))
+        for no, r in ifs.items():
+            if no in new_no and new_no[no] != no:
+                name = str(new_no[no]) if r["name"] == str(no) else r["name"]
+                c.execute("UPDATE interfaces SET port_no=?, name=? WHERE id=?", (new_no[no], name, r["id"]))
+                c.execute("UPDATE cable_runs SET switch_port=? WHERE switch_id=? AND switch_port=?", (-new_no[no], d["id"], no))
+        c.execute("UPDATE cable_runs SET switch_port=-switch_port WHERE switch_id=? AND switch_port<0", (d["id"],))
+        c.execute("UPDATE cable_runs SET switch_id=NULL, switch_port=NULL WHERE switch_id=? AND switch_port NOT IN (SELECT port_no FROM interfaces WHERE device_id=? AND role='port')",
+                  (d["id"], d["id"]))
+        data["ports"] = [g for g in groups if is_network(g)]
+        c.execute("UPDATE devices SET data=? WHERE id=?", (json.dumps(data, ensure_ascii=False), d["id"]))
+    c.execute("INSERT INTO settings(key, value) VALUES('ports_network_only', 'true')")
+    return n

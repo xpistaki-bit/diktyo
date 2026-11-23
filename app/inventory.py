@@ -185,7 +185,7 @@ def save_device(c, pid, body, did=None):
     if did:
         old = c.execute("SELECT data FROM devices WHERE id=?", (did,)).fetchone()
         data = json.loads(old["data"] or "{}")
-    data["ports"] = catalog.clean_groups(body.get("ports")) if "ports" in body else data.get("ports", [])
+    data["ports"] = catalog.network_groups(body.get("ports")) if "ports" in body else data.get("ports", [])
     if "software" in body:
         sw = str(body.get("software") or "").strip()[:120]
         if sw != data.get("software", ""):
@@ -324,7 +324,7 @@ def device_detail(c, pid, did):
     integ = [dict(id=r["id"], driver=r["driver"], name=r["name"]) for r in c.execute("SELECT id, driver, name FROM integrations WHERE device_id=?", (did,))]
     from .configbackup import listing
     configs = listing(c, pid, did)
-    return dict(base, ports=ports, port_groups=data.get("ports", []), connected=sorted(kids, key=lambda x: x["name"].lower()),
+    return dict(base, ports=ports, port_groups=catalog.network_groups(data.get("ports", [])), connected=sorted(kids, key=lambda x: x["name"].lower()),
                 seen=data.get("seen"), ident_full=None if (data.get("ident") or {}).get("label") and (data.get("ident") or {}).get("label") == data.get("ident_dismissed") else data.get("ident"), events=events, integrations=integ, configs=configs,
                 services_scan=data.get("services_scan"), smart=data.get("smart"), software=data.get("software", ""), dns=data.get("dns"), firmware_info=data.get("firmware"),
                 services_job=_services_job(c, pid, did))

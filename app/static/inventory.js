@@ -33,6 +33,9 @@ function sortTable(el, cols, rows, { onRow, empty, key = 'tbl', initial } = {}) 
 sortTable.state = {};
 
 /* ---------------------------------------------------------------- Port-Gruppen */
+/* Netzwerkanschluss? USB, HDMI, Thunderbolt, MagSafe, Kartenleser … bleiben im Katalog, am Gerät zählen sie nicht (wie catalog.is_network) */
+const NON_NET = /usb|hdmi|thunderbolt|magsafe|lightning|\bsd(xc|hc)?\b|micro-?sd|karten|\bcard|audio|klinke|kopfh|headphone|3[.,]5\s?mm|display\s?port|\bdp\b|mini-?dp|\bvga\b|\bdvi\b|netzteil|\blade|charg|dc[- ]?in|stromanschl|seriell|serial|rs-?232|konsole|console|toslink|s\/?pdif|cinch|\brca\b/i;
+const netGroups = groups => (groups || []).filter(g => (g.kind || 'rj45').toLowerCase() !== 'usb' && !NON_NET.test(g.label || ''));
 function portEditorHtml(groups, disabled) {
   const row = g => `<tr class="pg"><td><input type="number" min="1" max="128" data-f="count" value="${h(g.count || '')}" ${disabled}></td>
     <td><select data-f="kind" ${disabled}>${PORT_KINDS.map(k => `<option value="${k}" ${k === (g.kind || 'rj45') ? 'selected' : ''}>${k.toUpperCase()}</option>`).join('')}</select></td>
@@ -151,7 +154,7 @@ async function deviceDialog(ctx, did) {
         ${!did ? `<small class="muted">${t('Eigene Ports lassen sich nach dem ersten Speichern wählen.')}</small>` : ''}</div>
     </div>
     <h4>${t('Ports')} <small class="muted" id="pcount"></small></h4>
-    <div id="pe">${portEditorHtml(v.port_groups, dis)}</div>
+    <div id="pe">${portEditorHtml(netGroups(v.port_groups), dis)}</div>
     <p class="muted small">${t('Die Ports kommen aus dem Katalogmodell und lassen sich hier für dieses Gerät anpassen. Werden es weniger, entfallen die Verbindungen an den wegfallenden Ports.')}</p>
     <h4>${t('Notizen')}</h4>
     <textarea name="notes" rows="3" maxlength="5000" ${dis}>${h(v.notes || '')}</textarea>
@@ -207,7 +210,7 @@ async function deviceDialog(ctx, did) {
         const m = models.find(x => String(x.id) === sel('model_id').value);
         if (!m) return;
         sel('manufacturer').value = m.manufacturer; sel('model').value = m.model; sel('type').value = m.type;
-        $('#pe', f).innerHTML = portEditorHtml(m.ports, dis); bindPortEditor($('#pe', f), pc); pc();
+        $('#pe', f).innerHTML = portEditorHtml(netGroups(m.ports), dis); bindPortEditor($('#pe', f), pc); pc();
         if (!sel('name').value.trim()) sel('name').value = m.model;
         toWlan();
       };

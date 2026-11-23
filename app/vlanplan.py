@@ -14,7 +14,8 @@ import json
 from .db import now
 
 PALETTE = ["#00E5FF", "#FFB020", "#2EE59D", "#FF4D6A", "#4D8CFF", "#C77DFF", "#19F5C8", "#FF7A45", "#E6E600", "#FF66C4", "#8FB4FF", "#A3E635"]
-INFRA = ("router", "switch", "ap", "mesh", "firewall", "modem", "repeater", "powerline")
+# Geräte, deren Ports im VLAN-Plan erscheinen (Endgeräte nicht: ihr VLAN legt der Switch-Port fest)
+VLAN_TYPES = ("router", "switch", "ap", "mesh", "firewall", "modem", "repeater", "powerline", "hypervisor", "server", "nas")
 
 
 class VlanError(Exception):
@@ -236,9 +237,10 @@ def state(c, pid):
     peers = _peers_all(c, pid)
     snmp = snmp_devices(c, pid)
     switches = []
-    for d in c.execute("""SELECT d.id, d.name, d.type FROM devices d WHERE d.profile_id=? AND d.status='confirmed'
-                          AND EXISTS(SELECT 1 FROM interfaces i WHERE i.device_id=d.id AND i.role='port')
-                          ORDER BY CASE d.type WHEN 'router' THEN 0 WHEN 'firewall' THEN 0 WHEN 'switch' THEN 1 ELSE 2 END, d.name COLLATE NOCASE""", (pid,)):
+    for d in c.execute(f"""SELECT d.id, d.name, d.type FROM devices d WHERE d.profile_id=? AND d.status='confirmed'
+                          AND d.type IN ({','.join('?' * len(VLAN_TYPES))}) AND EXISTS(SELECT 1 FROM interfaces i WHERE i.device_id=d.id AND i.role='port')
+                          ORDER BY CASE d.type WHEN 'router' THEN 0 WHEN 'firewall' THEN 0 WHEN 'switch' THEN 1 ELSE 2 END, d.name COLLATE NOCASE""",
+                       (pid, *VLAN_TYPES)):
         ports = []
         for p in c.execute("SELECT id, port_no, name FROM interfaces WHERE device_id=? AND role='port' ORDER BY port_no", (d["id"],)):
             pr = [dict(id=x, name=devs[x]["name"], type=devs[x]["type"]) for x in peers.get(p["id"], []) if x in devs and x != d["id"]]
