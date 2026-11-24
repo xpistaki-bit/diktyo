@@ -49,6 +49,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Prometheus/Grafana | Endpunkt je Profil mit Bearer-Token (nur Besitzer, nur Hash gespeichert), fertiger prometheus.yml-Eintrag, Grafana-Dashboard zum Import | 0.31 |
 | Anmeldung über OIDC | Authentik, Keycloak, Logto u. a.: Authorization Code mit PKCE, state (an den Browser gebunden), nonce, Signaturprüfung (RS/PS/ES/HS), Verknüpfen über bestätigte E-Mail oder in den eigenen Einstellungen, optional automatisch anlegen, Gruppe nötig, Admin über Gruppe | 0.32 |
 | VLAN-Plan und Topologie | VMs/Container (Proxmox) mit ihrem VLAN-Tag beim Host, Prüfung des Host-Ports (tagged); Topologie hängt am Internet-Gateway, auch wenn die Erkennung den Router als Gerät am Switch eingetragen hat; Suchfeld-✕ als Kästchen direkt am Feld | 0.32.1 |
+| MikroTik und Sprache | MikroTik über die RouterOS-API (Port 8728/8729, RouterOS 6 und 7) als Standard, REST weiter wählbar, kein SSH-Backup mehr (RouterOS hat eigene Backups); alle Server-Meldungen, Aktionen, Diagnosen und gespeicherten Fehler auf Englisch, wenn Englisch gewählt ist (auch in Benachrichtigungen), Test gegen fehlende Übersetzungen; automatisch erzeugte Gerätenamen auf Englisch | 0.33.1 |
 | Netzplan-Export | Topologie als SVG, PNG (doppelte Auflösung), draw.io (Geräte mit IP/MAC/Typ/Modell/Standort als Eigenschaften) und Poster-PDF A4–A0 mit Schriftfeld, wahlweise auf A4 gekachelt mit Überlappung und Blattnummern; Gruppen aufklappbar; in Topologie und Ausgabe | 0.33 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan
@@ -65,7 +66,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Integration / Funktion | Stand | Wer |
 |---|---|---|
 | UniFi (inkl. Live-Raten je Client über stat/sta, Aktionen Neustart/PoE) | nach offizieller API gebaut, gegen nachgebildeten Controller getestet | Tester |
-| MikroTik (inkl. Live-Raten: WLAN-Registrierungen, Kid Control) | nach REST-Doku gebaut, gegen nachgebildete RouterOS-API getestet | Tester |
+| MikroTik (RouterOS-API und REST, inkl. Live-Raten: WLAN-Registrierungen, Kid Control) | API-Protokoll gegen nachgebildeten Server über echten Socket getestet (inkl. Anmeldung vor 6.43); Rückmeldung des Testers: REST-Zugang scheiterte (Port spricht kein HTTPS) – mit 0.33.1 API als Standard | Tester |
 | Omada (inkl. Live-Raten je Client, Aktionen PoE/Neustart) | nach Open-API-Doku gebaut, gegen nachgebildeten Controller getestet | offen |
 | Shelly / Tasmota | gegen nachgebildete Geräte (Gen1, Gen2/3, Tasmota) getestet | Nutzer |
 | Pi-hole / AdGuard Home | gegen nachgebildete APIs (Pi-hole v6/v5, AdGuard) getestet | Nutzer |
@@ -83,7 +84,7 @@ Am echten Gerät bestätigt: FRITZ!Box (inkl. 2FA, Backup, Schaltaktionen), ASUS
 Zyxel XGS1935 (SNMP v3, Port-Filter, SSH-Backup mit díktyo-Schlüssel, **VLANs per Q-BRIDGE-MIB im VLAN-Plan**),
 Proxmox (Gäste), Internet-Speedtest, Verkabelung mit Patchfeld und Dosen.
 
-Offene Punkte aus den Tests: Bei UniFi ist die Einheit der WAN-Rate (Bit/Byte) nicht dokumentiert; bei MikroTik
+Rückmeldung aus dem Test (MikroTik): Nutzer verwenden meist SNMP oder die RouterOS-API, selten HTTP/REST; Backups macht RouterOS selbst. Offene Punkte aus den Tests: Bei UniFi ist die Einheit der WAN-Rate (Bit/Byte) nicht dokumentiert; bei MikroTik
 heißen WLAN-Felder je Paket (wifi, wifiwave2, wireless) leicht unterschiedlich.
 
 ## 4. Mögliche Erweiterungen (Add-ons)

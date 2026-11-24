@@ -1,51 +1,130 @@
-"""Treiber MikroTik RouterOS 7 (hAP, hEX, RB5009, CRS-Switches, cAP, Chateau …) über die REST-API.
+"""Treiber MikroTik RouterOS 6 und 7 (hAP, hEX, RB2011, RB5009, CRS-Switches, cAP, Chateau …) über die RouterOS-API oder REST.
 
 Liest: Modell und Version, Ports (Link, Tempo, Traffic, PoE), DHCP-Leases und ARP (Clients mit IP, MAC, Name), die
 Bridge-Host-Tabelle (welches Gerät an welchem Port bzw. WLAN hängt), WLAN-Clients (Paket „wifi“, „wifiwave2“ oder
 „wireless“) und Nachbarn per MNDP/LLDP/CDP; dazu WAN-Status und -Traffic (Interface-Liste „WAN“).
-Schalten: Port aus/ein, PoE neu starten, WLAN aus/ein, Wake-on-LAN, Neustart. Konfigurations-Backup per SSH („/export“).
+Schalten: Port aus/ein, PoE neu starten, WLAN aus/ein, Wake-on-LAN, Neustart.
 
-REST-API: RouterOS 7.1+, Dienst www-ssl (HTTPS, Zertifikat nötig) oder www (HTTP, ab 7.9), Basic-Auth mit einem
-RouterOS-Benutzer (Gruppe mit read + rest-api; für Aktionen zusätzlich write, reboot, test).
+Zugang (Standard): RouterOS-API, Dienst „api“ (Port 8728) bzw. „api-ssl“ (8729, mit TLS) – RouterOS 6 und 7, Benutzer
+mit den Rechten read und api (für Aktionen zusätzlich write, reboot, test). Alternativ REST (RouterOS 7.1+, Dienst
+www-ssl bzw. www ab 7.9, Recht rest-api). Menüpfade und Felder sind bei beiden gleich. Ein Konfigurations-Backup macht
+díktyo bei MikroTik nicht – RouterOS hat dafür eigene Backups (auch in die MikroTik-Cloud).
 """
 import re
 import time
 
 import httpx
 
+from . import routeros_api
 from .controller import DriverError, counter_rates, parse_rate, mac as norm_mac
 
 NAME = "MikroTik (RouterOS)"
 DEFAULT_INTERVAL = 60
 FIELDS = [
     dict(key="host", label="Adresse", type="text", default="192.168.88.1", required=True),
-    dict(key="scheme", label="Protokoll", type="select", default="https", options=[["https", "HTTPS (www-ssl)"], ["http", "HTTP (www, ab RouterOS 7.9)"]]),
-    dict(key="port", label="Port", type="number", default=443),
+    dict(key="access", label="Zugang", type="select", default="api", options=[
+        ["api", "RouterOS-API (api, Port 8728)"], ["api-ssl", "RouterOS-API mit TLS (api-ssl, Port 8729)"],
+        ["https", "REST über HTTPS (www-ssl, RouterOS 7)"], ["http", "REST über HTTP (www, RouterOS 7.9+)"]]),
+    dict(key="port", label="Port (leer = Standard des Zugangs)", type="number", default=""),
     dict(key="username", label="Benutzer", type="text", default="diktyo", required=True),
     dict(key="password", label="Passwort", type="password", default="", secret=True),
-    dict(key="cfg_schedule", label="Konfiguration sichern", type="select", default="weekly", options=[
-        ["weekly", "wöchentlich"], ["daily", "täglich"], ["no", "nein"]]),
-    dict(key="ssh_port", label="SSH-Port (für Konfigurations-Backup)", type="number", default=22),
 ]
-CAN_BACKUP = True
+CAN_BACKUP = False
+DEFAULT_PORT = {"api": 8728, "api-ssl": 8729, "https": 443, "http": 80}
 WIFI_MENUS = ("interface/wifi", "interface/wifiwave2", "interface/wireless")
 
 
+def access_of(conf):
+    """Zugang aus der Einstellung; ältere Integrationen hatten nur „scheme“ (REST). Port 8728/8729 heißt immer API."""
+    a = conf.get("access")
+    if a in DEFAULT_PORT:
+        return a
+    port = str(conf.get("port") or "")
+    if port == "8728":
+        return "api"
+    if port == "8729":
+        return "api-ssl"
+    if conf.get("scheme") in ("https", "http"):
+        return conf["scheme"]
+    return "api" if "access" in conf else "https"  # vor 0.33.1 angelegt: REST über HTTPS war der Standard
+
+
+def _port(conf):
+    try:
+        return int(conf.get("port") or 0) or DEFAULT_PORT[access_of(conf)]
+    except (TypeError, ValueError):
+        return DEFAULT_PORT[access_of(conf)]
+
+
 def _base(conf):
-    scheme = conf.get("scheme") or "https"
-    port = int(conf.get("port") or (443 if scheme == "https" else 80))
-    return f"{scheme}://{conf['host']}:{port}/rest"
+    scheme = access_of(conf)
+    return f"{scheme}://{conf['host']}:{_port(conf)}/rest"
+
+
+class _Conn:
+    """Einheitlicher Zugang: RouterOS-API oder REST, jeweils mit request(method, path, optional, json)."""
+
+    def __init__(self, conf, http=None, api=None):
+        self.access = access_of(conf)
+        user, pw = conf.get("username") or "admin", conf.get("password") or ""
+        if http or api:  # für Tests: fertiger Client
+            self.http, self.api = http, api
+        elif self.access in ("api", "api-ssl"):
+            try:
+                self.api = routeros_api.Client(conf["host"], _port(conf), user, pw, use_ssl=self.access == "api-ssl")
+            except routeros_api.APIError as ex:
+                raise _api_error(ex, conf)
+            self.http = None
+        else:
+            self.api = None
+            self.http = httpx.Client(base_url=_base(conf), auth=(user, pw), verify=False, timeout=15, headers={"Content-Type": "application/json"})
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        (self.api or self.http).close()
+
+
+def _api_error(ex, conf=None):
+    kind, _, msg = str(ex).partition(":")
+    port = _port(conf) if conf else 8728
+    if kind == "connect":
+        return DriverError(f"MikroTik nicht erreichbar auf Port {port} ({msg}) – ist der Dienst api bzw. api-ssl unter IP → Services eingeschaltet "
+                           "und für díktyo freigegeben (Available From)?")
+    if kind == "tls":
+        return DriverError("TLS-Verbindung fehlgeschlagen – für api-ssl braucht der MikroTik ein Zertifikat (IP → Services → api-ssl → Certificate) "
+                           "oder „RouterOS-API“ ohne TLS wählen")
+    if kind == "auth":
+        return DriverError("Anmeldung abgelehnt (Benutzer/Passwort prüfen; die Benutzergruppe braucht die Rechte read und api)")
+    if kind == "trap" and "permission" in msg:
+        return DriverError("Keine Berechtigung – die Benutzergruppe braucht für diese Funktion zusätzliche Rechte (z. B. write, reboot, test)")
+    if kind == "io":
+        return DriverError(f"Verbindung zum MikroTik abgebrochen ({msg})")
+    return DriverError(f"MikroTik meldet Fehler: {msg or ex}"[:200])
 
 
 def _client(conf):
-    return httpx.Client(base_url=_base(conf), auth=(conf.get("username") or "admin", conf.get("password") or ""), verify=False, timeout=15,
-                        headers={"Content-Type": "application/json"})
+    return _Conn(conf)
 
 
 def _req(cl, method, path, optional=False, **kw):
+    if cl.api:
+        try:
+            return cl.api.request(method, path, json=kw.get("json"))
+        except routeros_api.NoSuchCommand:
+            if optional:
+                return None
+            raise DriverError(f"Diese RouterOS-Version kennt „{path}“ nicht")
+        except routeros_api.APIError as ex:
+            if optional and str(ex).startswith("trap:"):
+                return None
+            raise _api_error(ex)
     try:
-        r = cl.request(method, "/" + path, **kw)
+        r = cl.http.request(method, "/" + path, **kw)
     except httpx.ConnectError as ex:
+        if "WRONG_VERSION_NUMBER" in str(ex) or "wrong version number" in str(ex):
+            raise DriverError("Am Port antwortet kein HTTPS-Dienst – für Port 8728 „RouterOS-API“ wählen, für den Dienst www „REST über HTTP“")
         raise DriverError(f"MikroTik nicht erreichbar ({ex}) – ist der Dienst www-ssl bzw. www unter IP → Services eingeschaltet?")
     except httpx.HTTPError as ex:
         raise DriverError(f"MikroTik nicht erreichbar: {ex}")
@@ -67,7 +146,7 @@ def _req(cl, method, path, optional=False, **kw):
     try:
         return r.json()
     except ValueError:
-        raise DriverError("Unerwartete Antwort – ist das die REST-API von RouterOS 7?")
+        raise DriverError("Unerwartete Antwort – ist das die REST-API von RouterOS 7? Sonst „RouterOS-API“ wählen")
 
 
 def _get(cl, path, optional=False):
@@ -283,21 +362,6 @@ def poll(conf, state):
     return res, metrics, state
 
 
-def backup(conf, state):
-    """Konfiguration als Text („/export“, ohne Passwörter) per SSH mit denselben Zugangsdaten."""
-    from .. import sshcfg
-    try:
-        text, fp = sshcfg.run(conf["host"], int(conf.get("ssh_port") or 22), conf.get("username") or "admin", conf.get("password") or "",
-                              "/export", known=state.get("ssh_hostkey"))
-    except sshcfg.SSHError as ex:
-        raise DriverError(str(ex))
-    state["ssh_hostkey"] = fp
-    text = re.sub(r"^# \w{3}/\d{2}/\d{4} \d\d:\d\d:\d\d by RouterOS.*$|^# \d{4}-\d\d-\d\d \d\d:\d\d:\d\d by RouterOS.*$", "# (Zeitstempel entfernt)", text, flags=re.M)
-    if "/interface" not in text and "/ip" not in text:
-        raise DriverError("MikroTik hat keine Konfiguration geliefert (SSH-Dienst und Recht „ssh“ der Benutzergruppe prüfen)")
-    return "mikrotik.rsc", text.encode(), True
-
-
 def action(conf, state, kind, params):
     """kind: port (iface, id, up) | poe_cycle (iface) | wlan (iface, id, menu, on) | wol (mac, iface) | reboot"""
     with _client(conf) as cl:
@@ -317,7 +381,7 @@ def action(conf, state, kind, params):
             try:
                 _req(cl, "POST", "system/reboot", json={})
             except DriverError as ex:
-                if "nicht erreichbar" not in str(ex):  # die Verbindung bricht beim Neustart oft ab
+                if "nicht erreichbar" not in str(ex) and "abgebrochen" not in str(ex):  # die Verbindung bricht beim Neustart oft ab
                     raise
             return "MikroTik startet neu (dauert etwa eine Minute)"
     raise DriverError(f"Unbekannte Aktion {kind}")

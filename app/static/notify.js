@@ -15,7 +15,7 @@ async function notifySettings(ctx, el) {
   const s = r.settings, dis = ctx.canEdit ? '' : 'disabled';
   el.innerHTML = `<form class="panel" id="notifyform"><h3>${t('Benachrichtigungen')}</h3>
     <p class="muted small" style="margin-top:0">${t('Meldet Ereignisse dieses Profils per E-Mail oder ntfy (Push aufs Handy) – zusätzlich zu Home Assistant. Mehrere Ereignisse werden höchstens einmal pro Minute zu einer Nachricht gebündelt.')}</p>
-    ${r.last_error ? `<p class="errtxt small">${t('Letzter Versand')}: ${h(r.last_error)}</p>` : r.last_sent ? `<p class="muted small">${t('Zuletzt verschickt {d}', { d: h(fmtDate(new Date(r.last_sent * 1000).toISOString())) })}</p>` : ''}
+    ${r.last_error ? `<p class="errtxt small">${t('Letzter Versand')}: ${h(ts(r.last_error))}</p>` : r.last_sent ? `<p class="muted small">${t('Zuletzt verschickt {d}', { d: h(fmtDate(new Date(r.last_sent * 1000).toISOString())) })}</p>` : ''}
     <div class="grid2">
       <div><label class="chk"><input type="checkbox" name="email" ${s.email ? 'checked' : ''} ${dis}> <b>${t('E-Mail')}</b></label>
         <label>${t('Empfänger (leer = Besitzer des Profils)')}</label><input name="email_to" value="${h(s.email_to)}" placeholder="ich@example.com, du@example.com" ${dis}>

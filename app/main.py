@@ -8,7 +8,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import catalog, mailer, oidc, twofa, routes_actions, routes_backup, routes_catalog, routes_integrations, routes_inventory, routes_scan, routes_speed, routes_cabling, routes_vlans, routes_prometheus, routes_oidc, security, users
+from . import catalog, mailer, msg_en, oidc, twofa, routes_actions, routes_backup, routes_catalog, routes_integrations, routes_inventory, routes_scan, routes_speed, routes_cabling, routes_vlans, routes_prometheus, routes_oidc, security, users
 from .scan import ident
 from .auth import (COOKIE, ROLES, client_ip, current_user, lang_of, profile_access, rate_limit, require_admin, require_user,
                    start_session, text, touch)
@@ -58,8 +58,14 @@ async def csrf_guard(request: Request, call_next):
     if request.url.path.startswith("/api/") and request.method not in ("GET", "HEAD", "OPTIONS") \
             and request.headers.get("x-requested-with") != CSRF_HEADER:
         msg = "Fehlender Request-Header"
-        return JSONResponse({"error": ERR_EN.get(msg, msg) if lang_of(request) == "en" else msg}, status_code=403)
+        return JSONResponse({"error": msg_en.en(msg) if lang_of(request) == "en" else msg}, status_code=403)
     return await call_next(request)
+
+
+# ------------------------------------------------------------------ Übersetzung der Server-Meldungen (für gespeicherte Texte)
+@app.get("/api/i18n/messages")
+def i18n_messages():
+    return JSONResponse(msg_en.table(), headers={"Cache-Control": "public, max-age=3600"})
 
 
 # ------------------------------------------------------------------ Status
@@ -484,131 +490,9 @@ def smtp_test(request: Request, admin=Depends(require_admin)):
 
 
 # ------------------------------------------------------------------ Fehlertexte, Oberfläche
-ERR_EN = {
-    "Bitte anmelden": "Please sign in", "Nur für Administratoren": "Administrators only",
-    "Zu viele Versuche. Bitte einige Minuten warten.": "Too many attempts. Please wait a few minutes.",
-    "Fehlender Request-Header": "Missing request header",
-    "Die Registrierung ist geschlossen. Bitte einen Administrator um ein Konto bitten.": "Registration is closed. Please ask an administrator for an account.",
-    "E-Mail-Adresse oder Passwort ist falsch": "E-mail or password is wrong",
-    "Bitte eine gültige E-Mail-Adresse angeben": "Please enter a valid e-mail address",
-    "Das Passwort muss mindestens 8 Zeichen haben": "The password must be at least 8 characters long",
-    "Für diese E-Mail-Adresse gibt es schon ein Konto": "An account with this e-mail address already exists",
-    "Der Link ist ungültig oder abgelaufen. Bitte einen neuen anfordern.": "This link is invalid or has expired. Please request a new one.",
-    "Das aktuelle Passwort stimmt nicht": "The current password is wrong",
-    "Konto nicht gefunden": "Account not found", "Es muss mindestens ein Administrator bleiben": "At least one administrator must remain",
-    "Das eigene Konto kann hier nicht gelöscht werden": "You cannot delete your own account here",
-    "Profil nicht gefunden": "Profile not found", "Dafür fehlen dir in diesem Profil die Rechte": "You do not have the rights for this in this profile",
-    "Name fehlt": "Name missing", "Unbekannte Rolle": "Unknown role", "Kein Konto mit dieser E-Mail-Adresse": "No account with this e-mail address",
-    "Ein Profil braucht mindestens einen Besitzer": "A profile needs at least one owner", "Mitglied nicht gefunden": "Member not found",
-    "E-Mail-Versand ist nicht eingerichtet": "Sending e-mail is not set up",
-    "Gerät nicht gefunden": "Device not found", "Standort nicht gefunden": "Location not found", "VLAN nicht gefunden": "VLAN not found",
-    "Subnetz nicht gefunden": "Subnet not found", "Katalogeintrag nicht gefunden": "Catalog entry not found", "Port nicht gefunden": "Port not found",
-    "Standort gehört nicht zu diesem Profil": "Location does not belong to this profile",
-    "Gegenstelle gehört nicht zu diesem Profil": "Connected device does not belong to this profile",
-    "VLAN gehört nicht zu diesem Profil": "VLAN does not belong to this profile",
-    "Ein Gerät kann nicht mit sich selbst verbunden werden": "A device cannot be connected to itself",
-    "Diese Verbindung würde einen Ring ergeben": "This connection would create a loop",
-    "Ein Standort kann nicht in sich selbst liegen": "A location cannot be inside itself",
-    "Ungültiges Netz, Beispiel: 192.168.178.0/24": "Invalid network, example: 192.168.178.0/24",
-    "Das Gateway liegt nicht im Netz": "The gateway is not inside the network",
-    "Für den DHCP-Bereich Anfang und Ende angeben": "Enter start and end of the DHCP range",
-    "Der DHCP-Bereich muss im Netz liegen und mit der kleineren Adresse beginnen": "The DHCP range must be inside the network and start with the lower address",
-    "Die VLAN-ID muss zwischen 1 und 4094 liegen": "The VLAN ID must be between 1 and 4094",
-    "Hersteller und Modell sind erforderlich": "Manufacturer and model are required",
-    "Diesen Katalogeintrag gibt es schon": "This catalog entry already exists",
-    "Kein Sicherungsziel eingerichtet": "No backup target configured", "Keine gültige Sicherungsdatei": "Not a valid backup file",
-    "Wiederherstellen ist nur in einer leeren Installation möglich": "Restoring is only possible in an empty installation",
-    "Die Backup-Passphrase ist falsch": "The backup passphrase is wrong",
-    "Die Backup-Passphrase muss mindestens 8 Zeichen haben": "The backup passphrase must be at least 8 characters long",
-    "Gescannt werden IPv4-Netze": "Only IPv4 networks are scanned", "Für dieses Profil läuft schon ein Scan": "A scan is already running for this profile",
-    "Auftrag nicht gefunden": "Job not found", "Unbekannte Aktion": "Unknown action", "Regel nicht gefunden": "Rule not found",
-    "Bezeichnung und mindestens eine Bedingung sind erforderlich": "Label and at least one condition are required",
-    "Unbekannter Treiber": "Unknown driver", "Adresse fehlt": "Address missing", "Integration nicht gefunden": "Integration not found",
-    "Gerät gehört nicht zu diesem Profil": "Device does not belong to this profile", "Ungültige Angabe": "Invalid value",
-    "Keine Antwort (Adresse, Community oder SNMP am Gerät prüfen)": "No answer (check address, community or SNMP on the device)",
-    "Die FRITZ!Box verlangt eine Anmeldung. Benutzer und Passwort angeben.": "The FRITZ!Box requires a sign-in. Enter user and password.",
-    "MQTT-Anmeldung abgelehnt (Benutzer oder Passwort prüfen)": "MQTT sign-in rejected (check user and password)",
-    "Token abgelehnt (Long-Lived Access Token prüfen)": "Token rejected (check the long-lived access token)",
-    "Token oder MQTT-Broker angeben": "Enter a token or an MQTT broker",
-    "Konfigurations-Backup nicht gefunden": "Configuration backup not found",
-    "Ungültige Positionen": "Invalid positions",
-    "Zeitplan nicht gefunden": "Schedule not found",
-    "Für die Quarantäne wird eine FRITZ!Box-Integration mit Benutzer gebraucht": "Quarantine needs a FRITZ!Box integration with a user",
-    "Eintrag nicht gefunden": "Entry not found",
-    "Uhrzeit im Format HH:MM angeben": "Enter the time as HH:MM",
-    "Mindestens einen Wochentag wählen": "Choose at least one weekday",
-    "Start und Ende dürfen nicht gleich sein": "Start and end must differ",
-    "Diese Aktion ist für das Gerät nicht (mehr) verfügbar – Ansicht neu laden": "This action is not (or no longer) available for the device – reload the view",
-    "Ungültige Zeit für das Zurückschalten": "Invalid time for switching back",
-    "Kein geplantes Zurückschalten": "No scheduled switch-back",
-    "Für Schaltaktionen Benutzer und Passwort der FRITZ!Box angeben (Recht „FRITZ!Box Einstellungen“)": "Enter the FRITZ!Box user and password for actions (permission “FRITZ!Box settings”)",
-    "Kein Claude-API-Schlüssel hinterlegt (Einstellungen → KI)": "No Claude API key stored (Settings → AI)",
-    "Hersteller und Modell werden für die KI-Suche gebraucht": "Manufacturer and model are needed for the AI lookup",
-    "Die KI hat die Anfrage abgelehnt": "The AI declined the request",
-    "Claude-API-Schlüssel ungültig": "Claude API key invalid",
-    "Der API-Schlüssel darf dieses Modell oder die Websuche nicht nutzen (Websuche in der Console freigeben)": "The API key may not use this model or web search (enable web search in the Console)",
-    "Claude API: Anfragelimit erreicht – kurz warten": "Claude API: rate limit reached – wait a moment",
-    "Claude API: kein Guthaben auf dem Konto": "Claude API: no credit on the account",
-    "Claude API nicht erreichbar (Internetzugang des Containers prüfen)": "Claude API not reachable (check the container's internet access)",
-    "Die KI hat keinen Katalogeintrag geliefert – später erneut versuchen": "The AI did not return a catalog entry – try again later",
-    "Authenticator-Schlüssel ungültig (Base32 aus der FRITZ!Box, z. B. „WI5M JOGQ …“)": "Authenticator key invalid (Base32 from the FRITZ!Box, e.g. “WI5M JOGQ …”)",
-    "Bitte Systeminformationen einfügen": "Please paste system information",
-    "Hersteller und Modell nicht erkannt – z. B. die Ausgabe von „dmidecode -t system“ einfügen": "Manufacturer and model not recognised – paste e.g. the output of “dmidecode -t system”",
-    "Der Code aus der App hat 6 Ziffern": "The code from the app has 6 digits",
-    "FRITZ!Box hat den Code nicht angenommen": "The FRITZ!Box did not accept the code",
-    "Export abgelehnt – Code falsch oder abgelaufen? Neuen Code aus der App nehmen.": "Export rejected – wrong or expired code? Use a new code from the app.",
-    "Anmeldung an der Weboberfläche der FRITZ!Box abgelehnt (Benutzer/Passwort prüfen)": "Sign-in to the FRITZ!Box web interface rejected (check user/password)",
-    "Weboberfläche der FRITZ!Box nicht erreichbar": "FRITZ!Box web interface not reachable",
-    "Für diese Integration gibt es keine Diagnose": "There is no diagnosis for this integration",
-    "Das Gerät hat keine IPv4-Adresse": "The device has no IPv4 address",
-    "nmap ist nicht installiert": "nmap is not installed",
-    "Zeitlimit erreicht – „Schnell“ wählen oder später erneut versuchen": "Time limit reached – choose “Quick” or try again later",
-    "Die FRITZ!Box verlangt für den Export eine Bestätigung (zweiter Faktor). Automatisch geht das nicht – bitte „Konfiguration sichern“ von Hand auslösen und an der FRITZ!Box bestätigen.": "The FRITZ!Box requires a confirmation (second factor) for the export. This cannot be done automatically – please start “Back up configuration” by hand and confirm on the FRITZ!Box.",
-    "Bestätigung an der FRITZ!Box gesperrt (zu viele Versuche) – bis zu 60 Minuten warten": "Confirmation on the FRITZ!Box blocked (too many attempts) – wait up to 60 minutes",
-    "Die FRITZ!Box wartet gerade auf eine andere Bestätigung – in zwei Minuten erneut versuchen": "The FRITZ!Box is waiting for another confirmation – try again in two minutes",
-    "Diese Integration kennt keinen zweiten Faktor": "This integration has no second factor",
-    "API-Schlüssel abgelehnt (in UniFi Network unter Integrationen einen lokalen Schlüssel erstellen, nicht den Site-Manager-Schlüssel)": "API key rejected (create a local key under Integrations in UniFi Network, not the Site Manager key)",
-    "Integration API nicht gefunden": "Integration API not found",
-    "Unerwartete Antwort (ist das eine UniFi-Konsole mit Network 9.0 oder neuer?)": "Unexpected response (is this a UniFi console with Network 9.0 or newer?)",
-    "Nur Text-Konfigurationen lassen sich vergleichen": "Only text configurations can be compared",
-    "Diese Integration unterstützt kein Konfigurations-Backup": "This integration does not support configuration backups",
-    "Für das Konfigurations-Backup Benutzer und Passwort der FRITZ!Box angeben": "Enter the FRITZ!Box user and password for the configuration backup",
-    "Benutzer hat nicht das Recht „FRITZ!Box Einstellungen“": "The user lacks the permission “FRITZ!Box settings”",
-    "Router hat keine Einstellungsdatei geliefert": "The router did not provide a settings file",
-    "Für das Konfigurations-Backup SSH-Benutzer und -Passwort des Switches angeben": "Enter the switch’s SSH user and password for the configuration backup",
-    "SSH-Anmeldung abgelehnt (Benutzer oder Passwort prüfen)": "SSH sign-in rejected (check user and password)",
-    "Gerät hat keine Konfiguration geliefert (Befehl prüfen)": "The device did not provide a configuration (check the command)",
-}
-# Meldungen mit Werten: Präfix übersetzen, Rest übernehmen
-ERR_EN_PREFIX = {"Ungültige MAC-Adresse: ": "Invalid MAC address: ", "Ungültige IP-Adresse: ": "Invalid IP address: ",
-                 "Ungültiges Netz: ": "Invalid network: ", "Ungültige Adresse: ": "Invalid address: ",
-                 "Herstellerliste konnte nicht geladen werden: ": "Vendor list could not be loaded: ", "Ungültiger Ausdruck: ": "Invalid expression: ",
-                 "FRITZ!Box nicht erreichbar: ": "FRITZ!Box not reachable: ", "Home Assistant nicht erreichbar: ": "Home Assistant not reachable: ",
-                 "Proxmox nicht erreichbar: ": "Proxmox not reachable: ",
-                 "Versand fehlgeschlagen: ": "Sending failed: "}
-ERR_EN_RE = [(r"^Port (.+) ist schon mit (.+) belegt$", r"Port \1 is already connected to \2"),
-             (r"^Das Subnetz (.+) gibt es schon$", r"The subnet \1 already exists"),
-             (r"^MQTT-Broker „(.+)“ unbekannt: .*$", r"MQTT broker “\1” unknown: this name only exists inside Home Assistant. Enter the IP address of Home Assistant (port 1883)."),
-             (r"^MQTT-Broker (.+) nicht erreichbar: (.*)$", r"MQTT broker \1 not reachable: \2"),
-             (r"^VLAN (\d+) gibt es schon$", r"VLAN \1 already exists"),
-             (r"^Netz (.+) ist zu groß zum Scannen \(höchstens /20\)$", r"Network \1 is too large to scan (at most /20)")]
-
-
 def err_response(request, status, detail):
     if lang_of(request) == "en" and isinstance(detail, str):
-        en = ERR_EN.get(detail)
-        if en is None:
-            for de_p, en_p in ERR_EN_PREFIX.items():
-                if detail.startswith(de_p):
-                    rest = detail[len(de_p):]
-                    en = en_p + ERR_EN.get(rest, rest)
-                    break
-        if en is None:
-            for pat, rep in ERR_EN_RE:
-                if re.match(pat, detail):
-                    en = re.sub(pat, rep, detail)
-                    break
-        detail = en or detail
+        detail = msg_en.en(detail)
     return JSONResponse({"error": detail}, status_code=status)
 
 

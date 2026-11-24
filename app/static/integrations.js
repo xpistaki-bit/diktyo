@@ -89,10 +89,10 @@ DRIVER_STEPS.docker = [
 ];
 DRIVER_HELP.mikrotik = 'díktyo liest Ports, Clients (DHCP, ARP, Bridge, WLAN), Nachbarn und WAN; schalten nur über „Aktionen“ mit Bestätigung.';
 DRIVER_STEPS.mikrotik = [
-  'RouterOS 7 nötig (System → Packages zeigt die Version). Die REST-API läuft über den Dienst <b>www-ssl</b> (HTTPS) – ab 7.9 alternativ <b>www</b> (HTTP, nur im eigenen Netz).',
-  'Für HTTPS braucht www-ssl ein Zertifikat. Im Terminal (WinBox → New Terminal):<pre>/certificate add name=diktyo common-name=diktyo days-valid=3650\n/certificate sign diktyo\n/ip service set www-ssl certificate=diktyo disabled=no</pre>',
-  'Eigenen Benutzer anlegen – nur lesen:<pre>/user group add name=diktyo-read policy=read,rest-api,api,ssh,!local,!telnet,!ftp,!winbox,!web\n/user add name=diktyo group=diktyo-read password=GEHEIM</pre>Für <b>Aktionen</b> (Port, PoE, WLAN, Neustart, Wake-on-LAN) stattdessen <span class="mono">policy=read,write,reboot,test,rest-api,api,ssh</span>.',
-  'Konfigurations-Backup liest „/export“ per SSH (Dienst ssh, Port 22) mit demselben Benutzer – Passwörter sind im Export nicht enthalten.',
+  'Zugang <b>RouterOS-API</b> (Standard, RouterOS 6 und 7): unter IP → Services den Dienst <b>api</b> (Port 8728) einschalten und bei „Available From“ die Adresse von díktyo erlauben. Mit TLS: <b>api-ssl</b> (Port 8729, braucht ein Zertifikat).',
+  'Eigenen Benutzer anlegen – nur lesen:<pre>/user group add name=diktyo-read policy=read,api,!local,!telnet,!ssh,!ftp,!winbox,!web,!rest-api\n/user add name=diktyo group=diktyo-read password=GEHEIM</pre>Für <b>Aktionen</b> (Port, PoE, WLAN, Neustart, Wake-on-LAN) stattdessen <span class="mono">policy=read,write,reboot,test,api</span>.',
+  'Alternativ <b>REST</b> (nur RouterOS 7): Dienst www-ssl (HTTPS, Zertifikat nötig) oder ab 7.9 www (HTTP), Recht rest-api statt api.',
+  'Ein Konfigurations-Backup macht díktyo bei MikroTik nicht – dafür hat RouterOS eigene Backups (System → Backup, auch in die MikroTik-Cloud).',
 ];
 const EVENT = { watch_change: 'Wachliste: Änderung', device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät', action_undo_failed: 'Zurückschalten fehlgeschlagen', quarantined: 'Neues Gerät in Quarantäne', schedule_failed: 'Zeitplan fehlgeschlagen', firmware_update: 'Firmware-Update verfügbar' };
 const RANGES = [[7200, '2 h'], [86400, '24 h'], [172800, '2 Tage'], [604800, '7 Tage']];
@@ -193,7 +193,7 @@ async function tabIntegrations(ctx) {
           <div class="row">${ctx.canEdit ? `<button class="sm" data-poll>${t('Jetzt abfragen')}</button><button class="sm" data-edit>${t('Bearbeiten')}</button><button class="sm danger" data-del>${t('Löschen')}</button>` : ''}</div></div>
         <p class="muted small" style="margin:4px 0 0">${i.last_ok ? t('zuletzt erfolgreich {d}', { d: h(ago(i.last_ok)) }) : t('noch nicht abgefragt')} · ${t('alle {n}', { n: i.interval_s < 60 ? i.interval_s + ' s' : i.interval_s / 60 + ' min' })}
           ${i.summary?.device_id ? ` · <a href="#" data-dev="${i.summary.device_id}">${t('Gerät öffnen')}</a>` : ''}</p>
-        ${i.last_error ? `<p class="${i.last_ok ? 'warnc' : 'errtxt'} small">${h(i.last_error)}</p>` : ''}
+        ${i.last_error ? `<p class="${i.last_ok ? 'warnc' : 'errtxt'} small">${h(ts(i.last_error))}</p>` : ''}
         ${i.can_backup ? `<p class="small cfgline"><b>${t('Konfiguration')}:</b> ${i.cfg_ok ? t('zuletzt gesichert {d}', { d: h(ago(i.cfg_ok)) }) : t('noch nicht gesichert')}
           ${i.cfg_result?.status === 'error' ? ` · <span class="${i.cfg_result.second_factor ? 'warnc' : 'errtxt'}">${h(t(i.cfg_result.message))}</span>` : i.cfg_result?.status === 'unchanged' ? ` · <span class="muted">${t('unverändert')}</span>` : ''}
           ${ctx.canEdit ? `<button class="sm" data-cfg>${t('Konfiguration sichern')}</button>` : ''}</p>` : ''}
@@ -718,8 +718,8 @@ async function integrationDialog(ctx, i, drv) {
         db.disabled = true; const out = $('#diagres', f); out.innerHTML = `<p class="muted small">${t('Diagnose läuft (bis zu 15 s) …')}</p>`;
         try {
           const r = await api('POST', `${P}/integrations/diagnose`, { ...fd(f), driver: drv.key, id: i.id });
-          out.innerHTML = `<ul class="diag">${r.steps.map(s => `<li class="${s.ok === true ? 'ok' : s.ok === false ? 'bad' : 'info'}"><b>${h(t(s.title))}</b><div class="small">${h(s.detail)}</div></li>`).join('')}</ul>
-            <p class="diag-sum"><b>${t('Ergebnis')}:</b> ${h(r.summary)}</p>`;
+          out.innerHTML = `<ul class="diag">${r.steps.map(s => `<li class="${s.ok === true ? 'ok' : s.ok === false ? 'bad' : 'info'}"><b>${h(t(s.title))}</b><div class="small">${h(ts(s.detail))}</div></li>`).join('')}</ul>
+            <p class="diag-sum"><b>${t('Ergebnis')}:</b> ${h(ts(r.summary))}</p>`;
         } catch (e) { out.innerHTML = `<p class="errtxt small">${h(e.message)}</p>`; }
         db.disabled = false;
       };

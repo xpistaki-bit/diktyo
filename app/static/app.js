@@ -5,10 +5,40 @@ const h = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&
 let LANG = (() => { try { return localStorage.getItem('dk_lang'); } catch { return null; } })() || ((navigator.language || 'de').startsWith('de') ? 'de' : 'en');
 /* t('Deutscher Text {n}', {n: 3}) – Deutsch ist der Schlüssel, Englisch steht in i18n.js */
 function t(s, v) {
-  let o = LANG === 'en' ? (window.I18N_EN[s] ?? s) : s;
+  let o = LANG === 'en' ? (window.I18N_EN[s] ?? tm(s)) : s;
   if (v) for (const k in v) o = o.replaceAll('{' + k + '}', v[k]);
   return o;
 }
+/* Meldungen des Servers (Fehler, Aktionen, Diagnosen) ins Englische – Tabelle aus /api/i18n/messages, wie app/msg_en.py */
+const MSG = { exact: {}, prefix: {}, patterns: [], regex: [] };
+async function loadMessages() {
+  try {
+    const m = await (await fetch('/api/i18n/messages')).json();
+    const esc = x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const rank = de => { const lit = de.split('{}').filter(x => x.trim()); return [-lit.length, -lit.join('').length]; };
+    m.patterns.sort((a, b) => { const x = rank(a[0]), y = rank(b[0]); return x[0] - y[0] || x[1] - y[1]; });
+    Object.assign(MSG, m, { patterns: m.patterns.map(([de, en]) => [new RegExp('^' + de.split('{}').map(esc).join('([\\s\\S]+?)') + '$'), en]),
+      regex: m.regex.map(([p, r]) => [new RegExp(p), r]) });
+  } catch { }
+}
+function tm(s, depth = 0) {
+  if (typeof s !== 'string' || !s || depth > 4) return s;
+  if (s in MSG.exact) return MSG.exact[s];
+  for (const [rx, r] of MSG.regex) if (rx.test(s)) return s.replace(rx, r);
+  for (const p in MSG.prefix) if (s.startsWith(p)) return MSG.prefix[p] + tm(s.slice(p.length), depth + 1);
+  for (const [rx, en] of MSG.patterns) {
+    const m = rx.exec(s);
+    if (!m) continue;
+    const g = m.slice(1).map(x => tm(x, depth + 1));
+    let i = 0;
+    let out = en.replace(/\{(\d*)\}/g, (_, n) => g[n === '' ? i++ : +n] ?? '');
+    if (en.startsWith('{') && depth === 0) out = out.charAt(0).toUpperCase() + out.slice(1);
+    return out;
+  }
+  return s;
+}
+/* gespeicherte Server-Texte (letzter Fehler, Diagnose, Scan …) in der gewählten Sprache */
+const ts = s => LANG === 'en' ? tm(s) : s;
 const app = $('#app');
 let STATE = { version: '', repo: 'https://github.com/xpistaki-bit/diktyo', user: null, first_run: false, registration_open: false, mail_enabled: false, min_pw: 8 };
 const ROLE = { owner: 'Besitzer', edit: 'Bearbeiten', view: 'Lesen' };
@@ -469,7 +499,7 @@ async function renderBackup(el) {
       <a class="btn" href="/api/backup/download">${t('Sicherung herunterladen')}</a><button type="button" id="impbk">${t('Profile aus Sicherung importieren')}</button>
       <input type="file" id="impfile" accept=".zip,application/zip" hidden></div>
     ${last ? `<div class="last"><b>${t('Letzte Sicherung')}:</b> ${fmtDate(last.time)} · ${(last.size / 1024).toFixed(0)} KB
-      <ul>${last.results.map(r => `<li class="${r.ok ? 'ok' : 'err'}">${r.ok ? '✓' : '✗'} ${h(r.target)} – ${h(r.detail)}</li>`).join('')}</ul></div>` : ''}
+      <ul>${last.results.map(r => `<li class="${r.ok ? 'ok' : 'err'}">${r.ok ? '✓' : '✗'} ${h(r.target)} – ${h(ts(r.detail))}</li>`).join('')}</ul></div>` : ''}
   </form>`;
   const bindRm = () => {
     $$('[data-rmt]', el).forEach(b => b.onclick = () => b.closest('.target').remove());
@@ -526,7 +556,7 @@ async function renderBackup(el) {
 
 /* ---------------------------------------------------------------- Start */
 (async () => {
-  try { STATE = { ...STATE, ...await (await fetch('/api/state')).json() }; } catch { }
+  await Promise.all([(async () => { try { STATE = { ...STATE, ...await (await fetch('/api/state')).json() }; } catch { } })(), loadMessages()]);
   if (STATE.user?.lang && STATE.user.lang !== LANG) { LANG = STATE.user.lang; try { localStorage.setItem('dk_lang', LANG); } catch { } }
   const oidcErr = new URLSearchParams(location.search).get('oidc_error');
   if (oidcErr) history.replaceState(null, '', '/' + location.hash);

@@ -19,7 +19,7 @@ function histText(x) {
     return `${t(HIST_FIELD[x.field] || x.field)}: <span class="muted">${h(v(x.old))}</span> → <b>${h(v(x.new))}</b>${src}`;
   }
   if (x.cat === 'status') return x.kind === 'online' ? `<span class="okc">● ${t('wieder online')}</span>${src}` : `<span class="offc">● ${t('offline')}</span>${src}`;
-  if (x.cat === 'action') return `${t('Aktion')}: <b>${h(t(x.new))}</b> <span class="${x.kind === 'done' ? 'muted' : 'errtxt'}">${h(x.old || '')}</span> <span class="muted">· ${h(x.user)}</span>`;
+  if (x.cat === 'action') return `${t('Aktion')}: <b>${h(t(x.new))}</b> <span class="${x.kind === 'done' ? 'muted' : 'errtxt'}">${h(ts(x.old || ''))}</span> <span class="muted">· ${h(x.user)}</span>`;
   if (x.cat === 'config') return `${t('Neuer Konfigurationsstand')} <span class="mono small">${h(x.new)}</span>`;
   if (x.cat === 'quarantine') return `${t('Quarantäne')}: ${x.kind === 'active' ? `<span class="warnc">${t('Internet gesperrt')}</span>` : x.kind === 'released' ? t('freigegeben') : `<span class="errtxt">${h(x.old || x.kind)}</span>`}`;
   return h(x.kind);

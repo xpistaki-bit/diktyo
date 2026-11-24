@@ -95,6 +95,9 @@ def line(kind, data, lang="de"):
     class D(dict):
         def __missing__(self, k):
             return ""
+    if lang == "en":  # eingesetzte Meldungen (z. B. Fehler einer Integration) ebenfalls englisch
+        from .msg_en import en
+        data = {k: en(v) if isinstance(v, str) else v for k, v in data.items()}
     return " ".join(tpl.format_map(D({k: (str(v) if v is not None else "") for k, v in data.items()})).split())
 
 

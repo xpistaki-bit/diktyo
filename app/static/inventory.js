@@ -77,7 +77,7 @@ async function tabDevices(ctx) {
       ${ctx.canEdit ? `<button class="pri" id="add">${t('+ Gerät')}</button>` : ''}</div><div id="list"></div>`;
   const cols = [
     { k: 'online', label: '', cls: 'dotcol', val: d => d.online == null ? 2 : d.online ? 0 : 1, html: onlineDot },
-    { k: 'name', label: t('Name'), html: d => `<b>${h(d.name)}</b>${d.hostname && d.hostname.toLowerCase() !== d.name.toLowerCase() ? `<small class="muted block mono">${h(d.hostname)}</small>` : ''}` },
+    { k: 'name', label: t('Name'), val: d => devName(d), html: d => `<b>${h(devName(d))}</b>${d.hostname && d.hostname.toLowerCase() !== d.name.toLowerCase() ? `<small class="muted block mono">${h(d.hostname)}</small>` : ''}` },
     { k: 'type', label: t('Typ'), val: d => typeName(d.type), html: d => h(typeName(d.type)) },
     { k: 'model', label: t('Hersteller / Modell'), val: d => `${d.manufacturer} ${d.model}`, html: d => h(`${d.manufacturer} ${d.model}`.trim()) },
     { k: 'ip', label: t('IP'), cls: 'mono', val: d => d.ips.length ? ipNum(d.ips[0].address) : 1e13, html: d => d.ips.map(i => h(i.address)).join('<br>') },

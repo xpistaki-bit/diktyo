@@ -273,28 +273,40 @@ Clients und den WAN-Traffic des Gateways (Internet-Leitung in der Topologie, Dia
 **Hinweis:** Beide Integrationen sind nach der Dokumentation der Hersteller gebaut und gegen nachgebildete Controller
 getestet, aber noch nicht an echter Hardware. Klappt etwas nicht, die Meldung der Integration als Issue melden.
 
-### MikroTik (RouterOS 7)
+### MikroTik (RouterOS 6 und 7)
 
-Für hAP, hEX, RB5009, CRS-Switches, cAP, Chateau usw. mit RouterOS 7 (REST-API). Im MikroTik-Terminal (WinBox →
-*New Terminal*):
+Für hAP, hEX, RB2011, RB5009, CRS-Switches, cAP, Chateau usw. Standard ist die **RouterOS-API** (Dienst *api*,
+Port 8728) – sie gibt es bei RouterOS 6 und 7. Im MikroTik-Terminal (WinBox → *New Terminal*):
 
 ```
-/certificate add name=diktyo common-name=diktyo days-valid=3650
-/certificate sign diktyo
-/ip service set www-ssl certificate=diktyo disabled=no
-/user group add name=diktyo-read policy=read,rest-api,api,ssh,!local,!telnet,!ftp,!winbox,!web
+/ip service set api disabled=no address=192.168.88.0/24
+/user group add name=diktyo-read policy=read,api,!local,!telnet,!ssh,!ftp,!winbox,!web,!rest-api
 /user add name=diktyo group=diktyo-read password=GEHEIM
 ```
 
-Für **Aktionen** (Port, PoE, WLAN, Neustart, Wake-on-LAN) die Gruppe mit `policy=read,write,reboot,test,rest-api,api,ssh`
-anlegen. Ab RouterOS 7.9 geht statt HTTPS auch HTTP (Dienst *www*, nur im eigenen Netz).
+Bei `address=` das Netz bzw. die Adresse von díktyo eintragen (IP → Services → api → *Available From*). Für
+**Aktionen** (Port, PoE, WLAN, Neustart, Wake-on-LAN) die Gruppe mit `policy=read,write,reboot,test,api` anlegen.
+
+In díktyo unter *Zugang* wählen:
+
+| Zugang | Dienst am MikroTik | Port | RouterOS |
+|---|---|---|---|
+| RouterOS-API (Standard) | api | 8728 | 6 und 7 |
+| RouterOS-API mit TLS | api-ssl (braucht ein Zertifikat) | 8729 | 6 und 7 |
+| REST über HTTPS | www-ssl (braucht ein Zertifikat), Recht *rest-api* | 443 | ab 7.1 |
+| REST über HTTP | www, Recht *rest-api* | 80 | ab 7.9 |
+
+Das Feld *Port* bleibt leer, wenn der Dienst auf dem Standard-Port läuft. Meldet díktyo „Am Port antwortet kein
+HTTPS-Dienst“, ist REST gewählt, am Port läuft aber die API (oder umgekehrt). Integrationen, die vor 0.33.1 mit REST
+angelegt wurden, bleiben bei REST; steht dort Port 8728 bzw. 8729, nutzt díktyo automatisch die API.
 
 díktyo liest Modell und Version, Ports (Link, Tempo, Traffic, PoE), Clients aus DHCP und ARP, welches Gerät an welchem
 Port bzw. WLAN hängt (Bridge-Hosts, WLAN-Registrierungen mit Signal), Nachbarn per MNDP/LLDP und den WAN-Traffic
-(Interface-Liste „WAN“). Das Konfigurations-Backup holt `/export` per SSH (ohne Passwörter); „Änderungen“ zeigt, was
-sich zwischen zwei Ständen geändert hat.
+(Interface-Liste „WAN“). Ein **Konfigurations-Backup** macht díktyo bei MikroTik nicht – RouterOS hat dafür eigene
+Backups (*System → Backup*, auch in die MikroTik-Cloud).
 
-**Hinweis:** gegen eine nachgebildete RouterOS-API getestet, noch nicht an echter Hardware – Rückmeldungen willkommen.
+**Hinweis:** gegen nachgebildete Schnittstellen getestet (REST und RouterOS-API über einen echten Socket), noch nicht an
+echter Hardware – Rückmeldungen willkommen.
 
 ### OPNsense
 
@@ -539,7 +551,7 @@ Topologie-Seitenleiste und in der Frontplatte beim angeklickten Port:
 | Gerät im FRITZ!Box-Netz | Internetzugang sperren/freigeben, Aufwecken (Wake-on-LAN) | wie oben |
 | Gerät an einem Switch-Port | Port ab-/einschalten, PoE neu starten | SNMP mit **Schreibrechten** (Zyxel: Benutzer in einer Gruppe mit Schreibrechten, z. B. „admin“, bzw. Community mit read-write) |
 | VM / LXC | starten, herunterfahren, neu starten | Proxmox-Token mit `VM.PowerMgmt` (siehe unten) |
-| MikroTik | Port ab-/einschalten, PoE neu starten, WLAN ein/aus, Wake-on-LAN, Neustart | Benutzergruppe mit write, reboot, test |
+| MikroTik | Port ab-/einschalten, PoE neu starten, WLAN ein/aus, Wake-on-LAN, Neustart | Benutzergruppe mit write, reboot, test (und api bzw. rest-api) |
 | OPNsense | Internetzugang je Gerät (über den Alias), Neustart | Alias + Block-Regel, Recht *Firewall: Alias: Edit* |
 | Docker | Container starten, stoppen, neu starten | Socket-Proxy mit POST und ALLOW_* |
 | UniFi | verwaltetes Gerät (Gateway, Switch, AP) neu starten; PoE an einem Switch-Port neu starten | API-Schlüssel mit Schreibrecht |

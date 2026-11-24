@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.33 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.33.1 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -310,10 +310,11 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
 - **Ubiquiti UniFi** (local Network Integration API with an API key, UniFi Network 9.0 or newer; consoles and
   self-hosted controllers): gateway, switches and access points with port status (shown on the front panel), the
   connected clients with their access point or switch, and the gateway's WAN traffic.
-- **MikroTik RouterOS 7** (REST API, user with read + rest-api; write/reboot/test for actions): ports with link,
-  speed, traffic and PoE, clients from DHCP/ARP with the port or Wi-Fi they use (bridge hosts, registration table),
-  MNDP/LLDP neighbours and WAN traffic; configuration backup via SSH `/export`; actions port off/on, PoE restart,
-  Wi-Fi on/off, Wake-on-LAN, restart.
+- **MikroTik RouterOS 6 and 7** – by default over the **RouterOS API** (service api, port 8728, or api-ssl 8729 with
+  TLS; user with read + api), alternatively REST (RouterOS 7, www-ssl/www): ports with link, speed, traffic and PoE,
+  clients from DHCP/ARP with the port or Wi-Fi they use (bridge hosts, registration table), MNDP/LLDP neighbours and
+  WAN traffic; actions port off/on, PoE restart, Wi-Fi on/off, Wake-on-LAN, restart (write/reboot/test). No
+  configuration backup – RouterOS has its own backups (also to the MikroTik cloud).
 - **OPNsense** (official REST API with key/secret): interfaces with status and traffic, clients from DHCP leases and
   ARP, WAN status/traffic, firmware updates, `config.xml` backup; internet block per device via a firewall alias.
 - **Docker** (Engine API, ideally through a socket proxy): containers as virtual devices on the Docker host with image,
@@ -424,6 +425,12 @@ with the numbers on the cables: switch port → patch cable → patch panel port
 cable → device (each part optional). Patch panels and outlets are shown as port grids; click a free port to add a
 cable run. Each run is checked against the connection detected on the switch port (✓ matches, ⚠ something else is
 connected there). Cable runs also appear in the device dialog, in the PDF ("Cabling" section) and in backups.
+
+## Languages
+
+The interface is available in German and English. With English selected, messages from the server (errors, results
+of actions, diagnostics, stored errors of integrations) are shown in English as well, and so are notifications if their
+language is set to English. A test checks that every message in the code has an English version.
 
 ## Output
 

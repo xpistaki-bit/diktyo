@@ -11,6 +11,9 @@ const REASON = {
   random: 'zufällige MAC-Adresse', model: 'Modell erkannt: {v}', fingerbank: 'Fingerbank: {v}', own: 'dieser Rechner',
 };
 const identLabel = i => i ? (LANG === 'en' ? i.label_en || i.label : i.label) : '';
+/* Name aus der Erkennung („<Bezeichnung> .67“), solange unverändert: auf Englisch mit der englischen Bezeichnung */
+const devName = d => LANG === 'en' && d.ident?.label && d.ident.label_en && d.ident.label !== d.ident.label_en && d.name?.startsWith(d.ident.label)
+  ? d.ident.label_en + d.name.slice(d.ident.label.length) : d.name;
 function reasonsHtml(i) {
   if (!i || !i.reasons) return '';
   return i.reasons.map(r => `<span class="reason">${h(t(REASON[r.k] || r.k, { v: r.v }))}${r.score ? ` (${r.score})` : ''}</span>`).join('');
@@ -48,7 +51,7 @@ async function tabInbox(ctx) {
           <div class="reasons">${reasonsHtml(d.ident)}</div>
           ${d.ident?.also?.length ? `<small class="muted">${t('Oder')}: ${d.ident.also.map(a => h(LANG === 'en' ? a.label_en : a.label)).join(', ')}</small>` : ''}</div>
         <div class="facts"><span class="mono">${d.ips.map(i => h(i.address)).join(', ')}</span><span class="mono muted">${h(d.mac) || '–'}</span>
-          <span>${h(d.name)}</span><span class="muted small">${t('zuletzt gesehen')} ${h(ago(d.last_seen))}</span></div>
+          <span>${h(devName(d))}</span><span class="muted small">${t('zuletzt gesehen')} ${h(ago(d.last_seen))}</span></div>
         ${ctx.canEdit ? `<div class="acts"><button class="pri sm" data-act="confirm">${t('Übernehmen')}</button><button class="sm" data-act="edit">${t('Bearbeiten')}</button><button class="sm" data-act="ignore">${t('Ignorieren')}</button></div>` : ''}
       </div>`).join('') : `<div class="panel empty-box">${t('Keine neuen Geräte.')} <a href="#/p/${ctx.pid}/netzscan">${t('Netzscan starten')}</a></div>`}</div>
     ${ignored.length ? `<details class="ignored"><summary>${t('Ignorierte Geräte')} (${ignored.length})</summary>
@@ -111,9 +114,9 @@ async function tabScan(ctx) {
     <div class="table-wrap"><table class="compact"><thead><tr><th>${t('Start')}</th><th>${t('Modus')}</th><th>${t('Netze')}</th><th>${t('Dauer')}</th><th>${t('Geräte')}</th><th>${t('neu')}</th><th>${t('offline')}</th><th>${t('Status')}</th></tr></thead><tbody>
       ${r.jobs.length ? r.jobs.map(j => `<tr><td class="mono">${fmtDate(j.created)}${j.params.scheduled ? ` <span class="badge">${t('geplant')}</span>` : ''}</td><td>${t(MODE[j.result.mode || j.params.mode]?.[0] || '–')}</td>
         <td class="mono">${h((j.result.targets || j.params.targets || []).join(', '))}</td>
-        ${j.status === 'error' ? `<td colspan="4" class="errtxt">${h(j.message)}</td>` : `<td class="mono">${j.result.duration ? j.result.duration + ' s' : ''}</td>
+        ${j.status === 'error' ? `<td colspan="4" class="errtxt">${h(ts(j.message))}</td>` : `<td class="mono">${j.result.duration ? j.result.duration + ' s' : ''}</td>
         <td class="mono">${j.result.hosts ?? ''}</td><td class="mono">${j.result.new ? `<a href="#/p/${ctx.pid}/posteingang">${j.result.new}</a>` : (j.result.new ?? '')}</td><td class="mono">${j.result.offline ?? ''}</td>`}
-        <td>${j.status === 'done' ? `<span class="badge ok">${t('fertig')}</span>` : j.status === 'error' ? `<span class="badge err" title="${h(j.message)}">${t('Fehler')}</span>` : `<span class="badge">${t(j.status === 'running' ? 'läuft' : 'wartet')}</span>`}</td></tr>`).join('')
+        <td>${j.status === 'done' ? `<span class="badge ok">${t('fertig')}</span>` : j.status === 'error' ? `<span class="badge err" title="${h(ts(j.message))}">${t('Fehler')}</span>` : `<span class="badge">${t(j.status === 'running' ? 'läuft' : 'wartet')}</span>`}</td></tr>`).join('')
         : `<tr><td colspan="8" class="empty">${t('Noch kein Scan.')}</td></tr>`}
     </tbody></table></div>`;
 

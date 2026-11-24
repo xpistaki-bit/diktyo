@@ -43,8 +43,8 @@ function issuesPanel(r, pid) {
   const c = r.counts;
   const issues = [
     ...r.offline.map(x => `<li class="bad"><span class="ic">●</span><span>${devLink(x.id, x.name)} ${t('ist offline')}</span></li>`),
-    ...r.broken.map(x => `<li class="bad"><span class="ic">⚠</span><span><a href="#/p/${pid}/integrationen">${h(x.name)}</a>: ${h(x.error)}</span></li>`),
-    ...r.failed.map(x => `<li class="bad"><span class="ic">⚡</span><span>${h(t(x.label))}: ${h(x.message || '')}</span></li>`),
+    ...r.broken.map(x => `<li class="bad"><span class="ic">⚠</span><span><a href="#/p/${pid}/integrationen">${h(x.name)}</a>: ${h(ts(x.error))}</span></li>`),
+    ...r.failed.map(x => `<li class="bad"><span class="ic">⚡</span><span>${h(t(x.label))}: ${h(ts(x.message || ''))}</span></li>`),
     ...r.firmware.map(x => `<li class="warn"><span class="ic">⬆</span><span>${devLink(x.id, x.name)}: ${t('Firmware {a} → {b}', { a: h(x.installed || '?'), b: h(x.latest || t('neue Version')) })}</span></li>`),
     ...(c.inbox ? [`<li class="info"><span class="ic">✚</span><a href="#/p/${pid}/posteingang">${c.inbox === 1 ? t('1 neues Gerät im Posteingang') : t('{n} neue Geräte im Posteingang', { n: c.inbox })}</a></li>`] : []),
     ...(r.speed?.slow ? [`<li class="warn"><span class="ic">⇣</span><span>${t('Internet langsam: zuletzt ↓ {d}, Leitung ↓ {l}', { d: fmtMbit(r.speed.last.down_bps), l: fmtMbit(r.speed.line_down) })}</span></li>`] : []),

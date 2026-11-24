@@ -1,9 +1,9 @@
-"""MikroTik RouterOS 7 (REST-API) gegen eine nachgebildete API – Antworten wie bei einem hAP ax³ (Werte als Zeichenketten)."""
+"""MikroTik RouterOS über REST und die RouterOS-API gegen nachgebildete Schnittstellen – Antworten wie bei einem hAP ax³ (Werte als Zeichenketten)."""
 import json
 
 import httpx
 
-from app import actions, integrations, sshcfg, topology
+from app import actions, integrations, topology
 from app.db import db, now
 from app.drivers import mikrotik
 from tests.test_m6 import H, login
@@ -64,9 +64,8 @@ def handler(req):
 
 
 def mock(monkeypatch):
-    real = mikrotik._client
-    monkeypatch.setattr(mikrotik, "_client", lambda conf: httpx.Client(base_url=real(conf).base_url, auth=("diktyo", "x"),
-                                                                       transport=httpx.MockTransport(handler)))
+    monkeypatch.setattr(mikrotik, "_client", lambda conf: mikrotik._Conn(dict(conf, access="https"), http=httpx.Client(
+        base_url=mikrotik._base(dict(conf, access="https")), auth=("diktyo", "x"), transport=httpx.MockTransport(handler))))
 
 
 def test_mikrotik_poll_apply_actions(monkeypatch):
@@ -123,20 +122,142 @@ def test_mikrotik_poll_apply_actions(monkeypatch):
     assert fb
 
 
-def test_mikrotik_backup_export(monkeypatch):
-    calls = []
-    monkeypatch.setattr(sshcfg, "run", lambda host, port, user, pw, cmd, known=None: calls.append((host, port, user, cmd)) or (
-        "# 2026-11-19 10:00:00 by RouterOS 7.16.2\n/interface bridge\nadd name=bridge\n/ip address\nadd address=192.168.88.1/24 interface=bridge\n", "ssh-ed25519 SHA256:x"))
-    name, data, is_text = mikrotik.backup(dict(host="192.168.88.1", username="diktyo", password="x"), st := {})
-    assert name == "mikrotik.rsc" and is_text and b"/ip address" in data and b"2026-11-19" not in data and st["ssh_hostkey"].startswith("ssh-ed25519")
-    assert calls == [("192.168.88.1", 22, "diktyo", "/export")]
+def test_mikrotik_no_config_backup():
+    """MikroTik hat eigene Backups (auch in die Cloud) – díktyo bietet dafür keins an."""
+    assert mikrotik.CAN_BACKUP is False and not hasattr(mikrotik, "backup")
+    assert not any(f["key"] in ("cfg_schedule", "ssh_port") for f in mikrotik.FIELDS)
 
 
 def test_mikrotik_errors(monkeypatch):
-    real = mikrotik._client
-    monkeypatch.setattr(mikrotik, "_client", lambda conf: httpx.Client(base_url=real(conf).base_url, transport=httpx.MockTransport(lambda r: httpx.Response(401))))
+    monkeypatch.setattr(mikrotik, "_client", lambda conf: mikrotik._Conn(dict(conf, access="https"), http=httpx.Client(
+        base_url="https://h/rest", transport=httpx.MockTransport(lambda r: httpx.Response(401)))))
     try:
         mikrotik.test(dict(host="h", username="u", password="p"))
         raise AssertionError
     except mikrotik.DriverError as ex:
         assert "rest-api" in str(ex)
+
+
+# ------------------------------------------------------------ RouterOS-API (Port 8728) über einen echten Socket
+import socket  # noqa: E402
+import threading  # noqa: E402
+
+from app.drivers import routeros_api  # noqa: E402
+
+
+def _word(w):
+    b = w.encode()
+    return routeros_api._enc_len(len(b)) + b
+
+
+class FakeAPI(threading.Thread):
+    """Spricht das RouterOS-API-Protokoll; Daten wie der REST-Nachbau (handler)."""
+
+    def __init__(self, user="diktyo", password="x", legacy=False):
+        super().__init__(daemon=True)
+        self.srv = socket.socket()
+        self.srv.bind(("127.0.0.1", 0))
+        self.srv.listen(1)
+        self.port = self.srv.getsockname()[1]
+        self.user, self.password, self.legacy, self.calls = user, password, legacy, []
+
+    def run(self):
+        conn, _ = self.srv.accept()
+        f = conn.makefile("rb")
+
+        def read_len():
+            b = f.read(1)[0]
+            if b < 0x80:
+                return b
+            if b < 0xC0:
+                return ((b & 0x3F) << 8) + f.read(1)[0]
+            return ((b & 0x1F) << 16) + int.from_bytes(f.read(2), "big")
+
+        def send(*sentences):
+            conn.sendall(b"".join(b"".join(_word(w) for w in s) + b"\x00" for s in sentences))
+
+        while True:
+            words = []
+            try:
+                while (n := read_len()):
+                    words.append(f.read(n).decode())
+            except (IndexError, OSError):
+                return
+            cmd, attrs = words[0], dict(w[1:].split("=", 1) for w in words[1:] if w.startswith("="))
+            self.calls.append((cmd, attrs))
+            if cmd == "/login":
+                if self.legacy and "response" not in attrs:
+                    send(["!done", "=ret=0123456789abcdef0123456789abcdef"])
+                elif attrs.get("name") == self.user and (attrs.get("password") == self.password or "response" in attrs):
+                    send(["!done"])
+                else:
+                    send(["!trap", "=message=invalid user name or password (6)"], ["!done"])
+                continue
+            if cmd.endswith("/print"):
+                path = cmd[1:-6]
+                resp = handler(httpx.Request("GET", f"https://h/rest/{path}", headers={"authorization": "Basic x"}))
+                if resp.status_code >= 400:
+                    send(["!trap", "=message=no such command prefix"], ["!done"])
+                    continue
+                data = resp.json()
+                rows = data if isinstance(data, list) else [data]
+                send(*[["!re"] + [f"={k}={v}" for k, v in r.items()] for r in rows], ["!done"])
+                continue
+            if cmd == "/system/reboot":
+                conn.close()
+                return
+            send(["!done"])
+
+
+def test_routeros_api_poll_and_actions():
+    srv = FakeAPI()
+    srv.start()
+    conf = dict(host="127.0.0.1", access="api", port=srv.port, username="diktyo", password="x")
+    r = mikrotik.test(conf)
+    assert (r["name"], r["model"], r["ports"], r["wifi"]) == ("Buero-MikroTik", "hAP ax^3", 5, 2) and r["clients"] >= 3, r
+    cmds = [c for c, _ in srv.calls]
+    assert cmds[0] == "/login" and "/interface/print" in cmds and "/interface/wifi/registration-table/print" in cmds
+    # Aktionen über die API: set mit .id, Befehl mit Parametern, Neustart (Verbindung bricht ab)
+    srv = FakeAPI()
+    srv.start()
+    conf["port"] = srv.port
+    assert "abgeschaltet" in mikrotik.action(conf, {}, "port", dict(iface="ether4", id="*4", up=False))
+    assert srv.calls[-1] == ("/interface/set", {".id": "*4", "disabled": "true"})
+    for kind, params, cmd in (("poe_cycle", dict(iface="ether5"), "/interface/ethernet/poe/power-cycle"),
+                              ("wol", dict(mac="11:22:33:44:55:01", iface="bridge"), "/tool/wol"), ("reboot", {}, "/system/reboot")):
+        srv = FakeAPI()
+        srv.start()
+        conf["port"] = srv.port
+        mikrotik.action(conf, {}, kind, params)
+        assert srv.calls[-1][0] == cmd
+
+
+def test_routeros_api_login_and_errors():
+    srv = FakeAPI(legacy=True)  # RouterOS vor 6.43: Challenge-Response
+    srv.start()
+    assert mikrotik.test(dict(host="127.0.0.1", access="api", port=srv.port, username="diktyo", password="x"))["name"] == "Buero-MikroTik"
+    assert srv.calls[1][1]["response"].startswith("00") and len(srv.calls[1][1]["response"]) == 34
+    srv = FakeAPI(password="anders")
+    srv.start()
+    try:
+        mikrotik.test(dict(host="127.0.0.1", access="api", port=srv.port, username="diktyo", password="x"))
+        raise AssertionError
+    except mikrotik.DriverError as ex:
+        assert "Rechte read und api" in str(ex)
+    free = socket.socket()
+    free.bind(("127.0.0.1", 0))
+    port = free.getsockname()[1]
+    free.close()
+    try:
+        mikrotik.test(dict(host="127.0.0.1", access="api", port=port, username="u", password="p"))
+        raise AssertionError
+    except mikrotik.DriverError as ex:
+        assert f"Port {port}" in str(ex) and "IP → Services" in str(ex)
+
+
+def test_access_compat():
+    assert mikrotik.access_of(dict(scheme="https", port=443)) == "https"  # alte REST-Integration bleibt
+    assert mikrotik.access_of(dict(scheme="https", port=8728)) == "api"  # API-Port heißt immer API
+    assert mikrotik.access_of(dict(port="8729")) == "api-ssl"
+    assert mikrotik.access_of(dict()) == "https" and mikrotik.access_of(dict(access="api")) == "api"
+    assert mikrotik._port(dict(access="api")) == 8728 and mikrotik._port(dict(access="http", port="")) == 80
