@@ -1072,6 +1072,8 @@ Object.assign(window.I18N_EN, {
   'Anwendung „Traditional Web“, Redirect-URI eintragen. Issuer: https://<host>/oidc. Für Rollen den Scope „roles“ ergänzen und als Gruppen-Claim „roles“ eintragen.': 'Application “Traditional Web”, enter the redirect URI. Issuer: https://<host>/oidc. For roles add the “roles” scope and enter “roles” as groups claim.',
   'Verbindung testen': 'Test connection', 'Anbieter erreichbar, {n} Schlüssel': 'Provider reachable, {n} keys', 'Aussteller': 'Issuer', 'Anmeldung': 'Sign-in', 'Signatur': 'Signature',
   'Zum vollständigen Test in einem privaten Fenster „Anmelden mit …“ ausprobieren.': 'For a full test, try “Sign in with …” in a private window.',
+  'VMs und Container (Proxmox)': 'VMs and containers (Proxmox)', 'VLAN fehlt in díktyo': 'VLAN missing in díktyo', 'ohne Tag (VLAN des Host-Ports)': 'untagged (VLAN of the host port)',
+  'Suche leeren': 'Clear search',
   'Topologie': 'Topology', 'Topologie-Grafik': 'Topology graphic', 'Schnell-Ping': 'Quick ping', 'Alle Gruppen aufklappen': 'Expand all groups', 'Alle zuklappen': 'Collapse all',
   'Stand {d}': 'as of {d}', '{n} WLAN-Geräte': '{n} Wi-Fi devices', '{n} VMs / Container': '{n} VMs / containers', '{n} online': '{n} online', 'aufklappen': 'expand',
   'Ohne Verbindung': 'Not connected', 'Details': 'Details', 'Detailansicht': 'Detail view', 'Ping': 'Ping', 'Ping: {n} von {m} online': 'Ping: {n} of {m} online',

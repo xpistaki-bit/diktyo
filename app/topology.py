@@ -22,6 +22,7 @@ def _rank(d):
 def build(c, pid, expanded=(), status="confirmed", traffic=False):
     COLW = globals()["COLW"] + (90 if traffic else 0)  # Platz für die Durchsatz-Angaben an den Linien
     devs = {d["id"]: d for d in inventory.list_devices(c, pid, status)}
+    _root_at_gateway(devs, _gateway(c, pid, devs))
     children = {}
     for d in devs.values():
         u = d.get("uplink")
@@ -229,6 +230,38 @@ def _wan_port(c, did):
         if not best and re.search(r"wan|internet|dsl|kabel|cable|fiber|glasfaser|uplink", r["name"] or "", re.I):
             best = r["name"]
     return best
+
+
+def _gateway(c, pid, devs):
+    """Gerät mit dem Internetanschluss laut Integration (FRITZ!Box, Gateway von UniFi/Omada, MikroTik, OPNsense) oder None."""
+    inet = _internet(c, pid, devs, [])
+    return next(iter(inet["routers"])) if inet and len(inet["routers"]) == 1 else None
+
+
+def _root_at_gateway(devs, gw):
+    """Baum am Internet-Gateway aufhängen: Hängt das Gateway laut Erkennung selbst an einem anderen Gerät (z. B. weil ein
+    Switch am Port zur FRITZ!Box nur deren Adresse sieht), wird die Richtung auf dem Weg zur bisherigen Wurzel nur für die
+    Darstellung umgedreht – der Switch hängt dann unter dem Router, und alle Linien laufen von links nach rechts."""
+    if not gw or gw not in devs:
+        return
+    path, seen = [gw], {gw}
+    while True:
+        u = devs[path[-1]].get("uplink")
+        if not u or u["device_id"] not in devs or u["device_id"] in seen or u.get("medium") in ("wlan", "mesh", "virtual"):
+            break
+        path.append(u["device_id"])
+        seen.add(u["device_id"])
+    if len(path) < 2:
+        return
+    if any(devs[x]["type"] in ("router", "firewall", "modem") for x in path[1:]):
+        return  # Router hinter einem anderen Router/Modem (doppeltes NAT): die erkannte Richtung stimmt
+    new = {gw: None}
+    for a, b in zip(path, path[1:]):  # a hing an b -> jetzt hängt b an a; Ports tauschen die Seite
+        u = devs[a]["uplink"]
+        new[b] = dict(u, device_id=a, device_name=devs[a]["name"], port_name=u.get("local_port_name") or "", local_port_name=u.get("port_name") or "",
+                      port_id=u.get("local_port_id"), local_port_id=u.get("port_id"))
+    for k, v in new.items():
+        devs[k] = dict(devs[k], uplink=v)
 
 
 def _internet(c, pid, devs, root_routers):

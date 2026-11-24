@@ -246,6 +246,25 @@ def state(c, pid):
             ports.append(dict(id=p["id"], no=p["port_no"], name=p["name"] or str(p["port_no"]), peers=pr,
                               prod=prod.get(p["id"]) or dict(u=None, t=[]), plan=(planm.get(p["id"]) or dict(u=None, t=[])) if plan else None))
         switches.append(dict(id=d["id"], name=d["name"], type=d["type"], snmp=d["id"] in snmp, ports=ports, infra=d["type"] in VLAN_TYPES))
+    # VMs und Container (Proxmox): VLAN-Tag aus der Netzwerkkarte des Gasts, angezeigt beim Host
+    by_vid = {v["vid"]: v["id"] for v in vlans}
+    guests = {}
+    for r in c.execute("""SELECT gd.id, gd.name, gd.type, gd.data, bi.device_id AS host FROM links l JOIN interfaces ai ON ai.id=l.a_if
+                          JOIN interfaces bi ON bi.id=l.b_if JOIN devices gd ON gd.id=ai.device_id
+                          WHERE l.profile_id=? AND l.medium='virtual' AND gd.status='confirmed' ORDER BY gd.name COLLATE NOCASE""", (pid,)):
+        px = json.loads(r["data"] or "{}").get("proxmox")
+        if not px:
+            continue
+        tag = str(px.get("tag") or "").strip()
+        vid = int(tag) if tag.isdigit() else None
+        guests.setdefault(r["host"], []).append(dict(id=r["id"], name=r["name"], kind=px.get("kind") or "", vmid=px.get("vmid"), vid=vid,
+                                                     vlan_id=by_vid.get(vid), bridge=px.get("bridge") or ""))
+    have = {s["id"] for s in switches}
+    for hid in guests:
+        if hid not in have and hid in devs and devs[hid]["status"] == "confirmed":
+            switches.append(dict(id=hid, name=devs[hid]["name"], type=devs[hid]["type"], snmp=False, ports=[], infra=devs[hid]["type"] in VLAN_TYPES))
+    for s in switches:
+        s["guests"] = guests.get(s["id"], [])
     out = dict(vlans=vlans, switches=switches, plan=plan, diff=diff(c, pid) if plan else [])
     out["warnings"] = dict(prod=checks(c, pid, out, "prod"), plan=checks(c, pid, out, "plan") if plan else [])
     return out
@@ -298,6 +317,27 @@ def checks(c, pid, st, mode):
                     out.append(dict(level="warn", device_id=s["id"], interface_id=p["id"], code="trunk",
                                     text=f"{s['name']} · Port {p['name']} → {other['name']}: führt {', '.join(lab(v) for v in miss if v in vl)} nicht weiter, "
                                          f"obwohl es auf {other['name']} genutzt wird (als tagged eintragen)"))
+    # Switch-Port zu einem Hypervisor: muss die VLANs seiner VMs/Container führen (tagged)
+    guests_of = {s["id"]: s.get("guests") or [] for s in st["switches"]}
+    for s in st["switches"]:
+        for p in s["ports"]:
+            m = p[key] or dict(u=None, t=[])
+            have = set(([m["u"]] if m["u"] else []) + m["t"])
+            for peer in p["peers"]:
+                need = {g["vlan_id"] for g in guests_of.get(peer["id"], []) if g["vlan_id"]}
+                miss = sorted(need - have, key=lambda v: vl[v]["vid"] if v in vl else 0)
+                if miss and have:
+                    names = ", ".join(g["name"] for g in guests_of[peer["id"]] if g["vlan_id"] in miss)[:120]
+                    out.append(dict(level="warn", device_id=s["id"], interface_id=p["id"], code="guest_vlan",
+                                    text=f"{s['name']} · Port {p['name']} → {peer['name']}: führt {', '.join(lab(v) for v in miss if v in vl)} nicht, "
+                                         f"das VMs/Container nutzen ({names}) – als tagged eintragen"))
+    seen_vid = set()
+    for gl in guests_of.values():
+        for g in gl:
+            if g["vid"] and not g["vlan_id"] and g["vid"] not in seen_vid:
+                seen_vid.add(g["vid"])
+                out.append(dict(level="info", code="guest_unknown_vlan",
+                                text=f"VLAN {g['vid']} wird von {g['name']} (Proxmox) genutzt, ist in díktyo aber noch nicht angelegt"))
     for v in st["vlans"]:
         if v["id"] in used and not v["subnets"] and v["vid"] != 1:
             out.append(dict(level="info", code="no_subnet", text=f"{lab(v['id'])} hat noch kein Subnetz (IPAM) – für die Adressprüfung eines anlegen"))

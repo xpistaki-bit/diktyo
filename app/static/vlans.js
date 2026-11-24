@@ -87,8 +87,11 @@ async function tabVlans(ctx) {
   function swPanel(s, vm) {
     return `<div class="panel vp-sw"><div class="hud-h"><h3>${h(s.name)}<em>${h(typeName(s.type))}</em></h3>
       <span class="row">${s.snmp ? `<span class="badge" title="${h(t('Produktiver Stand kommt per SNMP vom Switch und lässt sich hier nicht ändern.'))}">${t('vom Switch (SNMP)')}</span>` : `<span class="badge">${t('von Hand')}</span>`}
-      ${editable(s) ? `<button type="button" class="sm" data-selall="${s.id}">${t('alle wählen')}</button>` : ''}</span></div>
-      <div class="vp-ports">${s.ports.map(p => portTile(s, p, vm)).join('')}</div></div>`;
+      ${editable(s) && s.ports.length ? `<button type="button" class="sm" data-selall="${s.id}">${t('alle wählen')}</button>` : ''}</span></div>
+      ${s.ports.length ? `<div class="vp-ports">${s.ports.map(p => portTile(s, p, vm)).join('')}</div>` : ''}
+      ${s.guests?.length ? `<div class="vp-guests"><span class="vp-gh">${t('VMs und Container (Proxmox)')}</span>
+        ${s.guests.map(g => { const v = vm[g.vlan_id]; return `<a href="#" class="vp-guest" data-gdev="${g.id}" style="${v ? `--vc:${v.color}` : ''}" title="${h(g.bridge ? 'Bridge ' + g.bridge : '')}">
+          <b class="mono">${g.vid ? g.vid : '–'}</b><span>${h(g.name)}</span><small>${g.vid ? (v ? h(v.name || '') : t('VLAN fehlt in díktyo')) : t('ohne Tag (VLAN des Host-Ports)')}</small></a>`; }).join('')}</div>` : ''}</div>`;
   }
 
   function draw() {
@@ -123,6 +126,7 @@ async function tabVlans(ctx) {
     const el = ctx.el;
     $$('[data-mode]', el).forEach(b => b.onclick = () => { ui.mode = b.dataset.mode; ui.sel.clear(); draw(); });
     $$('[data-view]', el).forEach(b => b.onclick = () => { ui.view = b.dataset.view; draw(); });
+    $$('[data-gdev]', el).forEach(a => a.onclick = ev => { ev.preventDefault(); deviceDialog(ctx, +a.dataset.gdev); });
     const more = $('.vp-more', el);
     if (more) more.ontoggle = () => { ui.more = more.open; };
     const sb = $('[data-start]', el);

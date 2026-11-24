@@ -592,6 +592,12 @@ stehen eingeklappt darunter – ist ein Gerät eigentlich ein Server oder Hyperv
 Ein Klick auf ein VLAN öffnet den VLAN-Dialog; dort ordnest du ihm die **Subnetze** aus IPAM zu (z. B. VLAN 1 = dein
 bisheriges Heimnetz). Erst dann prüft der Plan, ob die Adressen der Geräte zum neuen VLAN passen.
 
+**VMs und Container (Proxmox):** Das VLAN einer VM bzw. eines Containers stellst du in Proxmox an der Netzwerkkarte ein
+(*Hardware → Netzwerkgerät → VLAN-Tag*, bei LXC *Netzwerk → VLAN-Tag*). díktyo liest den Tag über die Proxmox-Integration
+und zeigt die Gäste im VLAN-Plan unter ihrem Host – mit VLAN-Nummer und -Farbe, „ohne Tag“ heißt: im VLAN des Host-Ports.
+Der Plan prüft, ob der Switch-Port zum Host alle VLANs seiner Gäste **tagged** führt, und meldet VLANs, die Gäste nutzen,
+die es in díktyo aber noch nicht gibt. Damit das klappt, muss die Linux-Bridge in Proxmox *VLAN aware* sein.
+
 **Produktiv** ist der Ist-Stand. Bei Switches mit SNMP-Integration liest díktyo ihn bei jeder Abfrage aus dem Switch
 (Q-BRIDGE-MIB, nur lesend; Kennzeichen *vom Switch (SNMP)*) – dort lässt er sich nicht von Hand ändern. Bei anderen
 Geräten trägst du ihn selbst ein. VLANs, die der Switch meldet, legt díktyo automatisch an.

@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.32 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.32.1 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -413,7 +413,9 @@ current state – read from switches with an SNMP integration (Q-BRIDGE-MIB, rea
 **Plan** is a separate copy for a migration: add planned VLANs, select ports (shift-click for ranges) and assign
 untagged/tagged VLANs. díktyo lists every port to change (productive → plan), warns when a device's static address
 doesn't fit the new VLAN's subnet or an uplink doesn't carry a VLAN used on the other switch, and ticks ports off
-automatically once an SNMP switch reports the new state. díktyo never writes to the switches.
+automatically once an SNMP switch reports the new state. VMs and containers from the Proxmox integration appear under
+their host with the VLAN tag of their network card, and the plan checks that the switch port to the host carries
+those VLANs tagged. díktyo never writes to the switches.
 
 ## Cabling (cables and patch panels)
 

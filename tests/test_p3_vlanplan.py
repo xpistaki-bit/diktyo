@@ -164,3 +164,36 @@ def test_end_devices_and_subnet_assignment():
     assert cl.put(f"{P}/vlans/{v1['id']}", json={"vid": 1, "name": "Standard", "subnets": [sid]}, headers=H).json()["vlans"][0]["subnets"] == ["192.0.2.0/24"]
     # ohne „subnets“ im Aufruf bleibt die Zuordnung
     assert cl.put(f"{P}/vlans/{v1['id']}", json={"vid": 1, "name": "Default"}, headers=H).json()["vlans"][0]["subnets"] == ["192.0.2.0/24"]
+
+
+def test_proxmox_guest_vlans():
+    """VLAN-Tag der VMs/Container (aus Proxmox) beim Host; Switch-Port zum Host muss diese VLANs tagged führen."""
+    import json as _json
+    from app import integrations
+    cl = login()
+    pid = cl.post("/api/profiles", json={"name": "VLAN-Gäste"}, headers=H).json()["profile"]["id"]
+    P = f"/api/profiles/{pid}"
+    mk = lambda **kw: cl.post(f"{P}/devices", json={"status": "confirmed", **kw}, headers=H).json()["id"]  # noqa: E731
+    sw = mk(name="Switch", type="switch", ports=[{"count": 8, "kind": "rj45", "speed": "1G"}])
+    pve = mk(name="pve1", type="hypervisor", ports=[{"count": 1, "kind": "rj45", "speed": "1G", "label": "LAN"}])
+    vm_iot = mk(name="homeassistant", type="server")
+    vm_lan = mk(name="pihole", type="server")
+    with db() as c:
+        port3 = c.execute("SELECT id FROM interfaces WHERE device_id=? AND port_no=3", (sw,)).fetchone()["id"]
+        integrations.set_auto_uplink(c, pid, pve, sw, "lan", port_id=port3)
+        for vm, tag in ((vm_iot, "20"), (vm_lan, "")):
+            integrations.set_auto_uplink(c, pid, vm, pve, "virtual")
+            c.execute("UPDATE devices SET data=? WHERE id=?", (_json.dumps(dict(proxmox=dict(vmid=100 + vm, node="pve1", kind="qemu", bridge="vmbr0", tag=tag))), vm))
+    v1 = cl.post(f"{P}/vlans", json={"vid": 1, "name": "LAN"}, headers=H).json()["vlans"][0]["id"]
+    cl.put(f"{P}/vlanplan/ports", json={"mode": "prod", "ports": [port3], "untagged": v1}, headers=H)
+    st = cl.get(f"{P}/vlanplan").json()
+    host = next(s for s in st["switches"] if s["name"] == "pve1")
+    assert {(g["name"], g["vid"]) for g in host["guests"]} == {("homeassistant", 20), ("pihole", None)}
+    codes = {w["code"] for w in st["warnings"]["prod"]}
+    assert "guest_unknown_vlan" in codes  # VLAN 20 noch nicht angelegt
+    v20 = cl.post(f"{P}/vlans", json={"vid": 20, "name": "IoT"}, headers=H).json()["vlans"]
+    v20 = next(v["id"] for v in v20 if v["vid"] == 20)
+    w = [x for x in cl.get(f"{P}/vlanplan").json()["warnings"]["prod"] if x["code"] == "guest_vlan"]
+    assert len(w) == 1 and "Port 3 → pve1" in w[0]["text"] and "homeassistant" in w[0]["text"]
+    cl.put(f"{P}/vlanplan/ports", json={"mode": "prod", "ports": [port3], "tagged": {str(v20): True}}, headers=H)
+    assert not [x for x in cl.get(f"{P}/vlanplan").json()["warnings"]["prod"] if x["code"] == "guest_vlan"]
