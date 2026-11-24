@@ -14,6 +14,7 @@ COPY app ./app
 COPY install/docker-entrypoint.sh /usr/local/bin/diktyo-start
 
 ENV DIKTYO_DATA=/data \
+    DIKTYO_DOCKER=1 \
     DIKTYO_PORT=8090 \
     TZ=Europe/Berlin \
     PYTHONUNBUFFERED=1

@@ -782,3 +782,12 @@ button .pin-ic{margin-right:2px} .pinbtn .pin-ic{margin:0}
 .vp-guest:hover{border-color:var(--cyan)}
 
 .np-btns{flex-wrap:wrap;gap:8px;margin-top:10px}
+
+/* Updates */
+.upd-badge{padding:3px 9px;border:1px solid var(--warn);border-radius:12px;color:var(--warn);font:600 12px var(--mono);text-decoration:none;box-shadow:0 0 10px rgba(255,176,32,.3)}
+.upd-head{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+.upd-head>div{display:flex;flex-direction:column} .upd-head b{font-size:20px}
+.upd-notes{margin:6px 0 12px;padding-left:18px} .upd-notes li{margin:3px 0}
+.upd-st{margin:12px 0;padding:8px 12px;border-left:3px solid var(--cyan);background:rgba(0,229,255,.06)}
+.upd-st.error{border-color:var(--err);background:rgba(255,77,106,.08)} .upd-st.done{border-color:var(--ok)}
+.upd-log{max-height:220px;overflow:auto;font-size:11.5px;background:#050b14;border:1px solid var(--line);padding:8px 10px;white-space:pre-wrap}

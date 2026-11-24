@@ -98,6 +98,7 @@ function drawHeader() {
   document.documentElement.lang = LANG;
   const u = STATE.user, sect = location.hash.replace(/^#\/?/, '').split('/')[0];
   $('#nav').innerHTML = `<a class="gh" href="${h(STATE.repo)}" target="_blank" rel="noopener" title="${t('Projekt auf GitHub')}">${ghIcon}<span>${STATE.version ? 'v' + h(STATE.version) : 'GitHub'}</span></a>`
+    + (u?.is_admin && STATE.update?.available ? `<a href="#/einstellungen" class="upd-badge" title="${h(t('Neue Version {v} verfügbar', { v: STATE.update.latest }))}">↑ ${t('Update')} v${h(STATE.update.latest)}</a>` : '')
     + (u ? `<a href="${homeHref()}" class="home" title="${t('Zum zuletzt geöffneten Profil')}">${homeIcon}<span>${t('Home')}</span></a><a href="#/" class="${sect === '' ? 'on' : ''}">${t('Profile')}</a><a href="#/katalog" class="${sect === 'katalog' ? 'on' : ''}">${t('Katalog')}</a><a href="#/einstellungen" class="${sect === 'einstellungen' ? 'on' : ''}">${t('Einstellungen')}</a><span class="who" title="${h(u.email)}">${h(u.email)}</span><button class="sm" data-logout>${t('Abmelden')}</button>` : '')
     + `<span class="lang" role="group" aria-label="Sprache / Language"><button data-l="de" class="${LANG === 'de' ? 'on' : ''}">DE</button><button data-l="en" class="${LANG === 'en' ? 'on' : ''}">EN</button></span>`;
   $$('#nav [data-l]').forEach(b => b.onclick = () => {
@@ -140,6 +141,7 @@ const pwHint = () => t('Mindestens {n} Zeichen', { n: STATE.min_pw });
 async function afterAuth(user) {
   STATE.user = user; STATE.first_run = false;
   if (user.lang && user.lang !== LANG) { LANG = user.lang; try { localStorage.setItem('dk_lang', LANG); } catch { } }
+  try { const s = await (await fetch('/api/state')).json(); STATE.update = s.update; } catch { }  // z. B. Update-Hinweis für Admins
   const to = STATE.after || '#/'; STATE.after = null;
   if (location.hash === to) route(); else location.hash = to;
 }
@@ -351,6 +353,7 @@ async function viewSettings() {
     <div id="acctsec" style="margin-top:14px"></div>
     <div id="acctoidc"></div>
     ${u.is_admin ? `
+    <h2>${t('Updates')}</h2><div id="updbox"></div>
     <h2>${t('Konten')}</h2>
     <div class="table-wrap"><table><thead><tr><th>${t('E-Mail-Adresse')}</th><th>${t('Rolle')}</th><th>${t('Profile')}</th><th>${t('Letzte Anmeldung')}</th><th></th></tr></thead><tbody>
       ${ul.users.map(x => `<tr data-uid="${x.id}"><td>${h(x.email)}${x.id === u.id ? ` <span class="muted">(${t('du')})</span>` : ''}</td>
@@ -381,7 +384,7 @@ async function viewSettings() {
 
   accountSecurity($('#acctsec', app));
   oidcAccount($('#acctoidc', app));
-  if (u.is_admin) oidcSettings($('#oidcbox', app));
+  if (u.is_admin) { oidcSettings($('#oidcbox', app)); updatePanel($('#updbox', app)); }
   $('#pw').onsubmit = async ev => {
     ev.preventDefault(); const v = fd(ev.target);
     if (v.password !== v.password2) return toast(t('Die Passwörter stimmen nicht überein'), true);

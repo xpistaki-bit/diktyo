@@ -8,7 +8,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import catalog, mailer, msg_en, oidc, twofa, routes_actions, routes_backup, routes_catalog, routes_integrations, routes_inventory, routes_scan, routes_speed, routes_cabling, routes_vlans, routes_prometheus, routes_oidc, security, users
+from . import catalog, mailer, msg_en, oidc, selfupdate, twofa, routes_actions, routes_backup, routes_catalog, routes_integrations, routes_inventory, routes_scan, routes_speed, routes_cabling, routes_vlans, routes_prometheus, routes_oidc, security, users
 from .scan import ident
 from .auth import (COOKIE, ROLES, client_ip, current_user, lang_of, profile_access, rate_limit, require_admin, require_user,
                    start_session, text, touch)
@@ -73,9 +73,14 @@ def i18n_messages():
 def state(request: Request):
     with db() as c:
         first = users.count(c) == 0
+        user = current_user(request)
+        upd = None
+        if user and user.get("is_admin"):  # Hinweis in der Kopfzeile, ohne Netzabfrage (prüft der Hintergrunddienst)
+            chk = selfupdate.info(c)["check"]
+            upd = dict(available=bool(chk.get("available")), latest=chk.get("latest"))
         return dict(version=VERSION, repo=REPO_URL, first_run=first,
                     registration_open=first or bool(get_setting(c, "registration_open", False)),
-                    mail_enabled=mailer.enabled(c), min_pw=users.MIN_PW, user=current_user(request), oidc=oidc.public(c))
+                    mail_enabled=mailer.enabled(c), min_pw=users.MIN_PW, user=user, oidc=oidc.public(c), update=upd)
 
 
 # ------------------------------------------------------------------ Anmeldung
@@ -476,6 +481,31 @@ def settings_put(body: dict = Body(...), admin=Depends(require_admin)):
         audit(c, "settings.update", admin["id"], detail=sorted(k for k in body if k in ("registration_open", "smtp")))
         touch(c)
         return _settings_out(c)
+
+
+# ------------------------------------------------------------------ Updates aus der Oberfläche (Admin)
+@app.get("/api/update")
+def update_get(admin=Depends(require_admin)):
+    with db() as c:
+        return dict(selfupdate.info(c), log=selfupdate.log_tail())
+
+
+@app.post("/api/update/check")
+def update_check(admin=Depends(require_admin)):
+    with db() as c:
+        selfupdate.check(c, force=True)
+        return dict(selfupdate.info(c), log=selfupdate.log_tail())
+
+
+@app.post("/api/update/start")
+def update_start(admin=Depends(require_admin)):
+    with db() as c:
+        try:
+            selfupdate.request(c, admin)
+        except selfupdate.UpdateError as ex:
+            raise HTTPException(400, str(ex))
+        audit(c, "update.start", admin["id"], detail=dict(from_version=VERSION, to=(selfupdate.info(c)["check"] or {}).get("latest")))
+        return dict(selfupdate.info(c), log=selfupdate.log_tail())
 
 
 @app.post("/api/settings/smtp/test")

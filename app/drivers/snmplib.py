@@ -219,8 +219,12 @@ def localize_key(password, engine_id, proto="SHA"):
 
 
 def _aes_cfb(key, iv, data, encrypt):
-    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-    c = Cipher(algorithms.AES(key), modes.CFB(iv))
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
+    try:  # ab cryptography 45 unter „decrepit“, im alten Pfad entfällt CFB mit Version 49
+        from cryptography.hazmat.decrepit.ciphers.modes import CFB
+    except ImportError:
+        from cryptography.hazmat.primitives.ciphers.modes import CFB
+    c = Cipher(algorithms.AES(key), CFB(iv))
     op = c.encryptor() if encrypt else c.decryptor()
     return op.update(data) + op.finalize()
 

@@ -154,6 +154,16 @@ def poller():
                 if n:
                     log(f"{n} alte Messwerte gelöscht")
                 last_prune = t
+                try:  # neue Version auf GitHub? (höchstens alle 12 Stunden, Ergebnis für die Oberfläche)
+                    from . import selfupdate
+                    r = {}
+                    with db() as c:
+                        if get_setting(c, "update_auto_check", True):
+                            r = selfupdate.check(c)
+                    if r.get("available") and r.get("ts", 0) > t - 60:
+                        log(f"Neue Version {r['latest']} auf GitHub verfügbar")
+                except Exception as ex:  # noqa: BLE001 – Update-Prüfung darf die Abfragen nie stören
+                    log("Update-Prüfung:", ex)
         except Exception as ex:
             log("Abfrage:", type(ex).__name__, ex)
         time.sleep(5)

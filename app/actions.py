@@ -43,7 +43,11 @@ def _own_addresses():
 
 
 def _integrations(c, pid, driver):
-    return [r for r in c.execute("SELECT * FROM integrations WHERE profile_id=? AND driver=? AND enabled=1 ORDER BY id", (pid, driver))]
+    rows = [r for r in c.execute("SELECT * FROM integrations WHERE profile_id=? AND driver=? AND enabled=1 ORDER BY id", (pid, driver))]
+    if driver == "mikrotik":  # per SNMP angebunden: nur lesen, keine Schaltaktionen
+        from .drivers import mikrotik
+        rows = [r for r in rows if mikrotik.access_of(json.loads(r["options"] or "{}")) != "snmp"]
+    return rows
 
 
 def _state(row):

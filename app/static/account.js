@@ -172,3 +172,52 @@ async function oidcSettings(el) {
     } catch (e) { res.innerHTML = `<p class="errtxt">${h(e.message)}</p>`; }
   };
 }
+
+/* Updates: neue Version auf GitHub, Update per Knopf (Installation per setup.sh, z. B. Proxmox-LXC), sonst Anleitung */
+async function updatePanel(el) {
+  let r;
+  try { r = await api('GET', '/api/update'); } catch (e) { el.innerHTML = `<p class="errtxt">${h(e.message)}</p>`; return; }
+  const draw = () => {
+    const c = r.check || {}, st = r.status || {}, busy = ['queued', 'running'].includes(st.state) && Date.now() / 1000 - (st.ts || 0) < 1800;
+    const notes = (c.notes || []).map(n => `<li><b class="mono">v${h(n.version)}</b> ${h(n.title)}</li>`).join('');
+    el.innerHTML = `<div class="panel upd">
+      <div class="upd-head"><div><span class="muted small">${t('Installiert')}</span><b class="mono">v${h(r.installed)}</b></div>
+        <div><span class="muted small">${t('Auf GitHub')}</span><b class="mono">${c.latest ? 'v' + h(c.latest) : '–'}</b></div>
+        <div class="grow">${c.error ? `<span class="warnc small">${h(ts(c.error))}</span>` : c.available ? `<span class="badge warn">${t('Update verfügbar')}</span>`
+          : c.latest ? `<span class="badge ok">${t('aktuell')}</span>` : ''}<br><span class="muted small">${c.checked ? t('geprüft {d}', { d: h(ago(c.checked)) }) : t('noch nicht geprüft')} · ${h(r.repo)} (${h(r.branch)})</span></div>
+        <button type="button" class="sm" data-ucheck ${busy ? 'disabled' : ''}>${t('Nach Updates suchen')}</button></div>
+      ${notes ? `<h4>${t('Was ist neu')}</h4><ul class="upd-notes">${notes}</ul>` : ''}
+      ${r.kind === 'systemd' ? `
+        ${busy || st.state ? `<div class="upd-st ${st.state || ''}"><b>${{ queued: t('angefordert'), running: t('läuft'), done: t('fertig'), error: t('Fehler') }[st.state] || ''}</b> ${h(ts(st.message || ''))}</div>` : ''}
+        ${r.log?.length && (busy || st.state === 'error') ? `<pre class="upd-log">${h(r.log.join('\n'))}</pre>` : ''}
+        ${c.available ? `<p class="muted small">${t('Vor dem Update sichert díktyo die Datenbank (die letzten drei Sicherungen bleiben in /var/lib/diktyo). Während der Installation ist díktyo etwa ein bis drei Minuten nicht erreichbar.')}</p>
+          <button type="button" class="pri" data-ustart ${busy ? 'disabled' : ''}>${t('Jetzt auf v{v} aktualisieren', { v: h(c.latest) })}</button>` : ''}`
+      : r.kind === 'docker' ? `<p class="muted small">${t('Docker: auf dem Docker-Host im Ordner von díktyo aktualisieren:')}</p><pre class="upd-log">git pull\ndocker compose up -d --build</pre>`
+      : `<p class="muted small">${t('Diese Installation hat noch keinen Update-Dienst. Einmal wie bisher auf dem Proxmox-Host aktualisieren – danach geht es hier per Knopf:')}</p>
+         <pre class="upd-log">CTID=&lt;ID&gt; bash -c "$(curl -fsSL https://raw.githubusercontent.com/${h(r.repo)}/${h(r.branch)}/install/update-proxmox.sh)"</pre>`}</div>`;
+    $('[data-ucheck]', el).onclick = async () => { try { r = await api('POST', '/api/update/check'); STATE.update = { available: r.check?.available, latest: r.check?.latest }; drawHeader(); draw(); } catch (e) { toast(e.message, true); } };
+    const go = $('[data-ustart]', el);
+    if (go) go.onclick = async () => {
+      if (!await confirmDlg(t('díktyo aktualisieren'), t('Auf Version {v} aktualisieren? díktyo sichert vorher die Datenbank und ist während der Installation kurz nicht erreichbar.', { v: h(r.check.latest) }), t('Aktualisieren'))) return;
+      try { r = await api('POST', '/api/update/start'); draw(); follow(r.check.latest); } catch (e) { toast(e.message, true); }
+    };
+    if (busy && !updatePanel.following) follow(c.latest);
+  };
+  // Fortschritt verfolgen: Status und Protokoll; während des Neustarts ist díktyo kurz weg; fertig, wenn die neue Version läuft
+  const follow = target => {
+    updatePanel.following = true;
+    const tick = async () => {
+      try {
+        const s = await (await fetch('/api/state')).json();
+        if (target && s.version === target) { updatePanel.following = false; toast(t('díktyo läuft jetzt in Version {v}', { v: target })); setTimeout(() => location.reload(), 1200); return; }
+        try { r = await api('GET', '/api/update'); draw(); } catch { }
+        if (r.status?.state === 'error') { updatePanel.following = false; return; }
+      } catch {
+        const st = $('.upd-st', el); if (st) st.innerHTML = `<b>${t('läuft')}</b> ${t('díktyo startet neu …')}`;
+      }
+      setTimeout(tick, 2500);
+    };
+    setTimeout(tick, 2000);
+  };
+  draw();
+}

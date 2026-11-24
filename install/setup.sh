@@ -88,8 +88,37 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 UNIT
+# Update aus der Weboberfläche: die Oberfläche (Benutzer diktyo) legt nur eine Anfrage-Datei ab; diese Pfad-Einheit
+# startet daraufhin das feste Update-Skript als root. Quelle steht in /opt/diktyo/update.conf (nur root kann sie ändern).
+install -m 755 -o root -g root "$SRC/install/self-update.sh" /opt/diktyo/self-update.sh
+if [ ! -f /opt/diktyo/update.conf ] || [ -n "${DIKTYO_REPO:-}${DIKTYO_BRANCH:-}" ]; then
+  printf 'REPO=%s\nBRANCH=%s\n' "${DIKTYO_REPO:-xpistaki-bit/diktyo}" "${DIKTYO_BRANCH:-main}" > /opt/diktyo/update.conf
+fi
+chown root:root /opt/diktyo/update.conf && chmod 644 /opt/diktyo/update.conf
+install -d -m 750 -o diktyo -g diktyo /var/lib/diktyo/update
+cat > /etc/systemd/system/diktyo-update.service <<UNIT
+[Unit]
+Description=díktyo update (requested from the web interface)
+
+[Service]
+Type=oneshot
+ExecStart=/opt/diktyo/self-update.sh
+TimeoutStartSec=1800
+UNIT
+cat > /etc/systemd/system/diktyo-update.path <<UNIT
+[Unit]
+Description=díktyo update request from the web interface
+
+[Path]
+PathExists=/var/lib/diktyo/update/request.json
+Unit=diktyo-update.service
+
+[Install]
+WantedBy=multi-user.target
+UNIT
 systemctl daemon-reload
 systemctl enable -q diktyo diktyo-worker
+systemctl enable -q --now diktyo-update.path
 systemctl restart diktyo diktyo-worker
 for i in $(seq 1 15); do
   curl -fs "http://127.0.0.1:${PORT}/api/state" >/dev/null 2>&1 && break

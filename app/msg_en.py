@@ -264,7 +264,15 @@ ERR_EN.update({
     "Privater Schlüssel (Inhalt der Datei, z. B. id_rsa)": "Private key (file content, e.g. id_rsa)", "SSH-Anmeldung (für Konfigurations-Backup)": "SSH sign-in (for configuration backup)",
     "Verschlüsselung (Privacy)": "Encryption (privacy)", "Zertifikat prüfen": "Verify certificate", "Öffentlicher Schlüssel von díktyo (auf das Gerät laden)": "díktyo’s public key (upload to the device)",
     "HTTP (Socket-Proxy im eigenen Netz)": "HTTP (socket proxy in your own network)", "Shelly Gen2+: admin": "Shelly Gen2+: admin",
-    "z. B. diktyo_block": "e.g. diktyo_block", "z. B. 192.168.50.20": "e.g. 192.168.50.20", "z. B. 192.168.1.53": "e.g. 192.168.1.53",
+    "z. B. diktyo_block": "e.g. diktyo_block", "Versionsangabe auf GitHub nicht gefunden": "Version not found on GitHub",
+    "Diese Installation lässt sich nicht aus der Oberfläche aktualisieren": "This installation cannot be updated from the web interface",
+    "Es läuft bereits ein Update": "An update is already running", "Update angefordert": "Update requested",
+    "Der Update-Dienst hat die Anfrage nicht übernommen (diktyo-update.path aktiv?)": "The update service did not pick up the request (is diktyo-update.path active?)",
+    "Sichere die Datenbank": "Backing up the database", "Lade den neuen Stand von GitHub": "Downloading the new version from GitHub",
+    "Datenbank-Sicherung fehlgeschlagen": "Database backup failed", "Download von GitHub fehlgeschlagen": "Download from GitHub failed",
+    "Archiv unvollständig": "Archive incomplete", "Installation fehlgeschlagen - Protokoll ansehen": "Installation failed – see the log", "SNMP (v2c oder v3, nur lesen)": "SNMP (v2c or v3, read only)", "SNMP-Benutzer": "SNMP user",
+    "SNMP-Version": "SNMP version", "v2c (Community)": "v2c (community)", "v3 (Benutzer)": "v3 (user)", "Authentifizierung": "Authentication", "keine": "none",
+    "Mit SNMP kann díktyo bei MikroTik nur lesen – für Aktionen den Zugang „RouterOS-API“ wählen": "With SNMP díktyo can only read from the MikroTik – choose the “RouterOS API” access for actions", "z. B. 192.168.50.20": "e.g. 192.168.50.20", "z. B. 192.168.1.53": "e.g. 192.168.1.53",
 })
 
 # Meldungen mit Werten: {} steht für einen eingesetzten Teil (der seinerseits übersetzt wird)
@@ -343,7 +351,8 @@ PATTERNS = [
     ("AdGuard-Schutz {}", "AdGuard protection {}"), ("Pi-hole-Werbeblocker {}", "Pi-hole ad blocker {}"),
     ("{} ausschalten", "Switch off {}"), ("{} einschalten", "Switch on {}"), ("„{}“ starten", "Start “{}”"), ("„{}“ stoppen", "Stop “{}”"), ("„{}“ herunterfahren", "Shut down “{}”"),
     ("für {}", "for {}"), ("{} auf {}", "{} on {}"), ("{} sauber beenden", "Shut {} down cleanly"), ("Firmware aktualisieren ({} → {})", "Update firmware ({} → {})"),
-    ("Abgebrochen: {}", "Cancelled: {}"), ("Versand fehlgeschlagen: {}", "Sending failed: {}"),
+    ("Abgebrochen: {}", "Cancelled: {}"), ("GitHub nicht erreichbar: {}", "GitHub not reachable: {}"),
+    ("Installiere Version {}", "Installing version {}"), ("Version {} installiert", "Version {} installed"), ("Versand fehlgeschlagen: {}", "Sending failed: {}"),
     ("{}: {}", "{}: {}"),  # zuletzt: „Name: Meldung“ – beide Teile einzeln übersetzen
 ]
 

@@ -295,6 +295,19 @@ In díktyo unter *Zugang* wählen:
 | RouterOS-API mit TLS | api-ssl (braucht ein Zertifikat) | 8729 | 6 und 7 |
 | REST über HTTPS | www-ssl (braucht ein Zertifikat), Recht *rest-api* | 443 | ab 7.1 |
 | REST über HTTP | www, Recht *rest-api* | 80 | ab 7.9 |
+| SNMP (v2c oder v3) | snmp, nur lesen | 161 | 6 und 7 |
+
+**SNMP** liefert dieselbe Übersicht (Ports mit Tempo, Traffic und PoE, wer an welchem Port bzw. WLAN hängt, Nachbarn,
+WAN über die Standardroute, Modell, RouterOS-Version, RouterBOOT-Update) – nur lesend: keine Schaltaktionen und keine
+DHCP-Namen (die Clients kommen aus der ARP-Tabelle, Namen liefert der Netzscan). Am MikroTik:
+
+```
+/snmp set enabled=yes
+/snmp community add name=diktyo addresses=192.168.88.0/24 read-access=yes write-access=no
+```
+
+Für SNMPv3 die Community zusätzlich mit `security=private authentication-protocol=SHA1 authentication-password=…
+encryption-protocol=AES encryption-password=…` anlegen; in díktyo ist der Community-Name dann der SNMP-Benutzer.
 
 Das Feld *Port* bleibt leer, wenn der Dienst auf dem Standard-Port läuft. Meldet díktyo „Am Port antwortet kein
 HTTPS-Dienst“, ist REST gewählt, am Port läuft aber die API (oder umgekehrt). Integrationen, die vor 0.33.1 mit REST
@@ -592,6 +605,23 @@ Proxmox-Rechte für VMs schalten (einmal auf einem Knoten):
 pveum role add DiktyoPower -privs VM.PowerMgmt
 pveum acl modify / --tokens 'diktyo@pve!diktyo' --roles DiktyoPower
 ```
+
+### Update aus der Oberfläche
+
+Unter *Einstellungen → Updates* (nur Administratoren) zeigt díktyo die installierte und die neueste Version auf
+GitHub samt Änderungen; ist eine neue da, erscheint oben in der Kopfzeile **↑ Update**. Der Hintergrunddienst prüft
+höchstens alle 12 Stunden (*Nach Updates suchen* prüft sofort).
+
+**Jetzt aktualisieren** (Installation per Proxmox-Skript bzw. `setup.sh`): díktyo legt nur eine Anfrage ab; ein
+eigener systemd-Dienst (`diktyo-update.path` → `diktyo-update.service`) sichert dann als root die Datenbank (die letzten
+drei Sicherungen bleiben als `/var/lib/diktyo/before-update-*.db`), lädt den Stand von GitHub und führt `setup.sh`
+aus – wie `update-proxmox.sh`. Die Oberfläche zeigt Fortschritt und Protokoll (`/var/log/diktyo-update.log`) und lädt
+sich neu, sobald die neue Version läuft. Die Web-App selbst führt dabei nichts als root aus; die Quelle (Repository,
+Zweig) steht in `/opt/diktyo/update.conf` und lässt sich nur auf dem Container ändern.
+
+Bestehende Installationen bekommen den Update-Dienst mit dem **nächsten Update wie bisher** (`update-proxmox.sh` auf
+dem Proxmox-Host) – danach geht es per Knopf. Bei **Docker** zeigt díktyo die Befehle zum Neubauen
+(`git pull` und `docker compose up -d --build`); VLAN-Schnittstellen am Container ändert weiterhin `update-proxmox.sh`.
 
 ## 9. Ausgabe und Sicherung
 

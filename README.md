@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.33.1 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.34 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -311,7 +311,8 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
   self-hosted controllers): gateway, switches and access points with port status (shown on the front panel), the
   connected clients with their access point or switch, and the gateway's WAN traffic.
 - **MikroTik RouterOS 6 and 7** – by default over the **RouterOS API** (service api, port 8728, or api-ssl 8729 with
-  TLS; user with read + api), alternatively REST (RouterOS 7, www-ssl/www): ports with link, speed, traffic and PoE,
+  TLS; user with read + api), alternatively **SNMP v2c/v3** (read only, no actions, no DHCP names) or REST
+  (RouterOS 7, www-ssl/www): ports with link, speed, traffic and PoE,
   clients from DHCP/ARP with the port or Wi-Fi they use (bridge hosts, registration table), MNDP/LLDP neighbours and
   WAN traffic; actions port off/on, PoE restart, Wi-Fi on/off, Wake-on-LAN, restart (write/reboot/test). No
   configuration backup – RouterOS has its own backups (also to the MikroTik cloud).
@@ -425,6 +426,16 @@ with the numbers on the cables: switch port → patch cable → patch panel port
 cable → device (each part optional). Patch panels and outlets are shown as port grids; click a free port to add a
 cable run. Each run is checked against the connection detected on the switch port (✓ matches, ⚠ something else is
 connected there). Cable runs also appear in the device dialog, in the PDF ("Cabling" section) and in backups.
+
+## Updates
+
+Settings → Updates (administrators) shows the installed and the latest version on GitHub with its changes; the header
+shows "↑ Update" when a new version is available (checked at most every 12 hours). On installations made with the
+Proxmox script / `setup.sh`, **Update now** places a request file; a systemd path unit (`diktyo-update.path`) then runs
+a fixed root script that backs up the database, downloads the branch from GitHub and runs `setup.sh`, while the page
+shows progress and reloads into the new version. The web app never runs anything as root; the source repository and
+branch live in `/opt/diktyo/update.conf`. Existing installations get the update service with their next update via
+`update-proxmox.sh`. Docker: rebuild with `git pull && docker compose up -d --build`.
 
 ## Languages
 

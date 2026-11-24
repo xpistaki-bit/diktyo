@@ -49,6 +49,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Prometheus/Grafana | Endpunkt je Profil mit Bearer-Token (nur Besitzer, nur Hash gespeichert), fertiger prometheus.yml-Eintrag, Grafana-Dashboard zum Import | 0.31 |
 | Anmeldung über OIDC | Authentik, Keycloak, Logto u. a.: Authorization Code mit PKCE, state (an den Browser gebunden), nonce, Signaturprüfung (RS/PS/ES/HS), Verknüpfen über bestätigte E-Mail oder in den eigenen Einstellungen, optional automatisch anlegen, Gruppe nötig, Admin über Gruppe | 0.32 |
 | VLAN-Plan und Topologie | VMs/Container (Proxmox) mit ihrem VLAN-Tag beim Host, Prüfung des Host-Ports (tagged); Topologie hängt am Internet-Gateway, auch wenn die Erkennung den Router als Gerät am Switch eingetragen hat; Suchfeld-✕ als Kästchen direkt am Feld | 0.32.1 |
+| Update per Knopf, MikroTik per SNMP | Neue Version auf GitHub erkennen (mit Änderungen, Hinweis in der Kopfzeile) und per Knopf installieren: Anfrage-Datei → systemd-Pfad-Einheit → festes Update-Skript als root (Datenbank sichern, laden, setup.sh), Fortschritt und Protokoll in der Oberfläche; Docker mit Anleitung. MikroTik zusätzlich per SNMP v2c/v3 (nur lesen, MIKROTIK-MIB für Board, Version, RouterBOOT, PoE, WLAN, Nachbarn) | 0.34 |
 | MikroTik und Sprache | MikroTik über die RouterOS-API (Port 8728/8729, RouterOS 6 und 7) als Standard, REST weiter wählbar, kein SSH-Backup mehr (RouterOS hat eigene Backups); alle Server-Meldungen, Aktionen, Diagnosen und gespeicherten Fehler auf Englisch, wenn Englisch gewählt ist (auch in Benachrichtigungen), Test gegen fehlende Übersetzungen; automatisch erzeugte Gerätenamen auf Englisch | 0.33.1 |
 | Netzplan-Export | Topologie als SVG, PNG (doppelte Auflösung), draw.io (Geräte mit IP/MAC/Typ/Modell/Standort als Eigenschaften) und Poster-PDF A4–A0 mit Schriftfeld, wahlweise auf A4 gekachelt mit Überlappung und Blattnummern; Gruppen aufklappbar; in Topologie und Ausgabe | 0.33 |
 
@@ -66,7 +67,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Integration / Funktion | Stand | Wer |
 |---|---|---|
 | UniFi (inkl. Live-Raten je Client über stat/sta, Aktionen Neustart/PoE) | nach offizieller API gebaut, gegen nachgebildeten Controller getestet | Tester |
-| MikroTik (RouterOS-API und REST, inkl. Live-Raten: WLAN-Registrierungen, Kid Control) | API-Protokoll gegen nachgebildeten Server über echten Socket getestet (inkl. Anmeldung vor 6.43); Rückmeldung des Testers: REST-Zugang scheiterte (Port spricht kein HTTPS) – mit 0.33.1 API als Standard | Tester |
+| MikroTik (RouterOS-API, SNMP v2c/v3 und REST, inkl. Live-Raten: WLAN-Registrierungen, Kid Control) | API-Protokoll gegen nachgebildeten Server über echten Socket getestet (inkl. Anmeldung vor 6.43); Rückmeldung des Testers: REST-Zugang scheiterte (Port spricht kein HTTPS) – mit 0.33.1 API als Standard | Tester |
 | Omada (inkl. Live-Raten je Client, Aktionen PoE/Neustart) | nach Open-API-Doku gebaut, gegen nachgebildeten Controller getestet | offen |
 | Shelly / Tasmota | gegen nachgebildete Geräte (Gen1, Gen2/3, Tasmota) getestet | Nutzer |
 | Pi-hole / AdGuard Home | gegen nachgebildete APIs (Pi-hole v6/v5, AdGuard) getestet | Nutzer |
@@ -78,6 +79,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Anmeldung über OIDC mit echtem Authentik, Keycloak, Logto | gegen nachgebildeten Anbieter getestet (ES384, RS256, HS256), Browser-Ablauf mit lokalem Test-Anbieter | Nutzer |
 | Prometheus abfragen, Grafana-Dashboard importieren | Format geprüft, ohne echtes Prometheus/Grafana | Nutzer |
 | draw.io-Datei öffnen (app.diagrams.net / Desktop) | gültiges mxGraph-XML, ohne draw.io geprüft | Nutzer |
+| Update per Knopf im Proxmox-LXC | App-Seite und Skriptregeln getestet; Update-Skript und systemd-Einheiten noch nicht in einem echten Container gelaufen | Nutzer |
 | QR-Etiketten drucken und scannen | Codes maschinell gelesen (OpenCV), Druck auf echten Bögen offen | Nutzer |
 
 Am echten Gerät bestätigt: FRITZ!Box (inkl. 2FA, Backup, Schaltaktionen), ASUS EBM68 (Traffic Monitor/Analyzer),

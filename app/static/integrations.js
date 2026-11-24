@@ -92,6 +92,7 @@ DRIVER_STEPS.mikrotik = [
   'Zugang <b>RouterOS-API</b> (Standard, RouterOS 6 und 7): unter IP → Services den Dienst <b>api</b> (Port 8728) einschalten und bei „Available From“ die Adresse von díktyo erlauben. Mit TLS: <b>api-ssl</b> (Port 8729, braucht ein Zertifikat).',
   'Eigenen Benutzer anlegen – nur lesen:<pre>/user group add name=diktyo-read policy=read,api,!local,!telnet,!ssh,!ftp,!winbox,!web,!rest-api\n/user add name=diktyo group=diktyo-read password=GEHEIM</pre>Für <b>Aktionen</b> (Port, PoE, WLAN, Neustart, Wake-on-LAN) stattdessen <span class="mono">policy=read,write,reboot,test,api</span>.',
   'Alternativ <b>REST</b> (nur RouterOS 7): Dienst www-ssl (HTTPS, Zertifikat nötig) oder ab 7.9 www (HTTP), Recht rest-api statt api.',
+  'Zugang <b>SNMP</b> (nur lesen, keine Aktionen; ohne DHCP-Namen): <pre>/snmp set enabled=yes\n/snmp community add name=diktyo addresses=192.168.88.0/24 read-access=yes write-access=no</pre>Für <b>SNMPv3</b> zusätzlich <span class="mono">security=private authentication-protocol=SHA1 authentication-password=… encryption-protocol=AES encryption-password=…</span> – der Community-Name ist dann der SNMP-Benutzer.',
   'Ein Konfigurations-Backup macht díktyo bei MikroTik nicht – dafür hat RouterOS eigene Backups (System → Backup, auch in die MikroTik-Cloud).',
 ];
 const EVENT = { watch_change: 'Wachliste: Änderung', device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät', action_undo_failed: 'Zurückschalten fehlgeschlagen', quarantined: 'Neues Gerät in Quarantäne', schedule_failed: 'Zeitplan fehlgeschlagen', firmware_update: 'Firmware-Update verfügbar' };
@@ -651,7 +652,7 @@ async function integrationDialog(ctx, i, drv) {
   const { devices } = await api('GET', `${P}/devices`);
   i = i || { driver: drv.key, interval_s: drv.interval, enabled: true, port: drv.fields.find(f => f.key === 'port')?.default };
   const val = f => f.secret ? (i.secrets?.[f.key] || (i.id ? '' : f.default ?? '')) : (i[f.key] ?? i.options?.[f.key] ?? (i.id && f.type !== 'select' ? '' : f.default ?? ''));
-  const show = f => f.show ? Object.entries(f.show).map(([k, v]) => `data-show-k="${k}" data-show-v="${h(v)}"`).join(' ') : '';
+  const show = f => f.show ? `data-show="${h(JSON.stringify(f.show))}"` : '';
   const steps = DRIVER_STEPS[drv.key];
   const fields = drv.fields.map(f => `<div ${show(f)} ${f.wide ? 'style="grid-column:1/-1"' : ''}><label>${t(f.label)}</label>${f.type === 'select'
     ? `<select name="${f.key}">${f.options.map(([k, n]) => `<option value="${h(k)}" ${k === val(f) ? 'selected' : ''}>${h(t(n))}</option>`).join('')}</select>`
@@ -670,7 +671,11 @@ async function integrationDialog(ctx, i, drv) {
     <div id="diagres"></div>`, {
     wide: true,
     onOpen: f => {
-      const vis = () => $$('[data-show-k]', f).forEach(el => { const sel = $(`[name=${el.dataset.showK}]`, f); el.style.display = !sel || sel.value === el.dataset.showV ? '' : 'none'; });
+      // sichtbar, wenn alle Bedingungen passen; eine Bedingung darf mehrere erlaubte Werte haben
+      const vis = () => $$('[data-show]', f).forEach(el => {
+        const ok = Object.entries(JSON.parse(el.dataset.show)).every(([k, v]) => { const sel = $(`[name=${k}]`, f); return !sel || [].concat(v).includes(sel.value); });
+        el.style.display = ok ? '' : 'none';
+      });
       $$('select', f).forEach(sel => sel.addEventListener('change', vis));
       vis();
       // díktyos öffentlicher SSH-Schlüssel zum Hochladen auf das Gerät

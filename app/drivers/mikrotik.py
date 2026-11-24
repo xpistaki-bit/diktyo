@@ -15,22 +15,34 @@ import time
 
 import httpx
 
-from . import routeros_api
+from . import mikrotik_snmp, routeros_api
 from .controller import DriverError, counter_rates, parse_rate, mac as norm_mac
 
 NAME = "MikroTik (RouterOS)"
 DEFAULT_INTERVAL = 60
+LOGIN = dict(access=["api", "api-ssl", "https", "http"])
 FIELDS = [
     dict(key="host", label="Adresse", type="text", default="192.168.88.1", required=True),
     dict(key="access", label="Zugang", type="select", default="api", options=[
         ["api", "RouterOS-API (api, Port 8728)"], ["api-ssl", "RouterOS-API mit TLS (api-ssl, Port 8729)"],
+        ["snmp", "SNMP (v2c oder v3, nur lesen)"],
         ["https", "REST über HTTPS (www-ssl, RouterOS 7)"], ["http", "REST über HTTP (www, RouterOS 7.9+)"]]),
     dict(key="port", label="Port (leer = Standard des Zugangs)", type="number", default=""),
-    dict(key="username", label="Benutzer", type="text", default="diktyo", required=True),
-    dict(key="password", label="Passwort", type="password", default="", secret=True),
+    dict(key="username", label="Benutzer", type="text", default="diktyo", show=LOGIN),
+    dict(key="password", label="Passwort", type="password", default="", secret=True, show=LOGIN),
+    dict(key="snmp_version", label="SNMP-Version", type="select", default="v2c", options=[["v2c", "v2c (Community)"], ["v3", "v3 (Benutzer)"]],
+         show=dict(access="snmp")),
+    dict(key="community", label="Community", type="password", default="public", secret=True, show=dict(access="snmp", snmp_version="v2c")),
+    dict(key="snmp_user", label="SNMP-Benutzer", type="text", default="", show=dict(access="snmp", snmp_version="v3")),
+    dict(key="auth_proto", label="Authentifizierung", type="select", default="SHA", options=[["SHA", "SHA (SHA-1)"], ["SHA-256", "SHA-256"], ["MD5", "MD5"]],
+         show=dict(access="snmp", snmp_version="v3")),
+    dict(key="auth_pass", label="Auth-Passwort", type="password", default="", secret=True, show=dict(access="snmp", snmp_version="v3")),
+    dict(key="priv_proto", label="Verschlüsselung (Privacy)", type="select", default="AES", options=[["AES", "AES-128"], ["none", "keine"]],
+         show=dict(access="snmp", snmp_version="v3")),
+    dict(key="priv_pass", label="Privacy-Passwort", type="password", default="", secret=True, show=dict(access="snmp", snmp_version="v3")),
 ]
 CAN_BACKUP = False
-DEFAULT_PORT = {"api": 8728, "api-ssl": 8729, "https": 443, "http": 80}
+DEFAULT_PORT = {"api": 8728, "api-ssl": 8729, "snmp": 161, "https": 443, "http": 80}
 WIFI_MENUS = ("interface/wifi", "interface/wifiwave2", "interface/wireless")
 
 
@@ -40,6 +52,8 @@ def access_of(conf):
     if a in DEFAULT_PORT:
         return a
     port = str(conf.get("port") or "")
+    if port == "161":
+        return "snmp"
     if port == "8728":
         return "api"
     if port == "8729":
@@ -180,7 +194,9 @@ def _kind(name, typ):
 
 
 def collect(conf, state):
-    """Rohdaten der REST-API holen."""
+    """Rohdaten holen – über die RouterOS-API, REST oder (nur lesend) SNMP."""
+    if access_of(conf) == "snmp":
+        return mikrotik_snmp.collect(dict(conf, port=_port(conf)))
     with _client(conf) as cl:
         out = dict(resource=_get(cl, "system/resource"), identity=_get(cl, "system/identity"),
                    routerboard=_get(cl, "system/routerboard", optional=True) or {},
@@ -355,6 +371,12 @@ def poll(conf, state):
     raw = collect(conf, state)
     res, metrics, counters = normalize(raw, state)
     state = dict(state, counters=counters)
+    if access_of(conf) == "snmp":  # SNMP: installierte Version, RouterBOOT-Upgrade aus der MIKROTIK-MIB (keine Online-Prüfung)
+        rb = raw.get("routerboard") or {}
+        upd = bool(rb.get("current-firmware") and rb.get("upgrade-firmware") and rb["current-firmware"] != rb["upgrade-firmware"])
+        res["firmware"] = dict(installed=res["info"]["version"], latest=f"RouterBOOT {rb['upgrade-firmware']}" if upd else "", update=upd, info="")
+        res["access"] = "snmp"
+        return res, metrics, state
     try:
         res["firmware"] = firmware(conf, state, raw.get("routerboard"))
     except DriverError:
@@ -364,6 +386,8 @@ def poll(conf, state):
 
 def action(conf, state, kind, params):
     """kind: port (iface, id, up) | poe_cycle (iface) | wlan (iface, id, menu, on) | wol (mac, iface) | reboot"""
+    if access_of(conf) == "snmp":
+        raise DriverError("Mit SNMP kann díktyo bei MikroTik nur lesen – für Aktionen den Zugang „RouterOS-API“ wählen")
     with _client(conf) as cl:
         if kind == "port":
             _req(cl, "PATCH", f"interface/{params['id']}", json={"disabled": "false" if params["up"] else "true"})
