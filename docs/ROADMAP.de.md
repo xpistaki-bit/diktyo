@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.24.1 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.33.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt
@@ -27,27 +27,29 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Integrationen | OPNsense (REST-API: Schnittstellen, Clients, WAN, Firmware, Backup, Internetsperre per Alias), Docker (Container als virtuelle Geräte, Starten/Stoppen) | 0.16 |
 | Übersicht | Übersichtsseite (Kennzahlen, „Braucht Aufmerksamkeit“, WAN-/Antwortzeit-/Port-Diagramme, Infrastruktur, Änderungen); Durchsatz in der Topologie | 0.17 |
 | ASUS-Traffic | Traffic Monitor (WAN/LAN/WLAN-Bänder, WAN-Verlauf), Traffic Analyzer je Client (24 h) in Karte, Übersicht, Gerätedialog und Topologie; ASUS-Diagnose | 0.17.1 |
-| Traffic je Gerät | Live-Raten je Client aus Omada, UniFi, MikroTik, OPNsense und Proxmox in Topologie (auch Gruppen), Gerätedialog und Übersicht („Gerade aktiv“); bebilderte Einstiegsanleitung (DE/EN); Anzeigefehler Port-Ansicht und Übersicht behoben | 0.18 |
-| Switch | nur echte Frontports (logische Schnittstellen, Bridge-Tabelle, Katalog), Port-Farben nach Geschwindigkeit, SSH-Backup mit Schlüssel (díktyo-Schlüssel oder eigener) und wählbarem Abruf; Online-Überwachung tolerant gegen einzelne verlorene Pings | 0.18.1 |
-| Stabilität | Verbindungen: genauere Quelle hat Vorrang (kein Wechsel Proxmox ↔ Router mehr); Online-Status: andere Quellen schlagen einen gescheiterten Ping; Scroll-Position bleibt beim Speichern und automatischen Neuladen | 0.18.2 |
+| Traffic je Gerät | Live-Raten je Client aus Omada, UniFi, MikroTik, OPNsense und Proxmox in Topologie (auch Gruppen), Gerätedialog und Übersicht („Gerade aktiv“); bebilderte Einstiegsanleitung (DE/EN) | 0.18 |
+| Switch | nur echte Frontports (logische Schnittstellen, Bridge-Tabelle, Katalog), Port-Farben nach Geschwindigkeit, SSH-Backup mit Schlüssel und wählbarem Abruf; Online-Überwachung tolerant gegen einzelne verlorene Pings | 0.18.1 |
+| Stabilität | Verbindungen: genauere Quelle hat Vorrang; Online-Status: andere Quellen schlagen einen gescheiterten Ping; Scroll-Position bleibt beim Speichern und Neuladen | 0.18.2 |
 | Geschwindigkeit | Internet-Speedtest (Cloudflare) von Hand oder nach Zeitplan mit Verlauf und Hinweis bei langsamer Leitung; iperf3 zwischen díktyo und einem Gerät | 0.19 |
 | Sicherheit | Anmeldung mit zweitem Faktor (TOTP, QR lokal erzeugt, Wiederherstellungscodes, Einmal-Codes, Versuchsgrenze), Sitzungsverwaltung, Zurücksetzen durch Admin/CLI | 0.20 |
 | Benachrichtigungen | E-Mail und ntfy je Profil, Ereignisse wählbar, gebündelt; neue Ereignisse: Internet langsam, Backup fehlgeschlagen, Integration gestört | 0.21 |
 | Aktionen und Shelly | UniFi: Gerät neu starten, PoE-Port neu starten; Omada: Gerät neu starten, PoE ein/aus/neu starten; Shelly/Tasmota direkt: Leistung, Energie, Ausgänge schalten, Firmware | 0.22 |
-| Geräte | Typen alphabetisch und erweitert (Saugroboter, 3D-Drucker, Türklingel, Hub, ESP …), Software/Betriebssystem-Feld, Proxmox-Gäste übernehmen Software/Standort vom Host, Vermutung verwerfen, WLAN bei Geräten ohne Buchse, Gerätedialog ohne Verlauf, KI-Katalog ohne erfundene Ports | 0.24 |
-| VLAN-Plan und Topologie | VMs/Container (Proxmox) mit ihrem VLAN-Tag beim Host, Prüfung des Host-Ports (tagged); Topologie hängt am Internet-Gateway, auch wenn die Erkennung den Router als Gerät am Switch eingetragen hat; Suchfeld-✕ als Kästchen direkt am Feld | 0.32.1 |
-| Anmeldung über OIDC | Authentik, Keycloak, Logto u. a.: Authorization Code mit PKCE, state (an den Browser gebunden), nonce, Signaturprüfung (RS/PS/ES/HS), Verknüpfen über bestätigte E-Mail oder in den eigenen Einstellungen, optional automatisch anlegen, Gruppe nötig, Admin über Gruppe | 0.32 |
-| Prometheus/Grafana | Endpunkt je Profil mit Bearer-Token (nur Besitzer, nur Hash gespeichert), fertiger prometheus.yml-Eintrag, Grafana-Dashboard zum Import; Geräte, Antwortzeit, Verfügbarkeit, WAN, Ports, DNS, Speedtest, Integrationen, Firmware, Wachliste, VLAN-Plan | 0.31 |
-| VLAN-Plan | Endgeräte wieder sichtbar (eingeklappt unter den Netzwerkgeräten), Subnetze im VLAN-Dialog zuordnen, Hinweis „kein Subnetz – zuordnen“ | 0.30.2 |
-| Nur Netzwerkports | USB, HDMI, Thunderbolt, MagSafe, Kartenleser … bleiben im Katalog, werden am Gerät aber keine Ports mehr (Gerätedialog, Topologie, VLAN-Plan, Verkabelung, PDF); einmalige Umnummerierung bestehender Geräte; VLAN-Plan ohne Endgeräte | 0.30.1 |
-| VLAN-Plan | Ports je Switch grafisch mit VLAN-Farben (untagged/tagged) und als Matrix; produktiver Stand per SNMP vom Switch (Q-BRIDGE-MIB, nur lesend) oder von Hand; Plan-Modus mit geplanten VLANs, Mehrfachauswahl, Umstellungsliste, Prüfungen (Adresse/Subnetz, Uplinks), automatisch abgehakt bei SNMP; im PDF | 0.30 |
-| Verkabelung | Patchfelder und Netzwerkdosen mit Port-Belegung, Kabelwege Switch-Port → Patchfeld → Dose → Gerät mit Kabelnummern, Abgleich mit der erkannten Verbindung (✓/⚠), im Gerätedialog, im PDF und in der Sicherung; Wachliste jetzt auch in der Sicherung | 0.29 |
-| QR-Etiketten | Aufkleber mit QR-Code zum Gerätedialog (Direktlink, auch über die Anmeldung hinweg), Name/IP/MAC/Standort; A4-Bögen (Avery 3474, L7163, 3657) und Etikettendrucker (Brother 62 × 29, Dymo 54 × 25), Startposition für angebrochene Bögen, Schnittlinien; einzeln aus dem Gerätedialog | 0.28 |
-| Aussehen | Kacheln mit hellerem Kopfband und größerer Überschrift (Übersicht, Integrationen, überall), Neon-Pin statt 📌, eigener Anmelde-Hintergrund (Glasfaser vor HUD-Ringen) | 0.27.1 |
-| Wachliste | Systeme im Gerätedialog beobachten; Feld in der Übersicht meldet Ausfall und Wechsel von IP, MAC, Name oder Anschluss (alt → neu) bis zum Quittieren; eigene Änderungen zählen nicht; Benachrichtigung per E-Mail/ntfy; neue Felder landen in gespeicherten Layouts an ihrer Standardstelle | 0.27 |
-| Übersicht anpassbar | Felder ziehen/verschieben, Breite, aus-/einblenden, eigene Diagramme anheften (WAN, Switch-Port, ASUS-Schnittstelle, DNS, Antwortzeit/Leistung je Gerät) – auch per 📌 an Integrationskarten und im Gerätedialog; Layout je Profil | 0.26 |
-| Übersicht neu | HUD-Stil über die volle Breite: Kennzahl-Kacheln mit Segmentbalken/Ring, WAN als Balkendiagramm, Speedtest als Tachos, Ports mit dem Gerät dahinter, Antwortzeiten mit Verlaufslinie, Infrastruktur als Karten; lesbare Diagrammbeschriftung überall; Integrationen im Raster | 0.25 |
 | DNS-Filter | Pi-hole (v6, v5) und AdGuard Home: Hostnamen, Anfragen/Blockierte je Gerät, Statistik und Diagramm in der Übersicht, Werbeblocker schalten | 0.23 |
+| Geräte | Typen erweitert (Saugroboter, 3D-Drucker, Türklingel, Hub, ESP …), Software/Betriebssystem-Feld, Proxmox-Gäste übernehmen Software/Standort vom Host, Vermutung verwerfen, WLAN bei Geräten ohne Buchse, KI-Katalog ohne erfundene Ports | 0.24 |
+| Katalog und Topologie | Katalog nur mit Netzwerkanschlüssen, Suche im Katalog, Topologie in die Breite | 0.24.1 |
+| Übersicht neu | HUD-Stil über die volle Breite: Kennzahl-Kacheln mit Segmentbalken/Ring, WAN als Balkendiagramm, Speedtest als Tachos, Ports mit dem Gerät dahinter, Antwortzeiten mit Verlaufslinie, Infrastruktur als Karten; Integrationen im Raster | 0.25 |
+| Übersicht anpassbar | Felder ziehen/verschieben, Breite, aus-/einblenden, eigene Diagramme anheften (WAN, Switch-Port, ASUS-Schnittstelle, DNS, Antwortzeit/Leistung je Gerät) – auch per Pin an Integrationskarten und im Gerätedialog; Layout je Profil | 0.26 |
+| Wachliste | Systeme im Gerätedialog beobachten; Feld in der Übersicht meldet Ausfall und Wechsel von IP, MAC, Name oder Anschluss (alt → neu) bis zum Quittieren; eigene Änderungen zählen nicht; Benachrichtigung per E-Mail/ntfy | 0.27 |
+| Aussehen | Kacheln mit hellerem Kopfband und größerer Überschrift, Neon-Pin, eigener Anmelde-Hintergrund (Glasfaser vor HUD-Ringen) | 0.27.1 |
+| QR-Etiketten | Aufkleber mit QR-Code zum Gerätedialog (Direktlink, auch über die Anmeldung hinweg), Name/IP/MAC/Standort; A4-Bögen (Avery 3474, L7163, 3657) und Etikettendrucker (Brother 62 × 29, Dymo 54 × 25); einzeln aus dem Gerätedialog | 0.28 |
+| Verkabelung | Patchfelder und Netzwerkdosen mit Port-Belegung, Kabelwege Switch-Port → Patchfeld → Dose → Gerät mit Kabelnummern, Abgleich mit der erkannten Verbindung (✓/⚠), im Gerätedialog, im PDF und in der Sicherung | 0.29 |
+| VLAN-Plan | Ports je Switch grafisch mit VLAN-Farben (untagged/tagged) und als Matrix; produktiver Stand per SNMP vom Switch (Q-BRIDGE-MIB, nur lesend) oder von Hand; Plan-Modus mit geplanten VLANs, Mehrfachauswahl, Umstellungsliste, Prüfungen (Adresse/Subnetz, Uplinks), automatisch abgehakt bei SNMP; im PDF | 0.30 |
+| Nur Netzwerkports | USB, HDMI, Thunderbolt, MagSafe, Kartenleser … bleiben im Katalog, werden am Gerät aber keine Ports mehr; einmalige Umnummerierung bestehender Geräte | 0.30.1 |
+| VLAN-Plan | Endgeräte eingeklappt unter den Netzwerkgeräten, Subnetze im VLAN-Dialog zuordnen, Hinweis „kein Subnetz – zuordnen“ | 0.30.2 |
+| Prometheus/Grafana | Endpunkt je Profil mit Bearer-Token (nur Besitzer, nur Hash gespeichert), fertiger prometheus.yml-Eintrag, Grafana-Dashboard zum Import | 0.31 |
+| Anmeldung über OIDC | Authentik, Keycloak, Logto u. a.: Authorization Code mit PKCE, state (an den Browser gebunden), nonce, Signaturprüfung (RS/PS/ES/HS), Verknüpfen über bestätigte E-Mail oder in den eigenen Einstellungen, optional automatisch anlegen, Gruppe nötig, Admin über Gruppe | 0.32 |
+| VLAN-Plan und Topologie | VMs/Container (Proxmox) mit ihrem VLAN-Tag beim Host, Prüfung des Host-Ports (tagged); Topologie hängt am Internet-Gateway, auch wenn die Erkennung den Router als Gerät am Switch eingetragen hat; Suchfeld-✕ als Kästchen direkt am Feld | 0.32.1 |
+| Netzplan-Export | Topologie als SVG, PNG (doppelte Auflösung), draw.io (Geräte mit IP/MAC/Typ/Modell/Standort als Eigenschaften) und Poster-PDF A4–A0 mit Schriftfeld, wahlweise auf A4 gekachelt mit Überlappung und Blattnummern; Gruppen aufklappbar; in Topologie und Ausgabe | 0.33 |
 
 ## 2. Noch offen aus dem ursprünglichen Plan
 
@@ -55,29 +57,31 @@ der technische Aufbau in [architecture.md](architecture.md).
 |---|---|---|
 | P2.4 | Weitere Integrationen: Netgear (Smart Switches/Router), devolo (Powerline) | Docker erledigt in 0.16 |
 | P2.8 | Passive DHCP-Erkennung (Fingerprinting aus DHCP-Anfragen) | braucht einen Lauscher im Netz bzw. DHCP-Logs vom Router |
-| ~~Phase 3~~ | ~~Änderungsverlauf zwischen Scans~~ | erledigt in 0.14 |
-| Phase 3 | ~~Kabel- und Patchpanel-Dokumentation~~ – erledigt in 0.29 | Patchfelder, Dosen, Kabelnummern zwischen Port und Gerät |
-| Phase 3 | ~~Prometheus-Endpunkt~~ – erledigt in 0.31 | Messwerte für Grafana |
-| Phase 3 | REST-API mit Tokens | für Skripte, Home Assistant, eigene Auswertungen |
+| Phase 3 | REST-API mit Tokens | für Skripte, Home Assistant, eigene Auswertungen; Token-Verfahren wie beim Prometheus-Endpunkt |
+| ~~Phase 3~~ | ~~Änderungsverlauf zwischen Scans~~ (0.14), ~~Kabel- und Patchpanel-Dokumentation~~ (0.29), ~~Prometheus-Endpunkt~~ (0.31) | erledigt |
 
 ## 3. An echter Hardware noch zu testen
 
 | Integration / Funktion | Stand | Wer |
 |---|---|---|
-| UniFi (inkl. Live-Raten je Client über stat/sta) | nach offizieller OpenAPI gebaut, gegen nachgebildeten Controller getestet | Tester |
+| UniFi (inkl. Live-Raten je Client über stat/sta, Aktionen Neustart/PoE) | nach offizieller API gebaut, gegen nachgebildeten Controller getestet | Tester |
 | MikroTik (inkl. Live-Raten: WLAN-Registrierungen, Kid Control) | nach REST-Doku gebaut, gegen nachgebildete RouterOS-API getestet | Tester |
 | Omada (inkl. Live-Raten je Client, Aktionen PoE/Neustart) | nach Open-API-Doku gebaut, gegen nachgebildeten Controller getestet | offen |
-| UniFi-Aktionen (Neustart, PoE-Power-Cycle) | nach Integration-API-Doku gebaut, gegen Nachbildung getestet | Tester |
 | Shelly / Tasmota | gegen nachgebildete Geräte (Gen1, Gen2/3, Tasmota) getestet | Nutzer |
 | Pi-hole / AdGuard Home | gegen nachgebildete APIs (Pi-hole v6/v5, AdGuard) getestet | Nutzer |
 | OPNsense (inkl. Top Talkers), Docker | gegen nachgebildete APIs getestet | Tester |
-| Proxmox: Live-Raten je VM | gegen nachgebildete API getestet | Nutzer (Proxmox vorhanden) |
+| Proxmox: Live-Raten je VM, VLAN-Tags der Gäste im VLAN-Plan | gegen nachgebildete API getestet | Nutzer (Proxmox vorhanden) |
 | iperf3 zu einem Gerät | gegen nachgebildete iperf3-Ausgabe getestet | Nutzer |
 | Switch-Aktionen (SNMP-SET) | gegen Test-Agent getestet; Zyxel mit Schreibrechten offen | Tester |
 | Proxmox-Aktionen | gebaut, Token mit `VM.PowerMgmt` offen | Tester |
+| Anmeldung über OIDC mit echtem Authentik, Keycloak, Logto | gegen nachgebildeten Anbieter getestet (ES384, RS256, HS256), Browser-Ablauf mit lokalem Test-Anbieter | Nutzer |
+| Prometheus abfragen, Grafana-Dashboard importieren | Format geprüft, ohne echtes Prometheus/Grafana | Nutzer |
+| draw.io-Datei öffnen (app.diagrams.net / Desktop) | gültiges mxGraph-XML, ohne draw.io geprüft | Nutzer |
+| QR-Etiketten drucken und scannen | Codes maschinell gelesen (OpenCV), Druck auf echten Bögen offen | Nutzer |
 
 Am echten Gerät bestätigt: FRITZ!Box (inkl. 2FA, Backup, Schaltaktionen), ASUS EBM68 (Traffic Monitor/Analyzer),
-Zyxel XGS1935 (SNMP v3, Port-Filter, SSH-Backup mit díktyo-Schlüssel), Proxmox (Gäste), Internet-Speedtest.
+Zyxel XGS1935 (SNMP v3, Port-Filter, SSH-Backup mit díktyo-Schlüssel, **VLANs per Q-BRIDGE-MIB im VLAN-Plan**),
+Proxmox (Gäste), Internet-Speedtest, Verkabelung mit Patchfeld und Dosen.
 
 Offene Punkte aus den Tests: Bei UniFi ist die Einheit der WAN-Rate (Bit/Byte) nicht dokumentiert; bei MikroTik
 heißen WLAN-Felder je Paket (wifi, wifiwave2, wireless) leicht unterschiedlich.
@@ -90,65 +94,56 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
-| ~~OPNsense~~ – erledigt in 0.16 | ★★★ | M |
 | pfSense: wartet auf Netgates offizielle REST-API (das Community-Paket „pfrest“ ist im Wartungsmodus und endet nach pfSense 26.10) | ★★ | M |
 | OpenWrt (ubus/rpcd): Clients, WLAN, Ports, Aktionen | ★★ | M |
-| ~~Docker~~ – erledigt in 0.16 (Portainer optional später) | ★★ | S |
-| ~~Pi-hole / AdGuard Home: Hostnamen, Blockstatistik je Gerät~~ – erledigt in 0.23 | ★★ | S |
 | Synology / QNAP / TrueNAS / Unraid: Status, Laufwerke, Dienste | ★★ | M |
-| ~~Shelly / Tasmota direkt: Leistung, Schalten, Firmware~~ – erledigt in 0.22 | ★ | S |
 | Netgear-Switches (SNMP-Profile), devolo Powerline | ★ | M |
-| ~~Aktionen für UniFi (Port-Power-Cycle, Neustart) und Omada (PoE, Neustart)~~ – erledigt in 0.22 (gegen nachgebildete APIs getestet) | ★★ | S |
 | ASUS: Aktionen (Gastnetz, Neustart) und lesbarer Konfig-Vergleich (CFG entschlüsseln) | ★★ | M |
+| VLANs auch aus MikroTik, OPNsense, UniFi und Omada lesen (bisher per SNMP oder von Hand) | ★★ | M |
+| Erledigt: ~~OPNsense~~ (0.16), ~~Docker~~ (0.16), ~~Shelly/Tasmota~~ (0.22), ~~Aktionen UniFi/Omada~~ (0.22), ~~Pi-hole/AdGuard~~ (0.23) | | |
 
-### Wünsche aus dem Test (neu)
+### Wünsche aus dem Test
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
-| ~~Datendurchsatz je Gerät in der Topologie~~ – erledigt in 0.17 (kabelgebunden), 0.17.1 (ASUS-Tagesmenge) und 0.18 (Live-Raten aus Omada, UniFi, MikroTik, OPNsense, Proxmox) | ★★★ | M |
-| ~~Übersichtsseite (Dashboard)~~ – erledigt in 0.17 | ★★★ | M |
-| ~~Übersicht anpassbar: eigene Diagramme anheften (z. B. bestimmter Port, bestimmtes Gerät)~~ – erledigt in 0.26 | ★★ | S |
-| ~~Wachliste / Alarm in der Übersicht~~ – erledigt in 0.27: ausgewählte Systeme (z. B. Proxmox-Quorum-Knoten) gezielt überwachen; Feld in der Übersicht zeigt sofort, wenn eines ausgefallen ist, seine IP gewechselt hat oder sich sonst geändert hat – bis zum Quittieren; Auswahl im Gerätedialog, optional mit Benachrichtigung | ★★★ | M |
-| **Gruppen in der Topologie:** eigene Gruppen („IoT“, „Kameras“, „Kinderzimmer“), die als eigene Box unter ihrem Access Point/Switch erscheinen; alternativ nach Standort oder Tag gruppieren; Schwellwerte fürs automatische Zusammenfassen einstellbar | ★★ | M |
+| **Gruppen in der Topologie:** eigene Gruppen („IoT“, „Kameras“, „Kinderzimmer“), die als eigene Box unter ihrem Access Point/Switch erscheinen; alternativ nach Standort, Tag oder **VLAN** gruppieren; Schwellwerte fürs automatische Zusammenfassen einstellbar | ★★ | M |
+| VLAN-Plan: geplante VLAN-Wechsel von VMs/Containern im Plan-Modus mitführen (bisher nur der Ist-Stand aus Proxmox) | ★ | S |
+| Erledigt: ~~Durchsatz je Gerät in der Topologie~~ (0.17/0.18), ~~Übersichtsseite~~ (0.17), ~~Übersicht anpassbar~~ (0.26), ~~Wachliste / Alarm~~ (0.27) | | |
 
 ### Monitoring
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
-| ~~Latenz je Gerät, Ausfallzeiten/Verfügbarkeit~~ – erledigt in 0.15 (Bericht als PDF noch offen) | ★★★ | M |
-| ~~Hinweise auf Firmware-Updates~~ – erledigt in 0.15 (Zyxel-Switch per SNMP liefert dazu nichts) | ★★★ | M |
+| **Verfügbarkeitsbericht als PDF** (je Monat: Verfügbarkeit, Ausfälle, Antwortzeiten der Infrastruktur, Speedtests) | ★★★ | S |
 | TLS-Zertifikate: Warnung vor Ablauf (Daten aus dem Dienste-Scan) | ★★ | S |
-| ~~Speedtest bzw. iperf zwischen Geräten, Verlauf~~ – erledigt in 0.19 (díktyo ↔ Gerät) | ★★ | M |
 | iperf zwischen zwei beliebigen Geräten (per SSH auf einem der beiden), díktyo als iperf3-Gegenstelle für Handy-Apps | ★ | S |
-| ~~Benachrichtigungen per E-Mail und ntfy~~ – erledigt in 0.21 (Telegram/Gotify/Webhook offen) | ★★ | S |
+| Weitere Benachrichtigungswege: Telegram, Gotify, Webhook | ★★ | S |
+| Erledigt: ~~Latenz/Verfügbarkeit~~ (0.15), ~~Firmware-Hinweise~~ (0.15), ~~Speedtest/iperf~~ (0.19), ~~E-Mail/ntfy~~ (0.21) | | |
 
 ### Sicherheit
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
-| ~~Neue unbekannte Geräte automatisch in „Quarantäne“~~ – erledigt in 0.13 | ★★★ | S |
-| ~~Vergleich offener Ports über die Zeit~~ – im Verlauf seit 0.14 | ★★ | S |
-| ~~Anmeldung an díktyo mit 2FA (TOTP), Sitzungsverwaltung~~ – erledigt in 0.20; Passkeys (WebAuthn) und „2FA für alle Pflicht“ offen | ★★★ | M |
+| Passkeys (WebAuthn) und „2FA für alle Pflicht“ | ★★ | M |
+| Abmelden auch beim OIDC-Anbieter (RP-initiated logout) | ★ | S |
 | Audit-Log-Ansicht in der Oberfläche | ★ | S |
+| Erledigt: ~~Quarantäne für neue Geräte~~ (0.13), ~~Vergleich offener Ports~~ (0.14), ~~2FA und Sitzungen~~ (0.20), ~~OIDC~~ (0.32) | | |
 
 ### Dokumentation
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
-| ~~Änderungsverlauf je Gerät~~ – erledigt in 0.14 | ★★★ | M |
 | Grundriss/Raumplan mit Geräten, Rack-Ansicht | ★★ | L |
-| ~~Kabel und Patchpanels~~ – erledigt in 0.29 | ★★ | M |
-| Export nach draw.io / SVG / PNG, Netzplan als Poster-PDF | ★★ | S |
-| ~~QR-Etiketten für Geräte (Aufkleber mit Link zum Gerät in díktyo)~~ – erledigt in 0.28 | ★★ | S |
-| ~~VLAN-Plan grafisch (welcher Port in welchem VLAN)~~ – erledigt in 0.30 (mit Plan-Modus) | ★★ | M |
+| Kabel-Etiketten (Kabelnummern aus der Verkabelung als Aufkleber, wie die QR-Etiketten) | ★★ | S |
+| Erledigt: ~~Änderungsverlauf~~ (0.14), ~~QR-Etiketten~~ (0.28), ~~Kabel und Patchpanels~~ (0.29), ~~VLAN-Plan~~ (0.30), ~~Export nach draw.io / SVG / PNG, Netzplan als Poster-PDF~~ (0.33) | | |
 
 ### Automatisierung
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
-| ~~Zeitpläne für Aktionen~~ – erledigt in 0.13 | ★★★ | S |
 | Regeln („Kamera offline → PoE neu starten“, „AP antwortet nicht → Port neu starten“) | ★★ | M |
 | Aktionen als Schalter/Taster in Home Assistant (MQTT) | ★★ | S |
+| Erledigt: ~~Zeitpläne für Aktionen~~ (0.13) | | |
 
 ### KI
 
@@ -163,29 +158,27 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 | Idee | Nutzen | Aufwand |
 |---|---|---|
 | REST-API mit Tokens, Webhooks | ★★ | M |
-| ~~Prometheus/Grafana~~ – erledigt in 0.31 | ★ | S |
 | Handy-Ansicht / installierbare Web-App (PWA) | ★★ | M |
-| ~~Anmeldung über OIDC (Authentik, Keycloak …)~~ – erledigt in 0.32 | ★ | M |
 | Import aus NetBox | ★ | M |
+| Erledigt: ~~Prometheus/Grafana~~ (0.31), ~~Anmeldung über OIDC~~ (0.32) | | |
 
 ## 5. Verbesserungen an Bestehendem
 
 - **Topologie:** Filter (nur Infrastruktur, nur offline, nach Standort oder VLAN), Suche, weniger Linienkreuzungen,
-  Minikarte für große Netze, Export als Bild.
+  Minikarte für große Netze. (Export als Bild/PDF/draw.io erledigt in 0.33.)
 - **Netzscan:** IPv6, Erkennung über VLAN-Grenzen hinweg mit Hilfe der Integrationen, schnellere Läufe für große Netze.
 - **Sicherung:** Aufbewahrung am Ziel (alte Sicherungen in Google Drive automatisch löschen), einzelne Profile
   wiederherstellen, komplette ZIP-Verschlüsselung.
 - **Abfragen:** Integrationen parallel abfragen; Rückmeldung, wenn eine Integration länger hängt.
-- **Qualität:** automatische Tests der Oberfläche (Playwright) und eine CI auf GitHub, fertiges Docker-Image
-  (GHCR), Änderungsprotokoll je Version; doppelte Übersetzungsschlüssel in `i18n.js` aufräumen.
-- **Härtung:** Content-Security-Policy, Ratenbegrenzung auch außerhalb der Anmeldung, Sitzungen beenden können.
+- **Qualität:** CI auf GitHub mit den Tests, fertiges Docker-Image (GHCR), Änderungsprotokoll je Version; doppelte
+  Übersetzungsschlüssel in `i18n.js` aufräumen; die Oberflächentests (Playwright) ins Repository übernehmen.
+- **Härtung:** Content-Security-Policy, Ratenbegrenzung auch außerhalb der Anmeldung.
 
 ## 6. Vorschlag für die nächsten Schritte
 
-1. ~~Anmeldung mit zweitem Faktor (TOTP) und Sitzungsverwaltung~~ – erledigt in 0.20.
-2. ~~Benachrichtigungen per E-Mail und ntfy~~ – erledigt in 0.21.
-3. ~~Übersicht anpassbar (Diagramme anheften)~~ – erledigt in 0.26; ~~Wachliste / Alarm in der Übersicht~~ – erledigt
-   in 0.27. Als Nächstes **Verfügbarkeitsbericht als PDF**.
-4. **Quarantäne und Internetsperre auch über OPNsense/MikroTik** (bisher Quarantäne nur über die FRITZ!Box).
-5. Rückmeldungen der Tester (UniFi, MikroTik, OPNsense, Docker) einarbeiten; weitere Integrationen nach Bedarf
-   (NAS-Systeme, OpenWrt).
+1. **Verfügbarkeitsbericht als PDF** – liegt seit 0.15 als Rest offen, die Daten sind vorhanden.
+2. **Quarantäne und Internetsperre auch über OPNsense/MikroTik** (bisher Quarantäne nur über die FRITZ!Box).
+3. **Topologie: Filter und Gruppen** – nach VLAN, Standort, Tag oder eigenen Gruppen; passt zur VLAN-Umstellung.
+4. **REST-API mit Tokens und Webhooks** – letzter offener Punkt aus Phase 3.
+5. Rückmeldungen der Tester (UniFi, MikroTik, OPNsense, Docker) und echte Tests von OIDC, Prometheus/Grafana und
+   draw.io einarbeiten; weitere Integrationen nach Bedarf (NAS-Systeme, OpenWrt).

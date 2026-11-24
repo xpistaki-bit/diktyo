@@ -82,11 +82,21 @@ def ips_csv(c, pid, lang="de"):
 PRINT_STYLE = {"lan": ("#0091A8", ""), "wlan": ("#13A88A", "7 6"), "mesh": ("#2D5BFF", "2 5"), "virtual": ("#7A8FA6", "1 4")}
 
 
-def topology_svg(c, pid, lang="de"):
-    """-> (SVG-Inhalt, Breite, Höhe) des Gesamtbaums; WLAN-Gruppen bleiben zusammengefasst."""
+def topology_layout(c, pid, expand=False):
+    """Topologie wie in der Oberfläche (inkl. von Hand verschobener Knoten); expand: Gruppen (WLAN, VMs) aufgeklappt."""
     from . import topology
-    from .pdf import esc
     t = topology.build(c, pid)
+    if expand:
+        groups = [n["id"][1:] for n in t["nodes"] if n["kind"] == "group"]
+        if groups:
+            t = topology.build(c, pid, expanded=groups)
+    return t
+
+
+def topology_svg(c, pid, lang="de", expand=False, t=None):
+    """-> (SVG-Inhalt, Breite, Höhe) des Gesamtbaums; WLAN-Gruppen bleiben zusammengefasst, außer expand."""
+    from .pdf import esc
+    t = t or topology_layout(c, pid, expand)
     if not t["nodes"]:
         return "", 0, 0
     NW, NH, PAD = t["node_w"], t["node_h"], 20
@@ -128,13 +138,16 @@ def topology_svg(c, pid, lang="de"):
                        f'<text x="{x + 12}" y="{y + 37}" font-size="10" fill="#56708A">{esc(", ".join(n["names"][:4])[:44])}</text>')
             continue
         dot = {1: "#1E9E5A", 0: "#D23A55"}.get(n["online"], "#A9B8C6")
-        sub = n["ip"] or catalog.type_name(n["type"], lang)
+        typ = catalog.type_name(n["type"], lang)
+        sub = f"{n['ip']} · {typ}" if n["ip"] else typ
         out.append(f'<rect x="{x}" y="{y}" width="{NW}" height="{NH}" rx="8" fill="#FFFFFF" stroke="#9FB4C8"/>'
                    f'<circle cx="{x + NW - 12}" cy="{y + 12}" r="4" fill="{dot}"/>'
                    f'<text x="{x + 12}" y="{y + 20}" font-size="13" font-weight="bold" fill="#0A1A33">{esc(n["name"][:26])}</text>'
                    f'<text x="{x + 12}" y="{y + 36}" font-size="10" fill="#56708A" font-family="DejaVu Sans Mono, monospace">'
-                   f'{esc(sub)} · {esc(catalog.type_name(n["type"], lang))}</text>')
-    return "".join(out), t["width"] + PAD * 2 - (280 - NW), t["height"] + PAD * 2
+                   f'{esc(sub)}</text>')
+    right = max(n["x"] for n in t["nodes"]) + NW
+    bottom = max(n["y"] for n in t["nodes"]) + NH / 2
+    return "".join(out), right + PAD * 2, bottom + PAD * 2
 
 
 # ------------------------------------------------------------ PDF

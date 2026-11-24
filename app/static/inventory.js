@@ -510,7 +510,9 @@ function tabOutput(ctx) {
       <div class="row" style="margin-top:14px"><button class="pri" id="pdf">${t('PDF erstellen')}</button></div></div>
     <div class="panel"><h3>${t('Tabellen (CSV)')}</h3><p class="muted">${t('Für Excel, LibreOffice oder Numbers. Trennzeichen ist das Semikolon.')}</p>
       <div class="row"><a class="btn" href="${P}/export/devices.csv?lang=${LANG}">${t('Geräteliste')}</a><a class="btn" href="${P}/export/ips.csv?lang=${LANG}">${t('IP-Adressen')}</a></div></div>
+    <div class="panel" id="netplan"></div>
     <div class="panel lab-panel" id="labels"></div></div>`;
+  netplanPanel(ctx, $('#netplan', ctx.el));
   labelsPanel(ctx, $('#labels', ctx.el)).catch(e => { $('#labels', ctx.el).innerHTML = `<p class="errtxt">${h(e.message)}</p>`; });
   $('#pdf').onclick = () => {
     const secs = $$('[data-sec]', ctx.el).filter(x => x.checked).map(x => x.dataset.sec);
@@ -518,6 +520,45 @@ function tabOutput(ctx) {
     try { localStorage.setItem('dk_pdf_sections', JSON.stringify(secs)); } catch { }
     window.open(`${P}/export/report.pdf?sections=${secs.join(',')}&lang=${LANG}`, '_blank');
   };
+}
+
+/* ---------- Netzplan: SVG, PNG, draw.io, Poster-PDF ---------- */
+function netplanPrefs() {
+  let s = {};
+  try { s = JSON.parse(localStorage.getItem('dk_netplan') || '{}') || {}; } catch { }
+  return { paper: s.paper || 'a1', tiles: !!s.tiles, expand: !!s.expand };
+}
+function netplanUrl(pid, fmt, o) {
+  const q = new URLSearchParams({ lang: LANG, expand: o.expand ? '1' : '0' });
+  if (fmt === 'pdf') { q.set('paper', o.paper); q.set('tiles', o.tiles ? '1' : '0'); }
+  return `/api/profiles/${pid}/export/netplan.${fmt}?${q}`;
+}
+function netplanForm(o) {
+  return `<label class="chk"><input type="checkbox" data-np="expand" ${o.expand ? 'checked' : ''}> ${t('Gruppen aufklappen (jedes WLAN-Gerät und jede VM einzeln)')}</label>
+    <div class="grid2"><div><label>${t('Papierformat (Poster-PDF)')}</label><select data-np="paper">${[['a4', 'A4'], ['a3', 'A3'], ['a2', 'A2'], ['a1', 'A1'], ['a0', 'A0']]
+      .map(([k, n]) => `<option value="${k}" ${o.paper === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+      <div style="align-self:end"><label class="chk"><input type="checkbox" data-np="tiles" ${o.tiles ? 'checked' : ''}> ${t('auf A4-Blätter kacheln')}</label></div></div>
+    <p class="muted small">${t('Hoch- oder Querformat wählt díktyo nach der Form des Netzplans. Gekachelt: zum Drucken zu Hause, die Blätter überlappen 1 cm und tragen Zeile/Spalte.')}</p>
+    <div class="row np-btns"><button type="button" class="pri" data-npfmt="pdf">${t('Poster-PDF')}</button><button type="button" data-npfmt="svg">SVG</button>
+      <button type="button" data-npfmt="png">PNG</button><button type="button" data-npfmt="drawio">draw.io</button></div>
+    <p class="muted small">${t('Die Anordnung entspricht der Topologie – auch von Hand verschobene Geräte. In draw.io stehen IP, MAC, Typ, Modell und Standort als Eigenschaften an jedem Gerät (Rechtsklick → Daten bearbeiten).')}</p>`;
+}
+function bindNetplan(pid, el) {
+  const read = () => ({ expand: $('[data-np=expand]', el).checked, tiles: $('[data-np=tiles]', el).checked, paper: $('[data-np=paper]', el).value });
+  $$('[data-npfmt]', el).forEach(b => b.onclick = () => {
+    const o = read();
+    try { localStorage.setItem('dk_netplan', JSON.stringify(o)); } catch { }
+    const url = netplanUrl(pid, b.dataset.npfmt, o);
+    if (b.dataset.npfmt === 'pdf') window.open(url, '_blank');
+    else { const a = document.createElement('a'); a.href = url; a.download = ''; document.body.append(a); a.click(); a.remove(); }
+  });
+}
+function netplanPanel(ctx, el) {
+  el.innerHTML = `<h3>${t('Netzplan')}</h3><p class="muted">${t('Die Topologie als Poster-PDF (A4 bis A0), Bild (SVG, PNG) oder zum Weiterbearbeiten in draw.io.')}</p>${netplanForm(netplanPrefs())}`;
+  bindNetplan(ctx.pid, el);
+}
+async function netplanDialog(ctx) {
+  await dialog(t('Netzplan exportieren'), netplanForm(netplanPrefs()), { ok: null, onOpen: f => bindNetplan(ctx.pid, f) });
 }
 
 /* ---------- QR-Etiketten ---------- */

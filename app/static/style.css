@@ -780,3 +780,5 @@ button .pin-ic{margin-right:2px} .pinbtn .pin-ic{margin:0}
   border:1px solid color-mix(in srgb,var(--vc) 70%,#000);border-left:4px solid var(--vc);border-radius:4px;background:color-mix(in srgb,var(--vc) 14%,#07111f)}
 .vp-guest b{grid-row:1/3;font-size:17px;color:#fff;text-shadow:0 0 8px var(--vc)} .vp-guest small{color:var(--mute);font-size:11px}
 .vp-guest:hover{border-color:var(--cyan)}
+
+.np-btns{flex-wrap:wrap;gap:8px;margin-top:10px}

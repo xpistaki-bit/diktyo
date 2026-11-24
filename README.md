@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.32.1 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.33 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -426,6 +426,12 @@ cable run. Each run is checked against the connection detected on the switch por
 connected there). Cable runs also appear in the device dialog, in the PDF ("Cabling" section) and in backups.
 
 ## Output
+
+**Network map:** Output → Network map (or Topology → Export) exports the topology – laid out as in the interface,
+including devices moved by hand – as a **poster PDF** (A4 to A0 with a title block and legend, optionally tiled onto
+A4 sheets with overlap and sheet numbers for printing at home), **SVG**, **PNG** or a **draw.io** file in which every
+device carries IP, MAC, type, model and location as properties. Groups (Wi-Fi devices, VMs) can be expanded.
+
 
 **Output** creates a PDF in a light print layout. Choose the sections: topology graphic, device list, IP plan per subnet, VLAN
 overview, port assignment per switch, Wi-Fi overview (clients per access point/mesh node) and notes. The device

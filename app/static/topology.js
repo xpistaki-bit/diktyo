@@ -118,7 +118,7 @@ async function tabTopology(ctx) {
 
       <span class="legend topo-legend">${Object.entries(MSTYLE).map(([k, [c, d]]) => `<span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="${c}" stroke-width="2" stroke-dasharray="${d}"/></svg>${t(MEDIUM_SHORT[k])}</span>`).join('')}</span>
       <button class="sm" id="zout" title="${t('Verkleinern')}">−</button><button class="sm" id="zfit">${t('Einpassen')}</button><button class="sm" id="zin" title="${t('Vergrößern')}">+</button>
-      <span class="muted small" id="stamp"></span><button class="sm" id="fs">${t('Vollbild')}</button></div>
+      <span class="muted small" id="stamp"></span><button class="sm" id="npexp">${t('Exportieren')}</button><button class="sm" id="fs">${t('Vollbild')}</button></div>
     <div class="topo-wrap"${ctx.canEdit ? ` data-tip="${t('Geräte lassen sich mit der Maus verschieben')}"` : ''}><svg id="topo" viewBox="0 0 ${VW} ${VH}" class="topo"><g id="vp"></g></svg><aside class="topo-side panel" id="side" hidden></aside></div></div>`;
   const svg = $('#topo', ctx.el), vp = $('#vp', ctx.el);
   const byId = Object.fromEntries(data.nodes.map(n => [n.id, n]));
@@ -231,6 +231,8 @@ async function tabTopology(ctx) {
   const st = tabTopology.view[ctx.pid] || (tabTopology.view[ctx.pid] = fit());
   const pz = panZoom(svg, vp, st, fit);
   fullscreenToggle($('#tbox', ctx.el), $('#fs', ctx.el), () => setTimeout(() => pz.fit(), 50));
+  const npx = $('#npexp', ctx.el);
+  if (npx) npx.onclick = () => netplanDialog(ctx);
   $('#zin', ctx.el).onclick = () => pz.zoom(1.25); $('#zout', ctx.el).onclick = () => pz.zoom(1 / 1.25); $('#zfit', ctx.el).onclick = () => pz.fit();
   $('#tput', ctx.el).onclick = () => { try { localStorage.setItem('dk_topo_traffic', traffic() ? '0' : '1'); } catch { } ctx.reload(); };
   $('#expall', ctx.el).onclick = () => { data.nodes.filter(n => n.kind === 'group').forEach(n => exp.add(`${n.parent}:${n.medium}`)); ctx.reload(); };

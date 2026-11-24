@@ -314,6 +314,30 @@ def export_pdf(pid: int, request: Request, sections: str = "", user=Depends(requ
                     headers={"Content-Disposition": f'inline; filename="{_fname(p["name"], "-netzwerk.pdf")}"'})
 
 
+@router.get("/export/netplan.{fmt}")
+def export_netplan(pid: int, fmt: str, request: Request, expand: int = 0, paper: str = "a1", tiles: int = 0, user=Depends(require_user)):
+    """Netzplan als SVG, PNG, draw.io oder Poster-PDF."""
+    from . import netplan
+    if fmt not in ("svg", "png", "drawio", "pdf"):
+        raise HTTPException(404, "Unbekanntes Format")
+    lang = lang_of(request)
+    with db() as c:
+        p, _ = profile_access(c, user, pid)
+        try:
+            if fmt == "svg":
+                data, mt = netplan.svg(c, pid, lang, bool(expand)).encode("utf-8"), "image/svg+xml"
+            elif fmt == "png":
+                data, mt = netplan.png(c, pid, lang, bool(expand)), "image/png"
+            elif fmt == "drawio":
+                data, mt = netplan.drawio(c, pid, lang, bool(expand)).encode("utf-8"), "application/vnd.jgraph.mxfile"
+            else:
+                data, mt = netplan.poster_pdf(c, pid, lang, bool(expand), paper.lower(), bool(tiles)), "application/pdf"
+        except netplan.NetplanError as ex:
+            raise HTTPException(400, str(ex))
+    disp = "inline" if fmt == "pdf" else "attachment"
+    return Response(data, media_type=mt, headers={"Content-Disposition": f'{disp}; filename="{netplan.filename(p["name"], fmt)}"'})
+
+
 @router.get("/export/labels")
 def labels_info(pid: int, request: Request, user=Depends(require_user)):
     """Formate und Vorschlag für die Adresse im QR-Code (Einstellung „Adresse der Weboberfläche“ oder die aufgerufene)."""

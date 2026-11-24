@@ -641,6 +641,14 @@ Im **Gerätedialog** stehen die Kabelwege des Geräts (beim Switch alle seine Po
 Abschnitt *Verkabelung* mit allen Kabelwegen und Patchfeldern. Die Sicherung enthält alles.
 
 - *Ausgabe:* PDF (Topologie-Grafik, Geräteliste, IP-Plan, VLANs, Portbelegung, WLAN-Übersicht, Notizen – wählbar) und CSV.
+- **Netzplan** (*Ausgabe → Netzplan* oder *Topologie → Exportieren*): die Topologie – so angeordnet wie in der
+  Oberfläche, auch mit von Hand verschobenen Geräten – als **Poster-PDF**, **SVG**, **PNG** oder **draw.io**-Datei.
+  Das Poster-PDF gibt es in A4 bis A0 mit Schriftfeld (Profil, Stand, Anzahl Geräte) und Legende; Hoch- oder
+  Querformat wählt díktyo nach der Form des Netzplans. *Auf A4-Blätter kacheln* verteilt das Poster zum Drucken zu
+  Hause auf A4-Seiten mit 1 cm Überlappung, Klebemarken und Blattnummer (Zeile/Spalte). *Gruppen aufklappen* zeigt
+  jedes WLAN-Gerät und jede VM einzeln. In draw.io (app.diagrams.net oder Desktop) stehen IP, MAC, Typ, Modell und
+  Standort als Eigenschaften an jedem Gerät (*Rechtsklick → Daten bearbeiten*); die Linien sind nach Art gestrichelt
+  bzw. gepunktet. Beim PDF in Originalgröße drucken (100 %).
 - **QR-Etiketten** (*Ausgabe → QR-Etiketten*): Aufkleber für die Geräte. Der QR-Code öffnet mit dem Handy direkt den
   Gerätedialog in díktyo – ist man nicht angemeldet, geht es nach der Anmeldung dorthin. Neben dem Code stehen Name und
   wahlweise IP-Adresse, MAC sowie Standort und Typ. Formate: A4-Bögen 70 × 37 mm (24 Stück, z. B. Avery Zweckform
