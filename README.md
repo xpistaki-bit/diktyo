@@ -109,6 +109,8 @@ Do not install Docker directly on a Proxmox host; use the LXC instead, or a VM.
   docker compose exec diktyo python -m app.cli reset-password me@example.com   # Docker
   ```
 
+  The new password is asked for twice without echo; díktyo never prints passwords.
+
 ## Devices and network
 
 Each profile has the tabs **Devices**, **IPAM**, **Locations**, **Output** and **Sharing**.

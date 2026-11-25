@@ -2,11 +2,14 @@
 
 LXC:     diktyo reset-password ich@example.com
 Docker:  docker compose exec diktyo python -m app.cli reset-password ich@example.com
+
+Ohne Passwort-Argument fragt das Programm das neue Passwort verdeckt ab (zweimal). Passwörter werden nie ausgegeben.
 """
 import argparse
+import getpass
 import sys
 
-from . import security, users
+from . import users
 from .db import db, migrate
 
 
@@ -17,11 +20,27 @@ def need(c, email):
     return u
 
 
+def ask_password():
+    """Neues Passwort verdeckt abfragen (zweimal). Ohne Terminal: Abbruch mit Hinweis."""
+    if not sys.stdin.isatty():
+        sys.exit("Kein Terminal für die Passworteingabe. Mit Terminal starten (docker compose exec ohne -T, pct enter) "
+                 "oder das Passwort als Argument angeben.")
+    for _ in range(3):
+        a, b = getpass.getpass("Neues Passwort: "), getpass.getpass("Wiederholen: ")
+        if a != b:
+            print("Die Eingaben stimmen nicht überein.")
+        elif len(a) < 8:
+            print("Das Passwort muss mindestens 8 Zeichen haben.")
+        else:
+            return a
+    sys.exit("Abgebrochen.")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="diktyo", description="díktyo – Konten auf der Kommandozeile verwalten")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list-users", help="alle Konten anzeigen")
-    p = sub.add_parser("reset-password", help="neues Passwort setzen (zufällig, wenn keins angegeben)")
+    p = sub.add_parser("reset-password", help="neues Passwort setzen (wird verdeckt abgefragt, wenn keins angegeben)")
     p.add_argument("email")
     p.add_argument("password", nargs="?")
     p = sub.add_parser("create-user", help="Konto anlegen")
@@ -48,14 +67,12 @@ def main(argv=None):
                     print(f"{'[admin] ' if r['is_admin'] else '        '}{r['email']}   (letzte Anmeldung: {r['last_login'] or 'nie'})")
             elif a.cmd == "reset-password":
                 u = need(c, a.email)
-                pw = a.password or security.generate_password()
-                users.set_password(c, u["id"], pw)
-                print(f"Neues Passwort für {u['email']}: {pw}" if not a.password else f"Passwort für {u['email']} gesetzt.")
+                users.set_password(c, u["id"], a.password or ask_password())
+                print(f"Passwort für {u['email']} gesetzt.")
                 print("Alle Sitzungen dieses Kontos wurden abgemeldet.")
             elif a.cmd == "create-user":
-                pw = a.password or security.generate_password()
-                u = users.create(c, a.email, pw, is_admin=a.admin)
-                print(f"{'Administrator-' if u['is_admin'] else ''}Konto {u['email']} angelegt" + (f", Passwort: {pw}" if not a.password else "."))
+                u = users.create(c, a.email, a.password or ask_password(), is_admin=a.admin)
+                print(f"{'Administrator-' if u['is_admin'] else ''}Konto {u['email']} angelegt.")
             elif a.cmd == "set-admin":
                 u = need(c, a.email)
                 users.set_admin(c, u["id"], a.state == "on")

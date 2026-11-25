@@ -437,3 +437,20 @@ def table():
     """Für die Oberfläche: exakte Texte und Muster."""
     return dict(exact=ERR_EN, prefix=ERR_EN_PREFIX, patterns=[[de, en_] for de, en_ in PATTERNS],
                 regex=[[p, r.replace("\\1", "$1").replace("\\2", "$2")] for p, r in ERR_EN_RE])
+
+
+# ------------------------------------------------------------ 0.38.1: feste Fehlertexte der Sicherung
+ERR_EN.update({
+    "Keine Schreibrechte – Rechte des díktyo-Dienstes am Ziel prüfen": "No write permission – check the díktyo service’s rights on the target",
+    "Ordner nicht vorhanden oder kein Ordner": "Folder does not exist or is not a folder", "Kein Speicherplatz mehr am Ziel": "No space left on the target",
+    "Ziel ist schreibgeschützt (nur lesbar eingebunden)": "Target is read-only (mounted read-only)",
+    "WebDAV-Server antwortet nicht (Zeitüberschreitung)": "WebDAV server does not respond (timeout)",
+    "WebDAV-Server nicht erreichbar – Adresse prüfen": "WebDAV server not reachable – check the address",
+    "rclone hat nach 10 Minuten nicht geantwortet": "rclone did not respond within 10 minutes",
+    "Gespeichertes Passwort lässt sich nicht entschlüsseln – Passwort neu eintragen": "Stored password cannot be decrypted – enter the password again",
+    "Fehler beim Sichern – Details im Protokoll des Dienstes": "Backup failed – details in the service log",
+    "Anmeldung abgelehnt – Benutzer und Passwort prüfen": "Sign-in rejected – check user and password",
+    "unbekannter Zieltyp": "unknown target type",
+    "rclone ist nicht installiert (apt install rclone, danach 'rclone config')": "rclone is not installed (apt install rclone, then 'rclone config')",
+})
+ERR_EN_RE.append((r"^WebDAV-Server meldet HTTP (\d+)$", r"WebDAV server returns HTTP \1"))

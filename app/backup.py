@@ -141,13 +141,37 @@ def build_zip(c, with_documents=True):
                     z.writestr(base + "netzwerk.pdf", export.profile_pdf(c, p["id"]))
                     z.writestr(base + "geraete.csv", export.devices_csv(c, p["id"]))
                     z.writestr(base + "ip-adressen.csv", export.ips_csv(c, p["id"]))
-                except Exception as ex:  # ein defekter Eintrag darf die Sicherung nicht verhindern
-                    z.writestr(base + "FEHLER.txt", str(ex))
+                except Exception:  # ein defekter Eintrag darf die Sicherung nicht verhindern
+                    import traceback
+                    print(f"Sicherung: Dokumente für Profil {p['id']} fehlgeschlagen\n{traceback.format_exc()}", flush=True)
+                    z.writestr(base + "FEHLER.txt", "Die Dokumente dieses Profils konnten nicht erzeugt werden – Details im Protokoll des Dienstes.")
     return buf.getvalue()
 
 
 def filename():
     return "diktyo-sicherung-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".zip"
+
+
+def failure_text(ex):
+    """Verständlicher, fester Text zu einem Fehler beim Sichern – der Wortlaut der Ausnahme bleibt im Protokoll."""
+    import errno
+    if isinstance(ex, PermissionError):
+        return "Keine Schreibrechte – Rechte des díktyo-Dienstes am Ziel prüfen"
+    if isinstance(ex, (FileNotFoundError, NotADirectoryError)):
+        return "Ordner nicht vorhanden oder kein Ordner"
+    if isinstance(ex, OSError) and ex.errno == errno.ENOSPC:
+        return "Kein Speicherplatz mehr am Ziel"
+    if isinstance(ex, OSError) and ex.errno == errno.EROFS:
+        return "Ziel ist schreibgeschützt (nur lesbar eingebunden)"
+    if isinstance(ex, httpx.TimeoutException):
+        return "WebDAV-Server antwortet nicht (Zeitüberschreitung)"
+    if isinstance(ex, (httpx.ConnectError, httpx.NetworkError)):
+        return "WebDAV-Server nicht erreichbar – Adresse prüfen"
+    if isinstance(ex, subprocess.TimeoutExpired):
+        return "rclone hat nach 10 Minuten nicht geantwortet"
+    if isinstance(ex, InvalidToken):
+        return "Gespeichertes Passwort lässt sich nicht entschlüsseln – Passwort neu eintragen"
+    return "Fehler beim Sichern – Details im Protokoll des Dienstes"
 
 
 def run(c, targets):
@@ -156,6 +180,7 @@ def run(c, targets):
     results = []
     for t in targets:
         kind = t.get("type")
+        label = f"{kind} {t.get('path') or t.get('url') or t.get('remote') or ''}"
         try:
             if kind == "local":
                 d = pathlib.Path(t["path"])
@@ -167,27 +192,26 @@ def run(c, targets):
                 pw = security.decrypt(t["password"]) if t.get("password") else ""
                 auth = (t.get("user", ""), pw) if t.get("user") else None
                 r = httpx.put(url, content=data, auth=auth, timeout=120)
-                r.raise_for_status()
-                results.append(dict(target=f"WebDAV {t['url']}", ok=True, detail=fname))
+                ok = r.status_code < 400
+                results.append(dict(target=f"WebDAV {t['url']}", ok=ok, detail=fname if ok else
+                                    "Anmeldung abgelehnt – Benutzer und Passwort prüfen" if r.status_code in (401, 403) else
+                                    f"WebDAV-Server meldet HTTP {r.status_code}"))
             elif kind == "rclone":
                 if not shutil.which("rclone"):
-                    raise RuntimeError("rclone ist nicht installiert (apt install rclone, danach 'rclone config')")
+                    results.append(dict(target=label, ok=False, detail="rclone ist nicht installiert (apt install rclone, danach 'rclone config')"))
+                    continue
                 with tempfile.TemporaryDirectory() as td:
                     p = pathlib.Path(td) / fname
                     p.write_bytes(data)
                     cp = subprocess.run(["rclone", "--config", str(RCLONE_CONF), "copy", str(p), t["remote"]], capture_output=True, text=True, timeout=600)
-                    if cp.returncode:
-                        raise RuntimeError(rclone_error(cp.stderr, t["remote"]))
-                results.append(dict(target=f"rclone {t['remote']}", ok=True, detail=fname))
+                results.append(dict(target=f"rclone {t['remote']}", ok=not cp.returncode,
+                                    detail=rclone_error(cp.stderr, t["remote"]) if cp.returncode else fname))
             else:
-                raise RuntimeError("unbekannter Zieltyp")
-        except (OSError, httpx.HTTPError, RuntimeError, ValueError, subprocess.SubprocessError) as ex:  # Ursache hilft bei der Einrichtung
-            results.append(dict(target=f"{kind} {t.get('path') or t.get('url') or t.get('remote') or ''}", ok=False, detail=str(ex)[:300]))
-        except Exception:  # Unerwartetes nicht im Wortlaut an die Oberfläche
+                results.append(dict(target=label, ok=False, detail="unbekannter Zieltyp"))
+        except Exception as ex:  # Wortlaut nur ins Protokoll, an die Oberfläche ein fester Text
             import traceback
-            print(f"Sicherung an {kind}: unerwarteter Fehler\n{traceback.format_exc()}", flush=True)
-            results.append(dict(target=f"{kind} {t.get('path') or t.get('url') or t.get('remote') or ''}", ok=False,
-                                detail="Unerwarteter Fehler – Details im Protokoll des Dienstes"))
+            print(f"Sicherung an {label}: {type(ex).__name__}\n{traceback.format_exc()}", flush=True)
+            results.append(dict(target=label, ok=False, detail=failure_text(ex)))
     return results, len(data)
 
 

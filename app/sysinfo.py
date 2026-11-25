@@ -47,16 +47,22 @@ def _vendor(v):
     return re.sub(r",? (inc|corp|corporation|co|ltd|gmbh|technology|computer|international)\.?$", "", v, flags=re.I).strip()
 
 
+KEY = re.compile(r"[A-Za-z][A-Za-z0-9 _./()-]*")
+
+
 def _fields(text):
     """Schlüssel: Wert aus allen bekannten Formaten -> {schluessel_klein: wert}"""
     out = {}
     for line in text.splitlines():
         if len(line) > 1000:
             continue
-        m = re.match(r"\s*([A-Za-z][A-Za-z0-9 _./()-]{1,40}?)[ \t]*[:=](.*)$", line)
-        if m and m.group(2).strip():
-            k = m.group(1).strip().lower().replace("_", " ")
-            out.setdefault(k, m.group(2).strip().strip('"'))
+        cut = [i for i in (line.find(":"), line.find("=")) if i >= 0]
+        if not cut:
+            continue
+        key, val = line[:min(cut)].strip(), line[min(cut) + 1:].strip()
+        # Schlüssel: Buchstabe am Anfang, dann Buchstaben, Ziffern, Leerzeichen und _./()- – geprüft ohne verschachtelte Wiederholung
+        if val and 2 <= len(key) <= 41 and KEY.fullmatch(key):
+            out.setdefault(key.lower().replace("_", " "), val.strip('"'))
     return out
 
 
