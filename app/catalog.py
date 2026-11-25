@@ -22,7 +22,7 @@ TYPE_EN = {
     "console": "Game console", "ups": "UPS", "printer3d": "3D printer", "vacuum": "Robot vacuum", "doorbell": "Doorbell", "hub": "Smart home hub (Zigbee, Matter, Thread)", "esp": "ESP device (ESPHome, Tasmota)", "plug": "Plug / switch", "light": "Light / lamp", "thermostat": "Thermostat / heating", "energy": "Energy (PV, battery, meter)", "wallbox": "Wallbox", "appliance": "Household appliance", "sensor": "Sensor", "voip": "Phone / VoIP", "wearable": "Watch / wearable", "other": "Other",
 }
 PORT_KINDS = ("rj45", "sfp", "sfp+", "sfp28", "coax", "dsl", "fiber", "usb")
-MEDIA = ("lan", "wlan", "mesh", "virtual")  # Verbindungsarten
+MEDIA = ("lan", "wlan", "mesh", "powerline", "virtual")  # Verbindungsarten
 
 
 def sorted_types(lang="de"):

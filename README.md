@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.37 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.38 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -300,6 +300,13 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
   counters), MAC addresses learned per port and LLDP neighbours. Devices whose MAC address appears alone on a port
   are connected to that port automatically; on a port with many addresses the switch, access point or router behind
   it is chosen. Enable SNMP on the switch (Zyxel: Management → Access Control → SNMP) and set a community.
+  **Vendor profiles** (automatic by device ID: Netgear, Zyxel, TP-Link, generic) add model, serial number, firmware and
+  hardware revision from the ENTITY-MIB, plus temperature for Netgear and CPU load; the firmware appears in the firmware
+  overview. Netgear Plus switches (GS105E, GS108E, GS305E, GS308E) have no SNMP and are documented by hand.
+- **devolo Powerline** (adapters managed by the devolo Home Network app, e.g. Magic series): enter one adapter, díktyo
+  finds the others in the powerline network and shows firmware with update hint, data rates between the adapters,
+  devices on their LAN ports and Wi-Fi devices. Adapters are linked with the link type "Powerline" (adapter at the
+  router is the root). Read only; older dLAN adapters that only know dLAN Cockpit cannot be queried.
 - **ASUS router with AiMesh** (for example ExpertWiFi EBM68): clients with name, IP, MAC, Wi-Fi band and the mesh
   node they are connected to, plus the mesh nodes with their backhaul (mesh or LAN). Sign in with the router's admin
   account (web interface, usually HTTPS port 8443). ASUS allows only one admin session at a time; díktyo keeps its

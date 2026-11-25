@@ -7,8 +7,8 @@ from . import catalog, inventory, ipam
 from .pdf import Doc
 
 SECTIONS = ("topology", "devices", "ipplan", "vlans", "ports", "cabling", "plans", "wlan", "notes")
-MEDIUM = {"de": {"lan": "LAN", "wlan": "WLAN", "mesh": "Mesh-Backhaul", "virtual": "virtuell"},
-          "en": {"lan": "LAN", "wlan": "Wi-Fi", "mesh": "Mesh backhaul", "virtual": "virtual"}}
+MEDIUM = {"de": {"lan": "LAN", "wlan": "WLAN", "mesh": "Mesh-Backhaul", "powerline": "Powerline", "virtual": "virtuell"},
+          "en": {"lan": "LAN", "wlan": "Wi-Fi", "mesh": "Mesh backhaul", "powerline": "Powerline", "virtual": "virtual"}}
 KIND = {"de": {"static": "statisch", "dhcp": "DHCP", "reserved": "reserviert"}, "en": {"static": "static", "dhcp": "DHCP", "reserved": "reserved"}}
 S = {
     "topology": ("Topologie", "Topology"), "loose": ("Ohne Verbindung", "Not connected"),
@@ -80,7 +80,7 @@ def ips_csv(c, pid, lang="de"):
 
 
 # ------------------------------------------------------------ Topologie (helle Druckvariante)
-PRINT_STYLE = {"lan": ("#0091A8", ""), "wlan": ("#13A88A", "7 6"), "mesh": ("#2D5BFF", "2 5"), "virtual": ("#7A8FA6", "1 4")}
+PRINT_STYLE = {"lan": ("#0091A8", ""), "wlan": ("#13A88A", "7 6"), "mesh": ("#2D5BFF", "2 5"), "powerline": ("#C77700", "10 3 2 3"), "virtual": ("#7A8FA6", "1 4")}
 
 
 def group_label(n, lang):

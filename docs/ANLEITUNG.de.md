@@ -2,7 +2,7 @@
 
 díktyo dokumentiert dein Heimnetz: Geräte mit IP, MAC, Standort und Notizen, IP-Adressverwaltung mit Subnetzen und VLANs,
 eine grafische Topologie, Netzscan mit Geräteerkennung, Online-Überwachung und Integrationen für FRITZ!Box, Switches
-(SNMP), ASUS-Router mit AiMesh, MikroTik, TP-Link Omada, Ubiquiti UniFi, Proxmox VE und Home Assistant. Diese Anleitung führt durch Installation und Einrichtung.
+(SNMP, z. B. Zyxel und Netgear), devolo Powerline, ASUS-Router mit AiMesh, MikroTik, TP-Link Omada, Ubiquiti UniFi, Proxmox VE und Home Assistant. Diese Anleitung führt durch Installation und Einrichtung.
 
 > **Neu hier?** Die bebilderte Kurzfassung [Erste Schritte](ERSTE-SCHRITTE.de.md) zeigt in 15 Minuten, wo du klickst:
 > installieren, scannen, Router verbinden, fertig.
@@ -226,6 +226,14 @@ Angaben, bevor gespeichert wird.
   ausgelassenen. Ports mit Link unter 1 Gbit/s sind **orange**, ab 2,5 Gbit/s **blau**.
 - Antwortet der Switch gar nicht („Keine Antwort“), blockiert er die Anfragen – meist fehlt die Freigabe unter Service
   Access oder Trusted Hosts.
+- **Hersteller-Profil:** „automatisch“ erkennt Netgear, Zyxel und TP-Link an der Kennung des Geräts. Für alle liest
+  díktyo zusätzlich Modell, Seriennummer, Firmware und Hardware-Revision (ENTITY-MIB) und, wo vorhanden, die CPU-Last;
+  bei Netgear außerdem Inventar und Temperatur. Die Firmware erscheint unter *Erreichbarkeit und Firmware*, Hersteller
+  und Modell am Gerät (nur wenn dort noch leer).
+- **Netgear:** SNMP im Web-Menü unter *System → SNMP* (M-Serie: *System → Management → SNMP*) einschalten, Community
+  bzw. SNMPv3-Benutzer anlegen und díktyo als erlaubten Client eintragen. Für Aktionen (Port ab-/einschalten, PoE neu
+  starten) braucht die Community Zugriff „Read-Write“. Die **Plus-Switches** (GS105E, GS108E, GS305E, GS308E …) haben
+  kein SNMP – sie lassen sich nur von Hand dokumentieren.
 - **Diagnose** im Dialog prüft Schritt für Schritt: Netzweg, Erreichbarkeit, ob der SNMP-Dienst überhaupt antwortet
   (ohne Zugangsdaten) und dann die Anmeldung. So ist klar, ob der Switch díktyo blockiert oder Benutzer/Passwort falsch sind.
 - **díktyo in einem anderen Netz als der Switch** (z. B. díktyo hinter dem ASUS-Router, Switch im FRITZ!Box-Netz): Der
@@ -393,6 +401,22 @@ díktyo liest Schnittstellen (Status, Adressen, Traffic), Clients aus DHCP-Lease
   ohne neue Version erscheint ein Hinweis (meist kommt das Gerät nicht ins Internet). *Weboberfläche öffnen* (im
   Gerätedialog, in der Topologie und als ↗ auf der Karte) führt direkt zum Gerät.
 
+### devolo Powerline
+
+- Unterstützt sind Adapter, die die **devolo Home Network App** verwaltet (Magic-Serie und neuere dLAN-Modelle).
+  Ältere Adapter, die nur das dLAN Cockpit kennen, haben diese Schnittstelle nicht.
+- *+ devolo Powerline*, die IP-Adresse **eines** Adapters eintragen – am besten den am Router. Die übrigen Adapter des
+  Powerline-Netzes findet díktyo selbst. Ein in der App gesetztes **Gerätepasswort** eintragen, sonst leer lassen.
+- díktyo sollte im selben Netz wie die Adapter liegen: sie melden ihre Schnittstelle per mDNS (Port 5353), das leiten
+  Router meist nicht weiter.
+- Die Karte zeigt alle Adapter mit Modell, IP und Firmware (Update-Hinweis, einmal am Tag geprüft), wie viele Geräte an
+  ihrer LAN-Buchse bzw. im WLAN hängen und die **Datenraten zwischen den Adaptern** (beide Richtungen, als Messwerte
+  gespeichert).
+- Die Adapter werden als Typ *Powerline* angelegt und mit der Verbindungsart **Powerline** verbunden; der Adapter am
+  Router ist die Wurzel und hängt am Router. Geräte an den anderen Adaptern hängen an „ihrem“ Adapter, WLAN-Geräte per
+  WLAN. Von Hand gesetzte Verbindungen bleiben unangetastet.
+- díktyo liest nur; Pairing, LED, WLAN-Einstellungen und Firmware-Update bleiben in der devolo-App.
+
 ### Docker
 
 Den Docker-Socket nie direkt freigeben, sondern auf dem Docker-Host einen **Socket-Proxy** starten, der nur das Nötige
@@ -401,8 +425,8 @@ erlaubt – die `docker-compose.yml` dafür steht im Einrichtungsdialog (lesen: 
 erreichbar lassen. Container erscheinen als virtuelle Geräte am Docker-Host (Image als Modell, laufend = online);
 Starten, Stoppen und Neustarten über *Aktionen*. díktyo stoppt weder sich selbst noch den Socket-Proxy.
 
-**Hinweis:** OPNsense und Docker sind nach der Dokumentation gebaut und gegen nachgebildete APIs getestet, noch nicht
-an echter Hardware.
+**Hinweis:** OPNsense, Docker, devolo und die Netgear-Zusatzwerte sind nach der Dokumentation gebaut und gegen
+nachgebildete Geräte getestet, noch nicht an echter Hardware.
 
 ## 5. Überwachung und Ereignisse
 

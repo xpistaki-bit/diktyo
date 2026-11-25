@@ -6,7 +6,7 @@ und LLDP-Nachbarn. Physische Ports sind die Ethernet-Schnittstellen in der Reihe
 import re
 import time
 
-from . import snmplib
+from . import snmplib, snmpprofiles
 
 NAME = "Switch (SNMP)"
 DEFAULT_INTERVAL = 60
@@ -15,6 +15,7 @@ FIELDS = [
     dict(key="host", label="Adresse", type="text", default="", required=True),
     dict(key="port", label="Port", type="number", default=161),
     dict(key="version", label="SNMP-Version", type="select", default="v2c", options=[["v2c", "v2c (Community)"], ["v3", "v3 (Benutzer)"]]),
+    dict(key="profile", label="Hersteller-Profil", type="select", default="auto", options=snmpprofiles.CHOICES),
     dict(key="password", label="Community", type="password", default="public", secret=True, show=dict(version="v2c")),
     dict(key="username", label="Benutzer", type="text", default="", show=V3),
     dict(key="auth_proto", label="Authentifizierung", type="select", default="SHA", options=[["SHA", "SHA (SHA-1)"], ["SHA-256", "SHA-256"], ["MD5", "MD5"]], show=V3),
@@ -296,6 +297,9 @@ def diagnose(conf, nat_hint=None):
                        if sender else "Der Switch lässt díktyo nicht durch. Am Switch die WAN-Adresse des Routers zwischen díktyo und Switch erlauben – oder díktyo eine Netzwerkkarte im Netz des Switches geben.")
         else:
             summary = "Der Switch lässt díktyo nicht durch: SNMP unter Service Access erlauben und díktyos Adresse als Trusted Host eintragen."
+        tip = snmpprofiles.hint(conf.get("profile"), "enable")
+        if tip and not agent:
+            step(None, "Hinweis zum Hersteller", tip)
     return dict(steps=steps, summary=summary, source=src, sender=sender)
 
 
@@ -316,8 +320,7 @@ def action(conf, state, kind, params):
     except snmplib.SNMPError as ex:
         msg = str(ex)
         if "Schreib" in msg or "Keine Antwort" in msg:
-            msg += (" – Zyxel: unter Management → Access Control → SNMP den Benutzer einer Gruppe mit Schreibrechten (z. B. „admin“) "
-                    "zuordnen bzw. eine Community mit read-write anlegen, dann Save.")
+            msg += " – " + (snmpprofiles.hint(state.get("profile") or conf.get("profile"), "write") or "am Switch einer Community bzw. einem SNMPv3-Benutzer Schreibrechten (read-write) geben.")
         raise DriverError(msg)
     raise DriverError(f"Unbekannte Aktion {kind}")
 
@@ -337,6 +340,12 @@ def poll(conf, state):
     except snmplib.SNMPError as ex:
         raise DriverError(str(ex))
     info = {k: (snmplib.text(sysv.get(o)) if k != "uptime" else int(sysv.get(o) or 0) // 100) for k, o in SYS.items()}
+    profile = snmpprofiles.detect(info["object_id"], info["descr"], conf.get("profile") or "auto")
+    info["profile"], info["vendor"] = profile, snmpprofiles.PROFILES[profile]["name"] if profile != "generic" else ""
+    try:
+        info.update(snmpprofiles.extra(c, profile))
+    except Exception:  # Zusatzangaben sind freiwillig
+        pass
     types, oper = _col(c, IF_TYPE), _col(c, IF_OPER)
     admin = _col(c, IF_ADMIN)
     try:
@@ -402,10 +411,15 @@ def poll(conf, state):
             p["lldp"] = dict(name=snmplib.text(v), port=snmplib.text(lpdesc.get(idx)) or snmplib.text(lpid.get(idx)),
                              chassis=snmplib.mac(ch) if isinstance(ch, bytes) and len(ch) == 6 else snmplib.text(ch))
     res = dict(info=info, ports=ports, fdb_size=len(entries))
+    if info.get("firmware"):
+        res["firmware"] = dict(installed=info["firmware"])
+    for k in ("temperature", "cpu"):
+        if info.get(k) is not None:
+            metrics[k] = info[k]
     try:
         vl = read_vlans(c, ports, to_if)
         if vl:
             res["vlans"] = vl
     except Exception:
         pass  # Switch ohne Q-BRIDGE-MIB: VLANs bleiben von Hand gepflegt
-    return res, metrics, dict(counters=counters)
+    return res, metrics, dict(counters=counters, profile=profile)

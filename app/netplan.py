@@ -132,7 +132,7 @@ def poster_pdf(c, pid, lang="de", expand=False, paper="a1", tiles=False):
 
 # ------------------------------------------------------------ draw.io
 DRAW_EDGE = {"lan": "strokeColor=#0091A8;", "wan": "strokeColor=#0091A8;strokeWidth=2;", "wlan": "strokeColor=#13A88A;dashed=1;dashPattern=8 6;",
-             "mesh": "strokeColor=#2D5BFF;dashed=1;dashPattern=2 5;", "virtual": "strokeColor=#7A8FA6;dashed=1;dashPattern=1 4;"}
+             "mesh": "strokeColor=#2D5BFF;dashed=1;dashPattern=2 5;", "powerline": "strokeColor=#C77700;dashed=1;dashPattern=10 3 2 3;", "virtual": "strokeColor=#7A8FA6;dashed=1;dashPattern=1 4;"}
 DRAW_FILL = {"router": "#E6F4F8", "firewall": "#FCE9EC", "modem": "#E6F4F8", "switch": "#EAF1FF", "ap": "#E9F8F1", "mesh": "#E9F8F1",
              "hypervisor": "#F2EEFF", "server": "#F2EEFF", "nas": "#F2EEFF"}
 

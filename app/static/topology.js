@@ -1,6 +1,6 @@
 'use strict';
 /* Topologie: Gesamtbaum und Detailansicht (Frontplatte mit Ports). Nutzt die Hilfen aus app.js, inventory.js, scan.js, integrations.js. */
-const MSTYLE = { lan: ['#00E5FF', ''], wlan: ['#19F5C8', '7 6'], mesh: ['#2D7BFF', '2 5'], virtual: ['#7FA6C4', '1 4'] };
+const MSTYLE = { lan: ['#00E5FF', ''], wlan: ['#19F5C8', '7 6'], mesh: ['#2D7BFF', '2 5'], powerline: ['#FFB020', '10 3 2 3'], virtual: ['#7FA6C4', '1 4'] };
 const ICON = {  // 24×24, Linien
   router: 'M3 14h18v6H3zM7 14V9M17 14V9M6 17h.01M10 17h.01M5 6a6 6 0 0 1 4-3M19 6a6 6 0 0 0-4-3',
   modem: 'M3 14h18v6H3zM6 17h.01M10 17h.01M12 14V6',

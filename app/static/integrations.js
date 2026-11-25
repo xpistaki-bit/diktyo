@@ -31,6 +31,7 @@ const DRIVER_STEPS = {
     '„Verbindung testen“ zeigt Modell, FRITZ!OS und ob die Anmeldung reicht.',
   ],
   snmp: [
+    '<b>Hersteller-Profil</b> „automatisch“ lassen: díktyo erkennt Netgear, Zyxel und TP-Link an der Kennung des Geräts und liest zusätzlich Modell, Seriennummer, Firmware (ENTITY-MIB) sowie bei Netgear Temperatur. Netgear: SNMP unter <b>System → SNMP</b> einschalten; die Plus-Switches (GS105E, GS108E, GS305E, GS308E) haben kein SNMP.',
     'Am Switch SNMP einschalten, beim Zyxel unter <b>Management → Access Control → SNMP</b>: <b>v3</b> mit Benutzer (Sicherheitsstufe „priv“, SHA/AES, Gruppe „read-only“) oder <b>v2c</b> mit eigener Community.',
     'Unter <b>Service Access</b> muss SNMP erlaubt sein. Sind <b>Trusted Hosts</b> gesetzt, die Absenderadresse von díktyo erlauben – steht díktyo hinter einem Router, ist das dessen <b>WAN-Adresse</b>.',
     'Einstellungen am Switch mit <b>Save</b> dauerhaft speichern, dann hier Adresse, Version und Zugangsdaten eintragen.',
@@ -86,6 +87,14 @@ DRIVER_STEPS.docker = [
   'Für <b>Aktionen</b> (Container starten/stoppen) zusätzlich <span class="mono">POST: 1</span>, <span class="mono">ALLOW_START: 1</span>, <span class="mono">ALLOW_STOP: 1</span>, <span class="mono">ALLOW_RESTARTS: 1</span>.',
   'Port 2375 nur im Heimnetz erreichbar lassen (nicht im Router freigeben). Hier die IP des Docker-Hosts und Port 2375 eintragen.',
   'Viele Container? „nur Container mit eigener IP im Heimnetz“ legt nur die an, die per macvlan/ipvlan oder Host-Netz direkt im Netz hängen.',
+];
+DRIVER_HELP.devolo = "díktyo liest nur: alle Adapter des Powerline-Netzes, Datenraten zwischen ihnen, Geräte an ihren LAN-Buchsen, WLAN-Geräte und Firmware-Updates.";
+DRIVER_STEPS.devolo = [
+  "Unterstützt sind devolo-Adapter, die die <b>devolo Home Network App</b> verwaltet (Magic-Serie und neuere dLAN-Modelle). Ältere Adapter, die nur das dLAN Cockpit kennen, lassen sich nicht abfragen.",
+  "Die IP-Adresse <b>eines</b> Adapters eintragen – am besten den, der am Router hängt. Die übrigen Adapter des Powerline-Netzes findet díktyo selbst.",
+  "Hat der Adapter in der App ein <b>Gerätepasswort</b>, dieses eintragen; sonst leer lassen.",
+  "díktyo und der Adapter sollten im selben Netz liegen: die Adapter melden sich per mDNS (Port 5353), Router leiten das meist nicht weiter.",
+  "Die Adapter erscheinen als Typ <b>Powerline</b> und werden in der Topologie mit der Verbindungsart „Powerline“ verbunden; der Adapter am Router ist die Wurzel.",
 ];
 DRIVER_HELP.mikrotik = 'díktyo liest Ports, Clients (DHCP, ARP, Bridge, WLAN), Nachbarn und WAN; schalten nur über „Aktionen“ mit Bestätigung.';
 DRIVER_STEPS.mikrotik = [
@@ -163,7 +172,7 @@ function rangeButtons(cur) {
 }
 
 /* Integrationen mit Diagrammen oder Port-/Gerätelisten bekommen im Raster doppelte Breite */
-const BIG_CARDS = ['fritzbox', 'snmp', 'asuswrt', 'proxmox', 'omada', 'unifi', 'mikrotik', 'opnsense'];
+const BIG_CARDS = ['fritzbox', 'snmp', 'devolo', 'asuswrt', 'proxmox', 'omada', 'unifi', 'mikrotik', 'opnsense'];
 
 async function tabIntegrations(ctx) {
   await meta(ctx.pid);  // Auswahllisten für den Gerätedialog („Gerät öffnen“)
@@ -185,7 +194,7 @@ async function tabIntegrations(ctx) {
           <button class="pri" data-add="asuswrt">${t('+ ASUS (AiMesh)')}</button><button class="pri" data-add="proxmox">${t('+ Proxmox')}</button><button class="pri" data-add="homeassistant">${t('+ Home Assistant')}</button>
           <button class="pri" data-add="omada">${t('+ Omada')}</button><button class="pri" data-add="unifi">${t('+ UniFi')}</button>
           <button class="pri" data-add="mikrotik">${t('+ MikroTik')}</button><button class="pri" data-add="opnsense">${t('+ OPNsense')}</button>
-          <button class="pri" data-add="docker">${t('+ Docker')}</button><button class="pri" data-add="shelly">${t('+ Shelly / Tasmota')}</button><button class="pri" data-add="dnsfilter">${t('+ Pi-hole / AdGuard')}</button></div>` : ''}</div>
+          <button class="pri" data-add="docker">${t('+ Docker')}</button><button class="pri" data-add="shelly">${t('+ Shelly / Tasmota')}</button><button class="pri" data-add="dnsfilter">${t('+ Pi-hole / AdGuard')}</button><button class="pri" data-add="devolo">${t('+ devolo Powerline')}</button></div>` : ''}</div>
     </div>
     <div class="grid-out" style="margin-top:16px"><div id="speedbox"></div><div id="notifybox"></div><div id="prombox"></div></div>
     <div id="ints" class="ints-grid" style="margin-top:16px">${r.integrations.map(i => `<div class="panel integ ${BIG_CARDS.includes(i.driver) ? 'big' : ''}" data-id="${i.id}">
@@ -198,7 +207,7 @@ async function tabIntegrations(ctx) {
         ${i.can_backup ? `<p class="small cfgline"><b>${t('Konfiguration')}:</b> ${i.cfg_ok ? t('zuletzt gesichert {d}', { d: h(ago(i.cfg_ok)) }) : t('noch nicht gesichert')}
           ${i.cfg_result?.status === 'error' ? ` · <span class="${i.cfg_result.second_factor ? 'warnc' : 'errtxt'}">${h(t(i.cfg_result.message))}</span>` : i.cfg_result?.status === 'unchanged' ? ` · <span class="muted">${t('unverändert')}</span>` : ''}
           ${ctx.canEdit ? `<button class="sm" data-cfg>${t('Konfiguration sichern')}</button>` : ''}</p>` : ''}
-        ${i.driver === 'fritzbox' ? fritzCard(i) : i.driver === 'snmp' ? snmpCard(i) : i.driver === 'asuswrt' ? asusCard(i) : i.driver === 'proxmox' ? pveCard(i) : ['omada', 'unifi'].includes(i.driver) ? ctrlCard(i) : ['mikrotik', 'opnsense'].includes(i.driver) ? mtCard(i) : i.driver === 'docker' ? dockerCard(i) : i.driver === 'shelly' ? shellyCard(i) : i.driver === 'dnsfilter' ? dnsCard(i) : haCard(i)}
+        ${i.driver === 'fritzbox' ? fritzCard(i) : i.driver === 'snmp' ? snmpCard(i) : i.driver === 'asuswrt' ? asusCard(i) : i.driver === 'proxmox' ? pveCard(i) : ['omada', 'unifi'].includes(i.driver) ? ctrlCard(i) : ['mikrotik', 'opnsense'].includes(i.driver) ? mtCard(i) : i.driver === 'docker' ? dockerCard(i) : i.driver === 'shelly' ? shellyCard(i) : i.driver === 'dnsfilter' ? dnsCard(i) : i.driver === 'devolo' ? devoloCard(i) : haCard(i)}
       </div>`).join('') || `<div class="panel empty-box">${t('Noch keine Integration. Füge deine FRITZ!Box hinzu – das geht auch ohne Passwort.')}</div>`}</div>
     <h2>${t('Letzte Ereignisse')}</h2><div id="events"></div>`;
   api('GET', `${P}/events?limit=15`).then(({ events }) => {
@@ -304,6 +313,9 @@ function snmpCard(i) {
   const res = i.result || {}, info = res.info || {}, ports = res.ports || [];
   const first = (ports.find(p => p.oper === 'up') || ports[0] || {}).port_no || 1;
   return `<div class="kv">${info.name ? `<span>${t('Name')}: <b>${h(info.name)}</b></span>` : ''}${info.descr ? `<span>${h(info.descr.slice(0, 80))}</span>` : ''}
+      ${info.vendor || info.model ? `<span>${t('Modell')}: <b>${h([info.vendor, info.model].filter(Boolean).join(' '))}</b></span>` : ''}
+      ${info.serial ? `<span>${t('Seriennummer')}: <b class="mono">${h(info.serial)}</b></span>` : ''}${info.firmware ? `<span>Firmware: <b>${h(info.firmware)}</b></span>` : ''}
+      ${info.temperature != null ? `<span>${t('Temperatur')}: <b>${info.temperature} °C</b></span>` : ''}${info.cpu != null ? `<span>CPU: <b>${info.cpu} %</b></span>` : ''}
       ${info.uptime ? `<span>${t('läuft seit')}: <b>${fmtUptime(info.uptime)}</b></span>` : ''}
       ${ports.length ? `<span>${t('Ports')}: <b>${ports.filter(p => p.oper === 'up').length} ${t('aktiv')} / ${ports.length}</b></span>` : ''}
       ${res.fdb_size != null ? `<span>${t('gelernte MAC-Adressen')}: <b>${res.fdb_size}</b></span>` : ''}</div>
@@ -312,6 +324,19 @@ function snmpCard(i) {
       ${ports.some(p => p.oper === 'up' && speedCls(p.speed)) ? `<div class="legend topo-legend small" style="margin-top:6px"><span><i class="lg up"></i>1 Gbit/s</span>${ports.some(p => p.oper === 'up' && speedCls(p.speed) === 'sp-slow') ? `<span><i class="lg sp-slow"></i>${t('10/100 Mbit/s')}</span>` : ''}${ports.some(p => p.oper === 'up' && speedCls(p.speed) === 'sp-fast') ? `<span><i class="lg sp-fast"></i>${t('ab 2,5 Gbit/s')}</span>` : ''}</div>` : ''}
       <div class="row between" style="margin-top:8px"><b class="small">${t('Traffic')} · <span class="pname">${t('Port')} ${first}</span></b>${rangeButtons(tabIntegrations.since || 7200)}</div>
       <div class="chartbox" data-port="${first}"></div>` : ''}`;
+}
+
+function devoloCard(i) {
+  const r = i.result || {}, ad = r.adapters || [], name = Object.fromEntries(ad.map(a => [a.mac, a.name]));
+  const mbit = v => v == null ? '–' : `${fmtInt(Math.round(v))} Mbit/s`;
+  const seen = new Set(), rates = (r.rates || []).filter(x => { const k = [x.src, x.dst].sort().join(); if (seen.has(k) || !name[x.src] || !name[x.dst]) return false; seen.add(k); return true; });
+  return `${r.info?.technology ? `<div class="kv"><span>${t('Technik')}: <b>${h(r.info.technology)}</b></span>${r.info.network ? `<span>${t('Netzname')}: <b>${h(r.info.network)}</b></span>` : ''}</div>` : ''}
+    <div class="table-wrap"><table class="compact"><thead><tr><th>${t('Adapter')}</th><th>${t('Modell')}</th><th>IP</th><th>Firmware</th><th>${t('Geräte')}</th></tr></thead><tbody>
+    ${ad.map(a => `<tr><td><b>${h(a.name)}</b>${a.router ? ` <span class="badge ok">${t('am Router')}</span>` : ''}</td><td>${h(a.product)}</td><td class="mono small">${h(a.ip || '')}</td>
+      <td class="small">${h(a.firmware || '')}${a.update ? ` <span class="badge warn" title="${h(a.latest || '')}">${t('Update')}</span>` : ''}</td>
+      <td class="small">${a.bridged ? t('{n} an LAN', { n: a.bridged }) : ''}${a.bridged && a.clients ? ' · ' : ''}${a.clients ? t('{n} per WLAN', { n: a.clients }) : ''}</td></tr>`).join('')}</tbody></table></div>
+    ${rates.length ? `<b class="small" style="display:block;margin-top:10px">${t('Datenraten zwischen den Adaptern')}</b><div class="table-wrap"><table class="compact"><tbody>
+      ${rates.map(x => `<tr><td>${h(name[x.src])} → ${h(name[x.dst])}</td><td class="mono small">${mbit(x.tx)}</td><td class="muted small">${t('zurück')}</td><td class="mono small">${mbit(x.rx)}</td></tr>`).join('')}</tbody></table></div>` : ''}`;
 }
 
 function asusCard(i) {
@@ -661,7 +686,7 @@ async function integrationDialog(ctx, i, drv) {
     : `<input name="${f.key}" type="${f.type === 'password' ? 'password' : f.type === 'number' ? 'number' : 'text'}" autocomplete="off" value="${h(val(f))}" ${f.placeholder ? `placeholder="${h(f.placeholder)}"` : ''} ${f.required ? 'required' : ''}>`}</div>`).join('');
   const res = await dialog(i.id ? i.name : t(drv.name), `
     ${steps ? `<ol class="steps">${steps.map(x => `<li>${t(x)}</li>`).join('')}</ol>` : ''}
-    <p class="muted small" style="margin-top:0">${t(DRIVER_HELP[drv.key])}</p>
+    ${DRIVER_HELP[drv.key] ? `<p class="muted small" style="margin-top:0">${t(DRIVER_HELP[drv.key])}</p>` : ''}
     <div class="grid2"><div><label>${t('Name')}</label><input name="name" value="${h(i.name || t(drv.name))}"></div>${fields}
       <div><label>${t('Abfrage alle')}</label><select name="interval_s">${[30, 60, 300, 900].map(v => `<option value="${v}" ${v === i.interval_s ? 'selected' : ''}>${v < 60 ? v + ' s' : v / 60 + ' min'}</option>`).join('')}</select></div>
       <div><label>${t('Gerät in díktyo')}</label><select name="device_id"><option value="">${t('– automatisch zuordnen –')}</option>${devices.filter(d => d.status !== 'ignored').sort((a, b) => cmp(a.name, b.name)).map(d => `<option value="${d.id}" ${d.id === i.device_id ? 'selected' : ''}>${h(d.name)}</option>`).join('')}</select></div>
@@ -705,7 +730,7 @@ async function integrationDialog(ctx, i, drv) {
           const r = await api('POST', `${P}/integrations/test`, { ...fd(f), driver: drv.key, id: i.id });
           const x = r.result;
           $('#testres', f).textContent = '✓ ' + (drv.key === 'fritzbox' ? `${x.model} · FRITZ!OS ${x.firmware} · ${t('{n} Geräte', { n: x.hosts })} · ${x.auth ? t('Anmeldung ok, Mesh-Topologie verfügbar') : t('ohne Anmeldung (Mesh-Topologie nicht verfügbar)')}`
-            : drv.key === 'snmp' ? `${x.name} · ${x.descr}` : drv.key === 'asuswrt' ? `${x.model} · Firmware ${x.firmware} · ${t('{n} Clients', { n: x.clients })} · ${t('{n} Mesh-Knoten', { n: x.nodes })}`
+            : drv.key === 'snmp' ? `${x.name} · ${x.descr}` : drv.key === 'devolo' ? `${x.name} · ${x.product} · ${t('{n} Adapter im Powerline-Netz', { n: x.adapters })}` : drv.key === 'asuswrt' ? `${x.model} · Firmware ${x.firmware} · ${t('{n} Clients', { n: x.clients })} · ${t('{n} Mesh-Knoten', { n: x.nodes })}`
             : drv.key === 'proxmox' ? `Proxmox VE ${x.version} · ${t('{n} VMs und Container', { n: x.guests })}`
             : drv.key === 'opnsense' ? `${x.name || 'OPNsense'} · OPNsense ${x.version} · ${t('{n} Schnittstellen', { n: x.ports })} · ${t('{n} Clients', { n: x.clients })}`
             : drv.key === 'dnsfilter' ? `${x.kind === 'adguard' ? 'AdGuard Home' : 'Pi-hole'} ${h(x.version || '')} · ${t('{q} Anfragen, {b} blockiert', { q: fmtInt(x.queries), b: fmtInt(x.blocked) })} · ${t('{n} Geräte, {m} mit Namen', { n: x.clients, m: x.names })}`

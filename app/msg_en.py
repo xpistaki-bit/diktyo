@@ -286,8 +286,35 @@ ERR_EN.update({
     "Mit SNMP kann díktyo bei MikroTik nur lesen – für Aktionen den Zugang „RouterOS-API“ wählen": "With SNMP díktyo can only read from the MikroTik – choose the “RouterOS API” access for actions", "z. B. 192.168.50.20": "e.g. 192.168.50.20", "z. B. 192.168.1.53": "e.g. 192.168.1.53",
 })
 
+# ------------------------------------------------------------ neu (0.38): SNMP-Profile, devolo Powerline
+ERR_EN.update({
+    "Hersteller-Profil": "Vendor profile", "automatisch (nach Hersteller)": "automatic (by vendor)", "Generisch": "Generic",
+    "Hinweis zum Hersteller": "Vendor hint",
+    "am Switch einer Community bzw. einem SNMPv3-Benutzer Schreibrechten (read-write) geben.": "give a community or SNMPv3 user write access (read-write) on the switch.",
+    "Netgear: im Web-Menü unter System → SNMP (M-Serie: System → Management → SNMP) eine Community bzw. einen SNMPv3-Benutzer anlegen und díktyos Adresse als erlaubten Client eintragen. Die Plus-Switches (GS105E, GS108E, GS305E, GS308E …) haben kein SNMP – sie lassen sich nur von Hand dokumentieren.":
+        "Netgear: in the web menu under System → SNMP (M series: System → Management → SNMP) create a community or SNMPv3 user and add díktyo’s address as an allowed client. The Plus switches (GS105E, GS108E, GS305E, GS308E …) have no SNMP – document them by hand.",
+    "Netgear: unter System → SNMP → Community Configuration eine Community mit Zugriff „Read-Write“ anlegen.": "Netgear: create a community with access “Read-Write” under System → SNMP → Community Configuration.",
+    "Zyxel: unter Management → Access Control → Service Access SNMP erlauben und díktyos Adresse unter Remote Management/Trusted Hosts eintragen, dann Save.":
+        "Zyxel: allow SNMP under Management → Access Control → Service Access and add díktyo’s address under Remote Management/Trusted Hosts, then Save.",
+    "Zyxel: unter Management → Access Control → SNMP den Benutzer einer Gruppe mit Schreibrechten (z. B. „admin“) zuordnen bzw. eine Community mit read-write anlegen, dann Save.":
+        "Zyxel: under Management → Access Control → SNMP assign the user to a group with write access (e.g. “admin”) or create a read-write community, then Save.",
+    "TP-Link: unter Maintenance → SNMP → Global Config SNMP einschalten und eine Community bzw. einen Benutzer anlegen.": "TP-Link: switch on SNMP under Maintenance → SNMP → Global Config and create a community or user.",
+    "TP-Link: der Community unter SNMP → Community Config die Zugriffsart „read-write“ geben.": "TP-Link: give the community access type “read-write” under SNMP → Community Config.",
+    "Adresse eines devolo-Adapters": "Address of a devolo adapter", "z. B. 192.168.178.40": "e.g. 192.168.178.40",
+    "Gerätepasswort (leer lassen, wenn keins gesetzt ist)": "Device password (leave empty if none is set)",
+    "Nach Firmware-Updates fragen": "Check for firmware updates", "einmal am Tag": "once a day",
+    "Protobuf: Nachricht abgeschnitten": "Protobuf: message truncated", "DNS-Name zu tief verschachtelt": "DNS name nested too deeply",
+})
+
 # Meldungen mit Werten: {} steht für einen eingesetzten Teil (der seinerseits übersetzt wird)
 PATTERNS = [
+    ("Adapter {} lehnt die Anmeldung ab – Gerätepasswort prüfen (in der devolo Home Network App gesetzt)", "Adapter {} rejects the sign-in – check the device password (set in the devolo Home Network app)"),
+    ("Adapter {} meldet HTTP {} für {}", "Adapter {} returns HTTP {} for {}"), ("Adapter {} meldet kein Powerline-Netz", "Adapter {} reports no powerline network"),
+    ("Adapter {} nicht erreichbar: {}", "Adapter {} not reachable: {}"), ("mDNS-Anfrage an {} nicht möglich: {}", "mDNS query to {} not possible: {}"),
+    ("Protobuf: Feldtyp {} nicht unterstützt", "Protobuf: field type {} not supported"),
+    ("Unter {} antwortet kein devolo-Adapter mit Geräte-API (mDNS-Dienst _dvl-plcnetapi). Ältere dLAN-Adapter, die nur das dLAN Cockpit kennen, lassen sich nicht abfragen.",
+     "No devolo adapter with device API answers at {} (mDNS service _dvl-plcnetapi). Older dLAN adapters that only know dLAN Cockpit cannot be queried."),
+
     ("Anbieter lehnt den Code ab (HTTP {}): {}", "The provider rejects the code (HTTP {}): {}"), ("Anbieter meldet HTTP {} für {}", "The provider returns HTTP {} for {}"),
     ("Anbieter nicht erreichbar: {}", "Provider not reachable: {}"), ("Anbieter: {}", "Provider: {}"), ("Discovery-Dokument ohne „{}“", "Discovery document without “{}”"),
     ("Keine gültige Antwort von {}", "No valid response from {}"), ("Signaturverfahren {} wird nicht unterstützt", "Signature algorithm {} is not supported"),

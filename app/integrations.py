@@ -183,6 +183,12 @@ def _slim_view(driver, res):
                              for d in res.get("devices", [])],
                     clients=len(res.get("clients", [])), wlan=sum(1 for x in res.get("clients", []) if x["medium"] == "wlan"),
                     port_status={d["mac"]: d["ports"] for d in res.get("devices", []) if d.get("ports")})
+    if driver == "devolo":
+        return dict(info=res.get("info"), rates=res.get("rates"),
+                    adapters=[{k: a.get(k) for k in ("mac", "ip", "name", "product", "firmware", "technology", "router", "local", "serial")}
+                              | dict(clients=len(a.get("clients", [])), bridged=len(set(a.get("bridged", [])) - {x["mac"] for x in a.get("clients", [])}),
+                                     update=(a.get("firmware_info") or {}).get("update"), latest=(a.get("firmware_info") or {}).get("latest", ""))
+                              for a in res.get("adapters", [])])
     if driver == "fritzbox":
         return dict(info=res.get("info"), wan=res.get("wan"), auth=res.get("auth"), wlan=res.get("wlan"),
                     hosts=len(res.get("hosts", [])), active=sum(1 for h in res.get("hosts", []) if h["active"]))
@@ -225,7 +231,7 @@ STALE_LINK = 1800  # so lange (s) hat eine genauere Verbindung Vorrang, nachdem 
 
 def _link_rank(medium, has_port):
     """Wie genau eine Verbindung ist: läuft auf Host / bestimmter Port (3) > WLAN/Mesh am Access Point (2) > irgendwo im LAN (1)."""
-    return 3 if medium == "virtual" or has_port else 2 if medium in ("wlan", "mesh") else 1
+    return 3 if medium == "virtual" or has_port else 2 if medium in ("wlan", "mesh", "powerline") else 1
 
 
 def set_auto_uplink(c, pid, did, target, medium="lan", port_name=None, port_id=None, local_port_id=None, source="auto"):
@@ -327,7 +333,9 @@ def apply_snmp(c, row, res):
     info = res.get("info") or {}
     oid = info.get("object_id", "")
     ent = oid.split(".")[6] if oid.startswith("1.3.6.1.4.1.") and len(oid.split(".")) > 6 else ""
-    sw = _own_device(c, row, info.get("name") or f"Switch {row['host']}", info.get("descr", "")[:80], "", "switch", ENTERPRISE.get(ent, ""))
+    vendor = info.get("vendor") or ENTERPRISE.get(ent, "")
+    sw = _own_device(c, row, info.get("name") or f"Switch {row['host']}", info.get("model") or info.get("descr", "")[:80], "", "switch", vendor)
+    _auto_set(c, sw, manufacturer=vendor, model=info.get("model", ""))
     # Ports anlegen, wenn das Gerät noch keine hat
     have = c.execute("SELECT COUNT(*) FROM interfaces WHERE device_id=? AND role='port'", (sw,)).fetchone()[0]
     if not have and res.get("ports"):
@@ -884,6 +892,52 @@ def apply_shelly(c, row, res):
     return dict(devices=len(res.get("devices", [])), new=new, power_w=round(sum(x.get("power_w") or 0 for x in res.get("devices", [])), 1))
 
 
+# ------------------------------------------------------------ devolo Powerline
+def apply_devolo(c, row, res):
+    """Adapter anlegen und als Powerline-Netz verbinden (am Router angeschlossener Adapter ist die Wurzel), Geräte an den
+    LAN-Buchsen und WLAN-Geräte an ihren Adapter hängen, Firmware je Adapter übernehmen."""
+    from . import health
+    pid = row["profile_id"]
+    adapters = res.get("adapters", [])
+    dev_of, new, links, own = {}, 0, 0, None
+    for a in adapters:
+        did = _find_device(c, pid, a["mac"], a["ip"])
+        if not did:
+            did = _new_device(c, pid, a["name"], "powerline", a["mac"], [a["ip"]] if a["ip"] else [], "devolo", a["product"], "devolo")
+            new += 1
+        _auto_set(c, did, manufacturer="devolo", model=a["product"])
+        runner._set_online(c, did, 1, now(), "devolo")
+        if a.get("firmware_info"):
+            health.apply_firmware(c, pid, did, a["firmware_info"], "devolo")
+        dev_of[a["mac"]] = did
+        if a["mac"] == res.get("host_mac"):
+            own = did
+    root = next((a for a in adapters if a["router"]), None) or next((a for a in adapters if a["mac"] == res.get("host_mac")), None)
+    by_mac = _device_by_mac(c, pid)
+    for a in adapters:
+        did = dev_of[a["mac"]]
+        if root and a is not root and set_auto_uplink(c, pid, did, dev_of[root["mac"]], "powerline", source="devolo"):
+            links += 1
+        wlan = {x["mac"] for x in a.get("clients", [])}
+        for x in a.get("clients", []):
+            d = by_mac.get(x["mac"])
+            if d and d["id"] not in dev_of.values() and set_auto_uplink(c, pid, d["id"], did, "wlan", source="devolo"):
+                links += 1
+        for mac in a.get("bridged", []):
+            d = by_mac.get(mac)
+            if not d or mac in wlan or d["id"] in dev_of.values():
+                continue
+            if a is root:  # an der Buchse des Wurzel-Adapters hängt der Router: der Adapter hängt am Router, nicht umgekehrt
+                if d["type"] in ("router", "firewall", "modem", "switch") and set_auto_uplink(c, pid, did, d["id"], "lan", source="devolo"):
+                    links += 1
+            elif set_auto_uplink(c, pid, d["id"], did, "lan", source="devolo"):
+                links += 1
+    if own:
+        c.execute("UPDATE integrations SET device_id=? WHERE id=? AND device_id IS NULL", (own, row["id"]))
+    return dict(device_id=own, adapters=len(adapters), new=new, links=links,
+                clients=sum(len(a.get("clients", [])) for a in adapters))
+
+
 APPLY = {"fritzbox": apply_fritz, "snmp": apply_snmp, "asuswrt": apply_asus, "proxmox": apply_proxmox, "homeassistant": apply_ha,
          "omada": apply_controller, "unifi": apply_controller, "mikrotik": apply_mikrotik, "opnsense": apply_mikrotik, "docker": apply_docker,
-         "shelly": apply_shelly, "dnsfilter": apply_dnsfilter}
+         "shelly": apply_shelly, "dnsfilter": apply_dnsfilter, "devolo": apply_devolo}

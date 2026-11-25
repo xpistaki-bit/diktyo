@@ -54,6 +54,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Kabel-Etiketten | Kabelnummern aus den Kabelwegen als Aufkleber: Nummer groß, darunter beide Enden (bzw. je Kabelende ein Etikett mit der Gegenstelle), Farbstreifen nach Art (Patch-, Verlege-, Anschlusskabel); A4-Bögen (Avery 3666/L7651, 3657, 3474), Etikettendrucker (Brother 62 × 29, Dymo 54 × 25) und Schriftband 12 mm; in *Ausgabe* und im Reiter *Verkabelung* | 0.35 |
 | Grundriss/Raumplan und Rack-Ansicht | Je Standort ein Grundriss (Bild als PNG/JPEG/WebP/GIF oder Raster) mit Geräten, Patchfeldern/Dosen und Unterstandorten als Rechteck, Online-Status, Klick öffnet Gerät bzw. Raum; Standort-Art *Rack* mit Höheneinheiten: Vorderansicht mit Geräten, Patchfeldern und Sonstigem (USV, Blende …), Port-Belegung, Ziehen zum Ein-/Umbauen; PDF-Abschnitt *Grundrisse und Racks*, in der Sicherung enthalten | 0.36 |
 | Gruppen in der Topologie | Eigene Gruppen („IoT“, „Kameras“, „Kinderzimmer“) mit Name, Farbe und Mitgliedern erscheinen als Box unter ihrem Access Point/Switch; wahlweise nach Standort, Tag oder VLAN (Port-VLAN, Proxmox-Tag oder Subnetz der IP) gruppieren; Schwellwerte für WLAN, VMs und Gruppen einstellbar (0 = nie); Gruppen-Boxen verschiebbar, im PDF, Netzplan-Export und in der Sicherung | 0.37 |
+| Netgear und devolo | SNMP-Hersteller-Profile (automatisch über die Gerätekennung: Netgear, Zyxel, TP-Link, generisch): Modell, Seriennummer, Firmware und Hardware-Revision aus der ENTITY-MIB, bei Netgear Inventar und Temperatur, CPU-Last, Firmware im Firmware-Überblick, Freischalt-/Schreibrechte-Hinweise je Hersteller; devolo Powerline (Geräte-API der Home Network App: mDNS, Protobuf): alle Adapter mit Firmware und Update-Hinweis, Datenraten zwischen den Adaptern, Geräte an den LAN-Buchsen und WLAN-Geräte; neue Verbindungsart „Powerline“ in Topologie, PDF und Netzplan | 0.38 |
 | MikroTik und Sprache | MikroTik über die RouterOS-API (Port 8728/8729, RouterOS 6 und 7) als Standard, REST weiter wählbar, kein SSH-Backup mehr (RouterOS hat eigene Backups); alle Server-Meldungen, Aktionen, Diagnosen und gespeicherten Fehler auf Englisch, wenn Englisch gewählt ist (auch in Benachrichtigungen), Test gegen fehlende Übersetzungen; automatisch erzeugte Gerätenamen auf Englisch | 0.33.1 |
 | Netzplan-Export | Topologie als SVG, PNG (doppelte Auflösung), draw.io (Geräte mit IP/MAC/Typ/Modell/Standort als Eigenschaften) und Poster-PDF A4–A0 mit Schriftfeld, wahlweise auf A4 gekachelt mit Überlappung und Blattnummern; Gruppen aufklappbar; in Topologie und Ausgabe | 0.33 |
 
@@ -61,7 +62,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 
 | # | Inhalt | Anmerkung |
 |---|---|---|
-| P2.4 | Weitere Integrationen: Netgear (Smart Switches/Router), devolo (Powerline) | Docker erledigt in 0.16 |
+| P2.4 | Weitere Integrationen: Netgear (Smart Switches/Router), devolo (Powerline) | Docker erledigt in 0.16, Netgear (SNMP-Profil) und devolo in 0.38 |
 | P2.8 | Passive DHCP-Erkennung (Fingerprinting aus DHCP-Anfragen) | braucht einen Lauscher im Netz bzw. DHCP-Logs vom Router |
 | Phase 3 | REST-API mit Tokens | für Skripte, Home Assistant, eigene Auswertungen; Token-Verfahren wie beim Prometheus-Endpunkt |
 | ~~Phase 3~~ | ~~Änderungsverlauf zwischen Scans~~ (0.14), ~~Kabel- und Patchpanel-Dokumentation~~ (0.29), ~~Prometheus-Endpunkt~~ (0.31) | erledigt |
@@ -75,6 +76,8 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Omada (inkl. Live-Raten je Client, Aktionen PoE/Neustart) | nach Open-API-Doku gebaut, gegen nachgebildeten Controller getestet | offen |
 | Shelly / Tasmota | gegen nachgebildete Geräte (Gen1, Gen2/3, Tasmota) getestet | Nutzer |
 | Pi-hole / AdGuard Home | gegen nachgebildete APIs (Pi-hole v6/v5, AdGuard) getestet | Nutzer |
+| Netgear (SNMP-Profil: Inventar-, Temperatur-OIDs) | gegen simulierten SNMP-Agenten getestet; die Netgear-OIDs stammen aus der FASTPATH-MIB, an echten Switches ungeprüft | Nutzer mit Netgear |
+| devolo Powerline | Protokoll nach der devolo-Geräte-API (mDNS, Protobuf, Digest) gegen nachgebildete Antworten getestet, noch nicht an echten Adaptern | Nutzer mit devolo |
 | OPNsense (inkl. Top Talkers), Docker | gegen nachgebildete APIs getestet | Tester |
 | Proxmox: Live-Raten je VM, VLAN-Tags der Gäste im VLAN-Plan | gegen nachgebildete API getestet | Nutzer (Proxmox vorhanden) |
 | iperf3 zu einem Gerät | gegen nachgebildete iperf3-Ausgabe getestet | Nutzer |
@@ -104,10 +107,9 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 | pfSense: wartet auf Netgates offizielle REST-API (das Community-Paket „pfrest“ ist im Wartungsmodus und endet nach pfSense 26.10) | ★★ | M |
 | OpenWrt (ubus/rpcd): Clients, WLAN, Ports, Aktionen | ★★ | M |
 | Synology / QNAP / TrueNAS / Unraid: Status, Laufwerke, Dienste | ★★ | M |
-| Netgear-Switches (SNMP-Profile), devolo Powerline | ★ | M |
 | ASUS: Aktionen (Gastnetz, Neustart) und lesbarer Konfig-Vergleich (CFG entschlüsseln) | ★★ | M |
 | VLANs auch aus MikroTik, OPNsense, UniFi und Omada lesen (bisher per SNMP oder von Hand) | ★★ | M |
-| Erledigt: ~~OPNsense~~ (0.16), ~~Docker~~ (0.16), ~~Shelly/Tasmota~~ (0.22), ~~Aktionen UniFi/Omada~~ (0.22), ~~Pi-hole/AdGuard~~ (0.23) | | |
+| Erledigt: ~~OPNsense~~ (0.16), ~~Docker~~ (0.16), ~~Shelly/Tasmota~~ (0.22), ~~Aktionen UniFi/Omada~~ (0.22), ~~Pi-hole/AdGuard~~ (0.23), ~~Netgear (SNMP-Profile), devolo Powerline~~ (0.38) | | |
 
 ### Wünsche aus dem Test
 
