@@ -18,7 +18,7 @@ import zipfile
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
 
-from . import export, locplan, security
+from . import export, locplan, security, topogroups
 from .db import DATA, get_setting, now, set_setting
 from .version import VERSION
 
@@ -95,7 +95,7 @@ def export_data(c):
         port_vlans=q("SELECT * FROM port_vlans"), port_vlans_plan=q("SELECT * FROM port_vlans_plan"), topo_positions=q("SELECT * FROM topo_positions"),
         changes=q("SELECT * FROM changes"),
         patch_panels=q("SELECT * FROM patch_panels"), cable_runs=q("SELECT * FROM cable_runs"), watch=q("SELECT * FROM watch"),
-        **locplan.export_rows(c),
+        **locplan.export_rows(c), **topogroups.export_rows(c),
         device_models=[m for m in models if m["custom"]],
         ident_rules=q("SELECT * FROM ident_rules WHERE custom=1"),
         integrations=[dict(r, secret=_move_secret(r["secret"], f), state="{}") for r in q("SELECT * FROM integrations")],
@@ -256,11 +256,19 @@ def _import_profiles(c, exp, umap, rename, fernet=None):
         if x["a_if"] in imap and x["b_if"] in imap and x["profile_id"] in pmap:
             _insert(c, "links", dict(x, profile_id=pmap[x["profile_id"]], a_if=imap[x["a_if"]], b_if=imap[x["b_if"]]))
     import re as _re
-    for x in exp.get("topo_positions", []):  # Knoten-IDs enthalten Geräte-IDs -> umschlüsseln
+    gmap = topogroups.import_rows(c, exp, pmap, dmap)  # eigene Gruppen der Topologie
+    for x in exp.get("topo_positions", []):  # Knoten-IDs enthalten Geräte-IDs (und ggf. Gruppen-/Standort-IDs) -> umschlüsseln
         m = _re.fullmatch(r"([dg])(\d+)(:\w+)?", x["node"])
         if x["profile_id"] not in pmap or (m and int(m.group(2)) not in dmap):
             continue
-        node = f"{m.group(1)}{dmap[int(m.group(2))]}{m.group(3) or ''}" if m else x["node"]
+        suffix = m.group(3) or "" if m else ""
+        sm = _re.fullmatch(r":([cl])(\d+)", suffix)
+        if sm:
+            ref = (gmap if sm.group(1) == "c" else lmap).get(int(sm.group(2)))
+            if ref is None:
+                continue
+            suffix = f":{sm.group(1)}{ref}"
+        node = f"{m.group(1)}{dmap[int(m.group(2))]}{suffix}" if m else x["node"]
         c.execute("INSERT OR REPLACE INTO topo_positions(profile_id, node, x, y) VALUES(?,?,?,?)", (pmap[x["profile_id"]], node, x["x"], x["y"]))
     for x in exp.get("vlans", []):
         if x["profile_id"] in pmap:

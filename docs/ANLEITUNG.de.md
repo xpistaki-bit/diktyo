@@ -520,6 +520,18 @@ Ereignisse, nicht die bisherigen.
 
 - Gesamtbaum von links nach rechts mit Port-Namen an den Linien; WLAN-Geräte und VMs sind zu aufklappbaren Gruppen
   zusammengefasst.
+- **Gruppieren** (Auswahl in der Werkzeugleiste) legt fest, welche Boxen unter einem Access Point oder Switch entstehen:
+  - *Verbindungsart* – wie bisher WLAN-Geräte und VMs/Container;
+  - *Eigene Gruppen* – z. B. „IoT“, „Kameras“, „Kinderzimmer“. Anlegen unter *Gruppen …* → *+ Gruppe*: Name, Farbe und
+    Geräte ankreuzen (mit Suche). Ein Gerät gehört zu höchstens einer Gruppe; wählt man es in einer anderen Gruppe an,
+    wechselt es beim Speichern dorthin;
+  - *Standort*, *Tag* (der erste Tag des Geräts) oder *VLAN* – das VLAN kommt vom Switch-Port, an dem das Gerät hängt,
+    bei VMs aus dem Proxmox-Tag, sonst aus dem Subnetz seiner IP-Adresse (IPAM). Die Box hat die Farbe des VLANs.
+
+  Geräte ohne passende Angabe landen wie bisher in den WLAN- bzw. VM-Boxen. Unter *Gruppen …* stehen auch die
+  Schwellwerte: ab wie vielen WLAN-Geräten, VMs oder Gruppenmitgliedern zusammengefasst wird (0 = nie). Die Einstellung
+  gilt für das ganze Profil, auch für PDF und Netzplan-Export. Ein Klick auf eine Box klappt sie auf, das − am Gerät
+  wieder zu.
 - Doppelklick auf einen Switch oder Router öffnet die **Frontplatte** mit allen Ports. Klick auf einen Port zeigt das
   angeschlossene Gerät mit IP und MAC (mit SNMP auch Link, Traffic und LLDP).
 - *Schnell-Ping* prüft alle Geräte sofort.

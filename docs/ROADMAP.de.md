@@ -53,6 +53,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Code-Scanning (CodeQL) | SSH-Host-Schlüssel wird vor der Anmeldung geprüft (Passwort geht nicht mehr an ein Gerät mit geändertem Schlüssel), Ausdrücke ohne exponentielles Rückverfolgen (E-Mail, Systeminfo), API-SSL ab TLS 1.2, Konfigurations-Backup-Dateien nur innerhalb des Datenordners, unerwartete Fehler nur noch allgemein in der Oberfläche (Details im Protokoll), Kommandozeile zeigt nur selbst erzeugte Passwörter | 0.34.1 |
 | Kabel-Etiketten | Kabelnummern aus den Kabelwegen als Aufkleber: Nummer groß, darunter beide Enden (bzw. je Kabelende ein Etikett mit der Gegenstelle), Farbstreifen nach Art (Patch-, Verlege-, Anschlusskabel); A4-Bögen (Avery 3666/L7651, 3657, 3474), Etikettendrucker (Brother 62 × 29, Dymo 54 × 25) und Schriftband 12 mm; in *Ausgabe* und im Reiter *Verkabelung* | 0.35 |
 | Grundriss/Raumplan und Rack-Ansicht | Je Standort ein Grundriss (Bild als PNG/JPEG/WebP/GIF oder Raster) mit Geräten, Patchfeldern/Dosen und Unterstandorten als Rechteck, Online-Status, Klick öffnet Gerät bzw. Raum; Standort-Art *Rack* mit Höheneinheiten: Vorderansicht mit Geräten, Patchfeldern und Sonstigem (USV, Blende …), Port-Belegung, Ziehen zum Ein-/Umbauen; PDF-Abschnitt *Grundrisse und Racks*, in der Sicherung enthalten | 0.36 |
+| Gruppen in der Topologie | Eigene Gruppen („IoT“, „Kameras“, „Kinderzimmer“) mit Name, Farbe und Mitgliedern erscheinen als Box unter ihrem Access Point/Switch; wahlweise nach Standort, Tag oder VLAN (Port-VLAN, Proxmox-Tag oder Subnetz der IP) gruppieren; Schwellwerte für WLAN, VMs und Gruppen einstellbar (0 = nie); Gruppen-Boxen verschiebbar, im PDF, Netzplan-Export und in der Sicherung | 0.37 |
 | MikroTik und Sprache | MikroTik über die RouterOS-API (Port 8728/8729, RouterOS 6 und 7) als Standard, REST weiter wählbar, kein SSH-Backup mehr (RouterOS hat eigene Backups); alle Server-Meldungen, Aktionen, Diagnosen und gespeicherten Fehler auf Englisch, wenn Englisch gewählt ist (auch in Benachrichtigungen), Test gegen fehlende Übersetzungen; automatisch erzeugte Gerätenamen auf Englisch | 0.33.1 |
 | Netzplan-Export | Topologie als SVG, PNG (doppelte Auflösung), draw.io (Geräte mit IP/MAC/Typ/Modell/Standort als Eigenschaften) und Poster-PDF A4–A0 mit Schriftfeld, wahlweise auf A4 gekachelt mit Überlappung und Blattnummern; Gruppen aufklappbar; in Topologie und Ausgabe | 0.33 |
 
@@ -112,9 +113,8 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
-| **Gruppen in der Topologie:** eigene Gruppen („IoT“, „Kameras“, „Kinderzimmer“), die als eigene Box unter ihrem Access Point/Switch erscheinen; alternativ nach Standort, Tag oder **VLAN** gruppieren; Schwellwerte fürs automatische Zusammenfassen einstellbar | ★★ | M |
 | VLAN-Plan: geplante VLAN-Wechsel von VMs/Containern im Plan-Modus mitführen (bisher nur der Ist-Stand aus Proxmox) | ★ | S |
-| Erledigt: ~~Durchsatz je Gerät in der Topologie~~ (0.17/0.18), ~~Übersichtsseite~~ (0.17), ~~Übersicht anpassbar~~ (0.26), ~~Wachliste / Alarm~~ (0.27) | | |
+| Erledigt: ~~Gruppen in der Topologie~~ (0.37), ~~Durchsatz je Gerät in der Topologie~~ (0.17/0.18), ~~Übersichtsseite~~ (0.17), ~~Übersicht anpassbar~~ (0.26), ~~Wachliste / Alarm~~ (0.27) | | |
 
 ### Monitoring
 
@@ -182,7 +182,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 
 1. **Verfügbarkeitsbericht als PDF** – liegt seit 0.15 als Rest offen, die Daten sind vorhanden.
 2. **Quarantäne und Internetsperre auch über OPNsense/MikroTik** (bisher Quarantäne nur über die FRITZ!Box).
-3. **Topologie: Filter und Gruppen** – nach VLAN, Standort, Tag oder eigenen Gruppen; passt zur VLAN-Umstellung.
+3. ~~**Topologie: Gruppen**~~ (0.37) – offen bleibt ein reiner Filter (nur ein VLAN/Standort einblenden).
 4. **REST-API mit Tokens und Webhooks** – letzter offener Punkt aus Phase 3.
 5. Rückmeldungen der Tester (UniFi, MikroTik, OPNsense, Docker) und echte Tests von OIDC, Prometheus/Grafana und
    draw.io einarbeiten; weitere Integrationen nach Bedarf (NAS-Systeme, OpenWrt).

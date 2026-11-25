@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.36 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.37 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -140,6 +140,11 @@ without a connection are listed separately.
 
 - Wi-Fi clients of an access point or mesh node (from 4) and VMs of a host (from 5) are combined into one box, for
   example "12 Wi-Fi devices · 9 online"; a click expands it.
+- **Groups:** "Group by" switches between link type (as above), **custom groups** ("IoT", "Cameras", "Kids' room",
+  each with a colour and its members), **location**, **tag** and **VLAN** (from the switch port, the Proxmox tag or the
+  subnet). Each group becomes its own box below its access point or switch; devices without a group fall back to the
+  Wi-Fi/VM boxes. "Groups …" manages the custom groups and the thresholds (0 = never combine). Group boxes can be
+  moved and appear in the PDF and the network plan export.
 - Drag to move, mouse wheel or −/+ to zoom, "Fit" to see everything. A click on a device shows its details at the
   side, a double click opens the detail view.
 - **Detail view** of a switch or router: the front panel with all ports (odd numbers on top, even at the bottom,

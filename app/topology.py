@@ -1,16 +1,17 @@
 """Topologie: Baum aus den Verbindungen (Uplinks) mit Positionen für Oberfläche und PDF.
 
 Darstellung von links nach rechts: Spalte = Tiefe im Baum, Zeile = Reihenfolge der Blätter. WLAN-Clients und VMs eines
-Geräts werden ab einer Mindestzahl zu einer Gruppe zusammengefasst, die sich aufklappen lässt.
+Geräts werden ab einer Mindestzahl zu einer Gruppe zusammengefasst, die sich aufklappen lässt. Wahlweise bilden eigene
+Gruppen, Standort, Tag oder VLAN die Boxen (siehe topogroups.py); Geräte ohne Angabe fallen auf WLAN/VM zurück.
 """
 import math
 
-from . import inventory
+from . import inventory, topogroups
 
 COLW, ROWH = 280, 64           # Abstand der Spalten und Zeilen (Einheiten der Zeichnung)
 NODE_W, NODE_H = 220, 48
 INET_GAP = 110                 # zusätzlicher Platz für die Traffic-Anzeige an der Internet-Leitung
-COLLAPSE = {"wlan": 4, "virtual": 5}  # ab so vielen Kindern derselben Art zusammenfassen
+COLLAPSE = ("wlan", "virtual")  # Verbindungsarten, die zusammengefasst werden (Schwellwerte in topogroups.DEFAULTS)
 GRID_MIN, GRID_MIN_ROWS, GRID_GAP = 8, 6, 40  # ab so vielen Endgeräten an einem Gerät: Raster mit mindestens so vielen Zeilen je Spalte
 ROOT_ORDER = ("modem", "router", "firewall", "switch", "mesh", "ap", "hypervisor", "server", "nas")
 
@@ -32,6 +33,9 @@ def build(c, pid, expanded=(), status="confirmed", traffic=False):
     linked = [d for d in roots if children.get(d["id"])] + [d for d in roots if not children.get(d["id"]) and d["type"] in ROOT_ORDER[:5]]
     loose = [d for d in roots if d not in linked]
     expanded = {str(x) for x in expanded}
+    gs = topogroups.settings(c, pid)
+    limit = {"wlan": gs["min_wlan"], "virtual": gs["min_virtual"]}
+    attr = topogroups.keys(c, pid, devs, gs["group_by"]) if gs["group_by"] != "medium" else {}
 
     nodes, edges = [], []
     row = [0]
@@ -45,24 +49,43 @@ def build(c, pid, expanded=(), status="confirmed", traffic=False):
         n = node_of(d, depth)
         nodes.append(n)
         kids = sorted(children.get(d["id"], []), key=_rank)
-        groups = {}
+        # Zuordnung Kind -> Gruppe: zuerst eigene Gruppe/Standort/Tag/VLAN (nur Endgeräte), sonst WLAN/virtuell
+        cand = {}
+        for k in kids:
+            a = attr.get(k["id"]) if not children.get(k["id"]) else None
+            if a:
+                cand.setdefault(a[0], dict(label=a[1], color=a[2], kind=gs["group_by"], members=[]))["members"].append(k)
+        groups = {key: g for key, g in cand.items() if gs["min_group"] and len(g["members"]) >= gs["min_group"]}
+        member_of = {k["id"]: key for key, g in groups.items() for k in g["members"]}
+        rest = {}
         for k in kids:
             m = k["uplink"]["medium"]
-            groups.setdefault(m if m in COLLAPSE else "other", []).append(k)
+            if k["id"] not in member_of and m in COLLAPSE:
+                rest.setdefault(m, []).append(k)
+        for m, ks in rest.items():
+            if limit[m] and len(ks) >= limit[m]:
+                groups[m] = dict(label="", color="", kind="medium", members=ks)
+                for k in ks:
+                    member_of[k["id"]] = m
+        collapsed = {key for key in groups if f"{d['id']}:{key}" not in expanded}
         ys = []
-        shown = [k for k in kids if not (k["uplink"]["medium"] in COLLAPSE and len(groups.get(k["uplink"]["medium"], [])) >= COLLAPSE[k["uplink"]["medium"]]
-                                         and f"{d['id']}:{k['uplink']['medium']}" not in expanded)]
+        shown = [k for k in kids if member_of.get(k["id"]) not in collapsed]
         leaf_ids = {k["id"] for k in shown if not children.get(k["id"])}
         grid = leaf_ids if len(leaf_ids) > GRID_MIN else set()
+        n["expanded_groups"] = sorted(key for key in groups if key not in collapsed)
         for k in kids:
-            m = k["uplink"]["medium"]
-            g = groups.get(m)
-            if m in COLLAPSE and len(g) >= COLLAPSE[m] and f"{d['id']}:{m}" not in expanded:
-                if k is g[0]:  # die Gruppe einmal anstelle ihrer Mitglieder
-                    gid = f"g{d['id']}:{m}"
-                    on = sum(1 for x in g if x["online"] == 1)
-                    gn = dict(id=gid, kind="group", medium=m, parent=d["id"], count=len(g), online_count=on, depth=depth + 1,
-                              names=[x["name"] for x in g][:40], member_ids=[x["id"] for x in g], x=(depth + 1) * COLW, y=row[0] * ROWH)
+            key = member_of.get(k["id"])
+            if key in collapsed:
+                g = groups[key]
+                if k is g["members"][0]:  # die Gruppe einmal anstelle ihrer Mitglieder
+                    gid = f"g{d['id']}:{key}"
+                    ms = g["members"]
+                    media = {x["uplink"]["medium"] for x in ms}
+                    m = media.pop() if len(media) == 1 else "lan"
+                    on = sum(1 for x in ms if x["online"] == 1)
+                    gn = dict(id=gid, kind="group", key=key, group_kind=g["kind"], label=g["label"], color=g["color"], medium=m,
+                              parent=d["id"], count=len(ms), online_count=on, depth=depth + 1,
+                              names=[x["name"] for x in ms][:40], member_ids=[x["id"] for x in ms], x=(depth + 1) * COLW, y=row[0] * ROWH)
                     row[0] += 1
                     nodes.append(gn)
                     edges.append(dict(source=n["id"], target=gid, medium=m, label=""))
@@ -146,14 +169,14 @@ def build(c, pid, expanded=(), status="confirmed", traffic=False):
             max([n["x"] + NODE_W for n in nodes] or [0]), max([n["y"] + NODE_H / 2 for n in nodes] or [0])]
     return dict(nodes=nodes, edges=edges, width=width, height=height, node_w=NODE_W, node_h=NODE_H,
                 loose_from=(loose_start + 0.6) * ROWH if loose and not any(n.get("pinned") for n in nodes) else None, total=len(devs),
-                pinned=sum(1 for n in nodes if n.get("pinned")), bbox=bbox)
+                pinned=sum(1 for n in nodes if n.get("pinned")), bbox=bbox, grouping=gs)
 
 
 def save_positions(c, pid, positions):
     """positions = {knoten_id: [x, y]}; null entfernt die Position eines Knotens."""
     import re
     for node, xy in list(positions.items())[:2000]:
-        if not re.fullmatch(r"d\d+|g\d+:(wlan|virtual)|internet", str(node)):
+        if not re.fullmatch(r"d\d+|g\d+:(wlan|virtual|[clv]\d+|t[0-9a-f]{10})|internet", str(node)):
             continue
         if xy is None:
             c.execute("DELETE FROM topo_positions WHERE profile_id=? AND node=?", (pid, node))

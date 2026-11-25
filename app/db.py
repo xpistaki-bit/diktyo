@@ -478,6 +478,18 @@ MIGRATIONS = [
         label TEXT NOT NULL DEFAULT '');
     CREATE INDEX rack_items_loc ON rack_items(location_id);
     """,
+    # Eigene Gruppen in der Topologie (z. B. „IoT“, „Kameras“); ein Gerät gehört zu höchstens einer Gruppe
+    """
+    CREATE TABLE topo_groups(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        color TEXT NOT NULL DEFAULT '');
+    CREATE TABLE topo_group_members(
+        device_id INTEGER PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,
+        group_id INTEGER NOT NULL REFERENCES topo_groups(id) ON DELETE CASCADE);
+    CREATE INDEX topo_group_members_group ON topo_group_members(group_id);
+    """,
 ]
 
 

@@ -159,9 +159,9 @@ def drawio(c, pid, lang="de", expand=False):
                          f'vertex="1" parent="1">{geo}</mxCell>')
             continue
         if n["kind"] == "group":
-            label = export.tr("group_wlan" if n["medium"] != "virtual" else "group_virtual", lang, n=n["count"])
+            label = export.group_label(n, lang)
             value = f"<b>{escape(label)}</b><br><font color='#56708A' style='font-size:10px'>{escape(', '.join(n['names'][:6]))}</font>"
-            cells.append(f'<mxCell id="{cid}" value={quoteattr(value)} style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#F6FAFC;strokeColor=#9FB4C8;'
+            cells.append(f'<mxCell id="{cid}" value={quoteattr(value)} style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#F6FAFC;strokeColor={n.get("color") or "#9FB4C8"};'
                          f'align=left;spacingLeft=8;" vertex="1" parent="1">{geo}</mxCell>')
             continue
         d = devs.get(n.get("device_id"), {})

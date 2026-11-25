@@ -61,6 +61,9 @@ function fullscreenToggle(box, btn, onChange) {
   obs.observe(document.body, { childList: true, subtree: true });
   if (tabTopology.full) set(true);
 }
+const GROUP_ICON = { custom: 'M3 6h7l2 2h9v11H3z', location: 'M12 21s-7-6.5-7-11a7 7 0 0 1 14 0c0 4.5-7 11-7 11zM12 8a2 2 0 1 1 0 .01',
+  tag: 'M3 3h8l10 10-8 8L3 11zM7.5 7.5h.01', vlan: 'M2 8h20v8H2zM5 12h1M8 12h1M11 12h1M14 12h1M17 12h1' };
+const GROUP_BY = [['medium', 'Verbindungsart (WLAN, VMs)'], ['custom', 'Eigene Gruppen'], ['location', 'Standort'], ['tag', 'Tag'], ['vlan', 'VLAN']];
 const icon = (type, x, y, s = 22) => `<g transform="translate(${x},${y}) scale(${s / 24})"><path d="${ICON[type] || ICON.other}" class="ico"/></g>`;
 const statusCls = o => o == null ? 'unk' : o ? 'on' : 'off';
 const esc = s => h(s);  // h kommt aus app.js, das nach dieser Datei geladen wird
@@ -112,6 +115,9 @@ async function tabTopology(ctx) {
   ctx.el.innerHTML = `<div class="topo-box" id="tbox"><div class="toolbar topo-tools">
       <button class="pri sm" id="qping">${t('Schnell-Ping')}</button>
       <button class="sm ${traffic() ? 'on' : ''}" id="tput" title="${t('Aktuellen Durchsatz an den Verbindungen anzeigen (Switch-Ports, Router, Controller, Proxmox; WLAN mit ASUS als Tagesmenge)')}">${t('Durchsatz')}</button>
+      <label class="topo-gby" title="${t('Wonach Endgeräte unter ihrem Access Point/Switch zu Boxen zusammengefasst werden')}">${t('Gruppieren')}
+        <select id="gby" ${ctx.canEdit ? '' : 'disabled'}>${GROUP_BY.map(([k, l]) => `<option value="${k}"${data.grouping.group_by === k ? ' selected' : ''}>${t(l)}</option>`).join('')}</select></label>
+      <button class="sm" id="tgroups">${t('Gruppen …')}</button>
       <button class="sm" id="expall">${t('Alle Gruppen aufklappen')}</button><button class="sm" id="colall">${t('Alle zuklappen')}</button>
       ${ctx.canEdit && data.pinned ? `<button class="sm" id="relayout" title="${t('Alle von Hand verschobenen Geräte wieder automatisch anordnen')}">${t('Anordnung zurücksetzen')}</button>` : ''}
       <span class="grow"></span>
@@ -163,9 +169,11 @@ async function tabTopology(ctx) {
           <title>${esc(n.source ? t('Quelle: {n}', { n: n.source }) : t('Kein WAN-Status – FRITZ!Box-Integration einrichten'))}</title></g>`;
       }
       if (n.kind === 'group') {
-        const [col] = MSTYLE[n.medium] || MSTYLE.lan;
+        const col = /^#[0-9a-f]{6}$/i.test(n.color || '') ? n.color : (MSTYLE[n.medium] || MSTYLE.lan)[0];
+        const lbl = n.label ? `${n.label.length > 19 ? n.label.slice(0, 18) + '…' : n.label} (${n.count})` : t(n.medium === 'virtual' ? '{n} VMs / Container' : '{n} WLAN-Geräte', { n: n.count });
+        const ic = GROUP_ICON[n.group_kind] ? `<g transform="translate(12,13) scale(${22 / 24})"><path d="${GROUP_ICON[n.group_kind]}" class="ico" style="stroke:${col}"/></g>` : icon(n.medium === 'virtual' ? 'vm' : 'phone', 12, 13);
         return `<g class="tg" data-id="${n.id}" transform="translate(${x},${y})"><rect width="${NW}" height="${NH}" rx="8" class="tg-box" style="stroke:${col}"/>
-          ${icon(n.medium === 'virtual' ? 'vm' : 'phone', 12, 13)}<text x="44" y="21" class="tn-name">${esc(t(n.medium === 'virtual' ? '{n} VMs / Container' : '{n} WLAN-Geräte', { n: n.count }))}</text>
+          ${ic}<text x="44" y="21" class="tn-name">${esc(lbl)}</text>
           <text x="44" y="37" class="tn-sub">${t('{n} online', { n: n.online_count })} · ${t('aufklappen')}</text><text x="${NW - 18}" y="30" class="tg-plus">+</text>
           <title>${esc(n.names.join(', '))}</title></g>`;
       }
@@ -176,18 +184,18 @@ async function tabTopology(ctx) {
         <text x="44" y="37" class="tn-sub">${esc(n.ip || typeName(n.type))}${infra ? ` · ${n.ports_used}/${n.ports_total}` : ''}</text>
         <circle cx="${NW - 14}" cy="14" r="5" class="tn-dot"/>
         ${n.fw_update ? `<text x="${NW - 30}" y="18" class="tn-fw"><title>${t('Firmware-Update verfügbar')}</title>⬆</text>` : ''}
-        ${exp.has(`${n.device_id}:wlan`) || exp.has(`${n.device_id}:virtual`) ? `<text x="${NW - 18}" y="40" class="tg-plus small" data-collapse="${n.device_id}">−</text>` : ''}</g>`;
+        ${(n.expanded_groups || []).length ? `<text x="${NW - 18}" y="40" class="tg-plus small" data-collapse="${n.device_id}">−</text>` : ''}</g>`;
     }).join('');
     const sep = data.loose_from ? `<text x="${PAD}" y="${data.loose_from + PAD - NH / 2 - 10}" class="tsep">${t('Ohne Verbindung')}</text>` : '';
     vp.innerHTML = edges + sep + nodes;
     $$('.tn:not(.inet)', vp).forEach(g => g.addEventListener('click', ev => {
       if (moved) return;
       const c = ev.target.closest('[data-collapse]');
-      if (c) { exp.delete(`${c.dataset.collapse}:wlan`); exp.delete(`${c.dataset.collapse}:virtual`); return ctx.reload(); }
+      if (c) { [...exp].filter(k => k.startsWith(`${c.dataset.collapse}:`)).forEach(k => exp.delete(k)); return ctx.reload(); }
       side(+g.dataset.dev);
     }));
     $$('.tn:not(.inet)', vp).forEach(g => g.addEventListener('dblclick', () => { const n = byId[g.dataset.id]; if (n.ports_total || n.children) location.hash = `#/p/${ctx.pid}/topologie/${n.device_id}`; }));
-    $$('.tg', vp).forEach(g => g.addEventListener('click', () => { if (moved) return; const n = byId[g.dataset.id]; exp.add(`${n.parent}:${n.medium}`); ctx.reload(); }));
+    $$('.tg', vp).forEach(g => g.addEventListener('click', () => { if (moved) return; const n = byId[g.dataset.id]; exp.add(`${n.parent}:${n.key}`); ctx.reload(); }));
   };
   // Knoten mit der Maus verschieben; die Position wird im Profil gespeichert (auch für das PDF)
   let nd = null, moved = false;
@@ -235,7 +243,11 @@ async function tabTopology(ctx) {
   if (npx) npx.onclick = () => netplanDialog(ctx);
   $('#zin', ctx.el).onclick = () => pz.zoom(1.25); $('#zout', ctx.el).onclick = () => pz.zoom(1 / 1.25); $('#zfit', ctx.el).onclick = () => pz.fit();
   $('#tput', ctx.el).onclick = () => { try { localStorage.setItem('dk_topo_traffic', traffic() ? '0' : '1'); } catch { } ctx.reload(); };
-  $('#expall', ctx.el).onclick = () => { data.nodes.filter(n => n.kind === 'group').forEach(n => exp.add(`${n.parent}:${n.medium}`)); ctx.reload(); };
+  $('#expall', ctx.el).onclick = () => { data.nodes.filter(n => n.kind === 'group').forEach(n => exp.add(`${n.parent}:${n.key}`)); ctx.reload(); };
+  $('#gby', ctx.el).onchange = async ev => {
+    try { await api('PUT', `${P}/topology/settings`, { group_by: ev.target.value }); exp.clear(); ctx.reload(); } catch (e) { toast(e.message, true); }
+  };
+  $('#tgroups', ctx.el).onclick = () => topoGroupsDialog(ctx);
   $('#colall', ctx.el).onclick = () => { exp.clear(); ctx.reload(); };
   const rl = $('#relayout', ctx.el);
   if (rl) rl.onclick = async () => {
@@ -289,6 +301,70 @@ async function tabTopology(ctx) {
   tabTopology.timer = setInterval(() => { if (!document.body.contains(svg)) return clearInterval(tabTopology.timer); refresh(); }, 30000);
 }
 tabTopology.expanded = {}; tabTopology.view = {}; tabTopology.sel = null;
+
+/* ---------------------------------------------------------------- Gruppen verwalten */
+async function topoGroupsDialog(ctx) {
+  const P = `/api/profiles/${ctx.pid}`;
+  const g = await api('GET', `${P}/topology/groups`), s = g.settings, ro = ctx.canEdit ? '' : 'disabled';
+  const num = (k, l, hint) => `<label>${t(l)}<input type="number" name="${k}" min="0" max="500" value="${s[k]}" ${ro}><span class="hint">${t(hint)}</span></label>`;
+  const res = await dialog(t('Gruppen in der Topologie'), `
+    <p class="muted small">${t('Eigene Gruppen erscheinen als Box unter ihrem Access Point oder Switch, sobald oben „Gruppieren: Eigene Gruppen“ gewählt ist. Ein Gerät gehört zu höchstens einer Gruppe.')}</p>
+    <div class="tgl">${g.groups.map(x => `<div class="tgl-row"><i class="tgl-sw" style="background:${/^#[0-9a-f]{6}$/i.test(x.color) ? x.color : 'var(--muted)'}"></i>
+      <b>${h(x.name)}</b><span class="muted small">${t('{n} Geräte', { n: x.members.length })}</span><span class="grow"></span>
+      ${ctx.canEdit ? `<button type="button" class="sm" data-ge="${x.id}">${t('Bearbeiten')}</button><button type="button" class="sm danger" data-gd="${x.id}">${t('Löschen')}</button>` : ''}</div>`).join('')
+      || `<p class="muted small">${t('Noch keine eigenen Gruppen.')}</p>`}</div>
+    ${ctx.canEdit ? `<button type="button" class="sm" data-gn>${t('+ Gruppe')}</button>` : ''}
+    <h4>${t('Ab wann zusammenfassen')}</h4><div class="grid3">
+    ${num('min_wlan', 'WLAN-Geräte', 'an einem Gerät; 0 = nie')}${num('min_virtual', 'VMs / Container', 'an einem Host; 0 = nie')}
+    ${num('min_group', 'Gruppe, Standort, Tag, VLAN', 'Mitglieder unter einem Gerät; 0 = nie')}</div>`, {
+    wide: true, ok: ctx.canEdit ? t('Speichern') : null,
+    onOk: async f => { const v = fd(f); await api('PUT', `${P}/topology/settings`, { min_wlan: +v.min_wlan, min_virtual: +v.min_virtual, min_group: +v.min_group }); return 'saved'; },
+    onOpen: (f, close) => {
+      $$('[data-ge]', f).forEach(b => b.onclick = () => { close('edit'); topoGroupEdit(ctx, g.groups.find(x => x.id === +b.dataset.ge), g.groups); });
+      const nb = $('[data-gn]', f); if (nb) nb.onclick = () => { close('edit'); topoGroupEdit(ctx, null, g.groups); };
+      $$('[data-gd]', f).forEach(b => b.onclick = async () => {
+        const x = g.groups.find(y => y.id === +b.dataset.gd);
+        close('edit');
+        if (await confirmDlg(t('Gruppe löschen'), h(t('Die Gruppe „{n}“ löschen? Die Geräte bleiben erhalten.', { n: x.name })), t('Löschen'))) {
+          try { await api('DELETE', `${P}/topology/groups/${x.id}`); } catch (e) { toast(e.message, true); }
+          if (location.hash.includes('/topologie')) ctx.reload();
+        }
+        topoGroupsDialog(ctx);
+      });
+    },
+  });
+  if (res === 'saved' && location.hash.includes('/topologie')) ctx.reload();
+}
+
+async function topoGroupEdit(ctx, grp, all) {
+  const P = `/api/profiles/${ctx.pid}`;
+  const { devices } = await api('GET', `${P}/devices`);
+  const mine = new Set(grp ? grp.members : []), other = {};
+  all.forEach(x => { if (!grp || x.id !== grp.id) x.members.forEach(d => { other[d] = x.name; }); });
+  const list = devices.filter(d => d.status === 'confirmed').sort((a, b) => (mine.has(b.id) - mine.has(a.id)));
+  const PAL = ['#00E5FF', '#19F5C8', '#FFB020', '#FF5C8A', '#9B7BFF', '#2D7BFF', '#7FD35A', '#FF8A3D'];
+  const res = await dialog(grp ? t('Gruppe bearbeiten') : t('Neue Gruppe'), `
+    <div class="grid2"><label>${t('Name')}<input name="name" required maxlength="60" value="${h(grp?.name || '')}" placeholder="${t('z. B. IoT, Kameras, Kinderzimmer')}"></label>
+      <label>${t('Farbe')}<input type="color" name="color" value="${h(grp?.color || PAL[all.length % PAL.length])}"></label></div>
+    <label for="tgq">${t('Geräte')} · <span id="tgcnt"></span></label><input type="search" id="tgq" placeholder="${t('Suchen …')}">
+    <div class="tg-pick">${list.map(d => `<label class="chk tg-dev" data-q="${h(`${d.name} ${(d.ips[0] || {}).address || ''} ${typeName(d.type)} ${d.location}`.toLowerCase())}">
+      <input type="checkbox" value="${d.id}"${mine.has(d.id) ? ' checked' : ''}><span>${h(d.name)}</span>
+      <span class="muted small mono">${h((d.ips[0] || {}).address || '')}</span>${other[d.id] ? `<span class="badge" title="${t('Wechselt beim Speichern in diese Gruppe')}">${h(other[d.id])}</span>` : ''}</label>`).join('')}</div>`, {
+    wide: true,
+    onOpen: f => {
+      const cnt = () => { $('#tgcnt', f).textContent = t('{n} ausgewählt', { n: $$('.tg-pick input:checked', f).length }); };
+      cnt(); f.addEventListener('change', cnt);
+      $('#tgq', f).oninput = ev => { const q = ev.target.value.trim().toLowerCase(); $$('.tg-dev', f).forEach(el => { el.hidden = q && !el.dataset.q.includes(q); }); };
+    },
+    onOk: async f => {
+      const body = { name: $('[name=name]', f).value, color: $('[name=color]', f).value, members: $$('.tg-pick input:checked', f).map(x => +x.value) };
+      await (grp ? api('PUT', `${P}/topology/groups/${grp.id}`, body) : api('POST', `${P}/topology/groups`, body));
+      return 'saved';
+    },
+  });
+  if (res === 'saved' && location.hash.includes('/topologie')) ctx.reload();
+  topoGroupsDialog(ctx);
+}
 
 async function quickPing(ctx, ids) {
   try {

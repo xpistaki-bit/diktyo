@@ -54,6 +54,8 @@ ERR_EN = {
     "Token oder MQTT-Broker angeben": "Enter a token or an MQTT broker",
     "Konfigurations-Backup nicht gefunden": "Configuration backup not found",
     "Ungültige Positionen": "Invalid positions",
+    "Unbekannte Gruppierung": "Unknown grouping", "Ungültiger Schwellwert": "Invalid threshold", "Ungültige Farbe": "Invalid colour",
+    "Ungültige Mitglieder": "Invalid members", "Gruppe nicht gefunden": "Group not found", "Zu viele Gruppen": "Too many groups",
     "Zeitplan nicht gefunden": "Schedule not found",
     "Für die Quarantäne wird eine FRITZ!Box-Integration mit Benutzer gebraucht": "Quarantine needs a FRITZ!Box integration with a user",
     "Eintrag nicht gefunden": "Entry not found",

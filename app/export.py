@@ -83,6 +83,13 @@ def ips_csv(c, pid, lang="de"):
 PRINT_STYLE = {"lan": ("#0091A8", ""), "wlan": ("#13A88A", "7 6"), "mesh": ("#2D5BFF", "2 5"), "virtual": ("#7A8FA6", "1 4")}
 
 
+def group_label(n, lang):
+    """Beschriftung einer zusammengefassten Gruppe: WLAN/VMs übersetzt, sonst Name der Gruppe (Standort, Tag, VLAN) mit Anzahl."""
+    if n.get("label"):
+        return f"{n['label']} ({n['count']})"
+    return tr("group_wlan" if n["medium"] != "virtual" else "group_virtual", lang, n=n["count"])
+
+
 def topology_layout(c, pid, expand=False):
     """Topologie wie in der Oberfläche (inkl. von Hand verschobener Knoten); expand: Gruppen (WLAN, VMs) aufgeklappt."""
     from . import topology
@@ -132,8 +139,8 @@ def topology_svg(c, pid, lang="de", expand=False, t=None):
                        f'<text x="{x + 14}" y="{y + 37}" font-size="10" fill="#56708A">{esc(st)}</text>')
             continue
         if n["kind"] == "group":
-            col = PRINT_STYLE.get(n["medium"], PRINT_STYLE["lan"])[0]
-            label = tr("group_wlan" if n["medium"] != "virtual" else "group_virtual", lang, n=n["count"])
+            col = n.get("color") or PRINT_STYLE.get(n["medium"], PRINT_STYLE["lan"])[0]
+            label = group_label(n, lang)[:30]
             out.append(f'<rect x="{x}" y="{y}" width="{NW}" height="{NH}" rx="8" fill="#F6FAFC" stroke="{col}" stroke-dasharray="5 4"/>'
                        f'<text x="{x + 12}" y="{y + 21}" font-size="13" font-weight="bold" fill="#0A1A33">{esc(label)}</text>'
                        f'<text x="{x + 12}" y="{y + 37}" font-size="10" fill="#56708A">{esc(", ".join(n["names"][:4])[:44])}</text>')

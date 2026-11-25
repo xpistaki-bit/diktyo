@@ -441,6 +441,56 @@ def topology_positions_reset(pid: int, user=Depends(require_user)):
     return dict(ok=True)
 
 
+# ------------------------------------------------------------ Gruppen in der Topologie
+def _groups_out(c, pid):
+    from . import topogroups
+    return dict(groups=topogroups.list_groups(c, pid), settings=topogroups.settings(c, pid))
+
+
+def _groups_edit(pid, user, action, fn):
+    from . import topogroups
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        try:
+            fn(c)
+        except topogroups.GroupError as ex:
+            raise HTTPException(400, str(ex))
+        audit(c, action, user["id"], pid)
+        touch(c, pid, user)
+        return _groups_out(c, pid)
+
+
+@router.get("/topology/groups")
+def topo_groups(pid: int, user=Depends(require_user)):
+    with db() as c:
+        profile_access(c, user, pid)
+        return _groups_out(c, pid)
+
+
+@router.put("/topology/settings")
+def topo_settings(pid: int, body: dict = Body(...), user=Depends(require_user)):
+    from . import topogroups
+    return _groups_edit(pid, user, "topology.settings", lambda c: topogroups.save_settings(c, pid, body))
+
+
+@router.post("/topology/groups")
+def topo_group_create(pid: int, body: dict = Body(...), user=Depends(require_user)):
+    from . import topogroups
+    return _groups_edit(pid, user, "topology.group_create", lambda c: topogroups.create_group(c, pid, body))
+
+
+@router.put("/topology/groups/{gid}")
+def topo_group_update(pid: int, gid: int, body: dict = Body(...), user=Depends(require_user)):
+    from . import topogroups
+    return _groups_edit(pid, user, "topology.group_update", lambda c: topogroups.update_group(c, pid, gid, body))
+
+
+@router.delete("/topology/groups/{gid}")
+def topo_group_delete(pid: int, gid: int, user=Depends(require_user)):
+    from . import topogroups
+    return _groups_edit(pid, user, "topology.group_delete", lambda c: topogroups.delete_group(c, pid, gid))
+
+
 @router.post("/ping")
 def quick_ping(pid: int, body: dict = Body(default={}), user=Depends(require_user)):
     """Pingt sofort die angegebenen (sonst alle bestätigten) Geräte und aktualisiert ihren Online-Status."""
