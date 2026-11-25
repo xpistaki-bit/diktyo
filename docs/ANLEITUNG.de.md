@@ -2,7 +2,7 @@
 
 díktyo dokumentiert dein Heimnetz: Geräte mit IP, MAC, Standort und Notizen, IP-Adressverwaltung mit Subnetzen und VLANs,
 eine grafische Topologie, Netzscan mit Geräteerkennung, Online-Überwachung und Integrationen für FRITZ!Box, Switches
-(SNMP, z. B. Zyxel und Netgear), devolo Powerline, ASUS-Router mit AiMesh, MikroTik, TP-Link Omada, Ubiquiti UniFi, Proxmox VE und Home Assistant. Diese Anleitung führt durch Installation und Einrichtung.
+(SNMP, z. B. Zyxel und Netgear), devolo Powerline, ASUS-Router mit AiMesh, MikroTik, OpenWrt, TP-Link Omada, Ubiquiti UniFi, Proxmox VE und Home Assistant. Diese Anleitung führt durch Installation und Einrichtung.
 
 > **Neu hier?** Die bebilderte Kurzfassung [Erste Schritte](ERSTE-SCHRITTE.de.md) zeigt in 15 Minuten, wo du klickst:
 > installieren, scannen, Router verbinden, fertig.
@@ -358,6 +358,47 @@ Backups (*System → Backup*, auch in die MikroTik-Cloud).
 **Hinweis:** gegen nachgebildete Schnittstellen getestet (REST und RouterOS-API über einen echten Socket), noch nicht an
 echter Hardware – Rückmeldungen willkommen.
 
+### OpenWrt (ubus/rpcd)
+
+díktyo spricht OpenWrt über dieselbe Schnittstelle wie LuCI (ubus per JSON-RPC unter `/ubus`).
+
+- Voraussetzung: **LuCI** ist installiert (bringt uhttpd mit ubus, rpcd, luci-rpc und iwinfo mit). Ohne LuCI die
+  Pakete `uhttpd-mod-ubus rpcd-mod-luci rpcd-mod-iwinfo` installieren (`apk add …` ab 25.x, sonst `opkg install …`).
+- *+ OpenWrt*, Adresse des Routers, Benutzer und Passwort. *Verbindung* „automatisch“ versucht HTTPS (selbst
+  signiertes Zertifikat ist in Ordnung) und dann HTTP.
+- **Benutzer:** am einfachsten `root` mit dem Router-Passwort. Besser ein eigener Benutzer mit nur den nötigen Rechten –
+  auf dem Router (per SSH):
+
+  ```sh
+  cat > /usr/share/rpcd/acl.d/diktyo.json <<'EOF'
+  { "diktyo": { "description": "díktyo",
+      "read":  { "ubus": { "system": ["board", "info"], "network.device": ["status"], "network.interface": ["dump"],
+                           "network.wireless": ["status"], "luci-rpc": ["getDHCPLeases", "getHostHints"],
+                           "iwinfo": ["assoclist"], "uci": ["get"] },
+                 "uci": ["network", "wireless"], "cgi-io": ["backup"] },
+      "write": { "ubus": { "uci": ["set", "commit"], "network": ["reload"], "system": ["reboot"] },
+                 "uci": ["wireless"] } } }
+  EOF
+  uci add rpcd login
+  uci set rpcd.@login[-1].username='diktyo'
+  uci set rpcd.@login[-1].password="$(uhttpd -m 'ein-langes-passwort')"
+  uci add_list rpcd.@login[-1].read='diktyo'
+  uci add_list rpcd.@login[-1].write='diktyo'
+  uci commit rpcd && service rpcd restart
+  ```
+
+  Ohne den Block `write` (und ohne `add_list … write`) liest díktyo nur; die Aktionen melden dann „keine Berechtigung“.
+- díktyo liest Modell, OpenWrt-Version und Laufzeit, die **Ports** (lan1 …, wan bzw. eth0 … bei Geräten ohne DSA) mit
+  Link, Tempo und Traffic, den **WAN**-Traffic, die **Clients** (aktive DHCP-Leases, WLAN-Geräte mit Band und Signal,
+  Namen aus den Host-Hinweisen), die **WLANs** und die **VLANs** der Bridge (DSA, *Netzwerk → Schnittstellen → Geräte →
+  br-lan → Bridge-VLAN-Filterung*) für den VLAN-Plan.
+- Der Router erscheint als Router (mit WAN), sonst als Access Point (nur WLAN). WLAN-Geräte hängen per WLAN am Router.
+  Welcher LAN-Port zu welchem Gerät führt, verrät OpenWrt nicht – das klären ein Switch per SNMP oder du von Hand.
+- **Aktionen:** WLAN ein/aus (setzt `disabled` in `/etc/config/wireless`, mit Zurückschalten) und Neustart.
+- **Konfigurations-Backup** wie *System → Sichern/Flashen → Sicherung herunterladen* in LuCI (`.tar.gz`, lässt sich
+  dort wieder einspielen). Achtung: Die Datei enthält auch Passwörter (WLAN-Schlüssel, `/etc/shadow`); díktyo legt sie
+  verschlüsselt ab.
+
 ### OPNsense
 
 1. *System → Zugang → Benutzer*: eigenen Benutzer anlegen und unter *Effektive Berechtigungen* erlauben: *Status:
@@ -425,7 +466,7 @@ erlaubt – die `docker-compose.yml` dafür steht im Einrichtungsdialog (lesen: 
 erreichbar lassen. Container erscheinen als virtuelle Geräte am Docker-Host (Image als Modell, laufend = online);
 Starten, Stoppen und Neustarten über *Aktionen*. díktyo stoppt weder sich selbst noch den Socket-Proxy.
 
-**Hinweis:** OPNsense, Docker, devolo und die Netgear-Zusatzwerte sind nach der Dokumentation gebaut und gegen
+**Hinweis:** OPNsense, OpenWrt, Docker, devolo und die Netgear-Zusatzwerte sind nach der Dokumentation gebaut und gegen
 nachgebildete Geräte getestet, noch nicht an echter Hardware.
 
 ## 5. Überwachung und Ereignisse
@@ -567,7 +608,7 @@ Ereignisse, nicht die bisherigen.
 
   | Verbindung | Quelle |
   |---|---|
-  | Kabel | Ports von Switch (SNMP), MikroTik, OPNsense, UniFi-/Omada-Switches |
+  | Kabel | Ports von Switch (SNMP), MikroTik, OPNsense, OpenWrt, UniFi-/Omada-Switches |
   | je Gerät (auch WLAN) | Live-Rate aus Omada, UniFi, MikroTik (WLAN-Registrierungen, Kid Control), OPNsense (Top Talkers) |
   | VMs und Container | Proxmox (Netzwerkzähler je Gast) |
   | WLAN mit ASUS | Datenmenge der letzten 24 Stunden (Σ) aus dem Traffic Analyzer – ASUS liefert keine Live-Rate je Gerät |
@@ -599,7 +640,7 @@ Der Reiter **Verlauf** zeigt, was sich wann geändert hat – und wodurch:
 
 ## 7. Konfigurations-Backups der Geräte
 
-- FRITZ!Box (mit Benutzer), ASUS-Router und Switches per SSH sichern ihre Konfiguration wöchentlich oder täglich
+- FRITZ!Box (mit Benutzer), ASUS-Router, OPNsense, OpenWrt und Switches per SSH sichern ihre Konfiguration wöchentlich oder täglich
   (Einstellung in der Integration) oder per *Konfiguration sichern*.
 - Unveränderte Konfigurationen werden nicht doppelt abgelegt; pro Gerät bleiben die letzten 30 Stände.
 - Die Dateien liegen verschlüsselt in díktyo. Im Gerätedialog unter *Konfigurations-Backups*: herunterladen und bei
@@ -631,6 +672,7 @@ Topologie-Seitenleiste und in der Frontplatte beim angeklickten Port:
 | VM / LXC | starten, herunterfahren, neu starten | Proxmox-Token mit `VM.PowerMgmt` (siehe unten) |
 | MikroTik | Port ab-/einschalten, PoE neu starten, WLAN ein/aus, Wake-on-LAN, Neustart | Benutzergruppe mit write, reboot, test (und api bzw. rest-api) |
 | OPNsense | Internetzugang je Gerät (über den Alias), Neustart | Alias + Block-Regel, Recht *Firewall: Alias: Edit* |
+| OpenWrt | WLAN ein/aus (mit Zurückschalten), Neustart | Benutzer root oder rpcd-Benutzer mit dem `write`-Teil der ACL (siehe Kapitel 4) |
 | Docker | Container starten, stoppen, neu starten | Socket-Proxy mit POST und ALLOW_* |
 | UniFi | verwaltetes Gerät (Gateway, Switch, AP) neu starten; PoE an einem Switch-Port neu starten | API-Schlüssel mit Schreibrecht |
 | Omada | verwaltetes Gerät neu starten; PoE an einem Switch-Port ein/aus (mit Zurückschalten) und neu starten | Open-API-App mit Schreibrecht (Rolle Administrator) |
@@ -713,6 +755,7 @@ lesend) – dort lässt er sich nicht von Hand ändern. Das Kennzeichen am Gerä
 | Switch (SNMP) | *vom Switch (SNMP)* | Q-BRIDGE-MIB: untagged/tagged je Port, VLAN-Namen |
 | MikroTik (RouterOS-API/REST) | *aus MikroTik* | Bridge-VLAN-Tabelle (nur Bridges mit *vlan-filtering*), PVID der Bridge-Ports, VLAN-Schnittstellen direkt auf einem Port; Namen der VLAN-Schnittstellen. Mit SNMP-Zugang keine VLANs |
 | OPNsense | *aus OPNsense* | VLAN-Geräte (*Schnittstellen → Geräte → VLAN*): auf der Eltern-Schnittstelle tagged, die zugewiesene VLAN-Schnittstelle untagged; Recht „Interfaces: VLAN settings“ nötig |
+| OpenWrt | *aus OpenWrt* | Bridge-VLAN-Filterung (DSA): `bridge-vlan`-Einträge der Netzwerkkonfiguration, Kennzeichen `t` = tagged, sonst untagged (`*` = PVID); Name aus der Schnittstelle auf `br-lan.<VLAN>` |
 | UniFi | *aus UniFi* | je Switch-Port Native-Netz und getaggte Netze aus Port-Profil und Port-Einstellung („Alle erlauben“, „Alle blockieren“, eigene Auswahl); dafür nutzt díktyo die klassische Network-API mit demselben API-Schlüssel – lässt die Konsole das nicht zu, fehlen nur die VLANs |
 | Omada | *aus Omada* | Netze je Switch mit Native-, Tagged- und Untagged-Ports (Open API, *networks-detail*) |
 

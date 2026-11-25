@@ -461,3 +461,27 @@ ERR_EN.update({
     "Dieses Gerät meldet seine VLANs selbst (Integration) – der produktive Stand lässt sich hier nicht ändern":
         "This device reports its VLANs itself (integration) – the production state cannot be changed here",
 })
+
+
+# ------------------------------------------------------------ 0.40: OpenWrt
+ERR_EN.update({
+    "OpenWrt neu starten": "Restart OpenWrt", "OpenWrt startet neu (dauert etwa eine Minute)": "OpenWrt is restarting (takes about a minute)",
+    "Keine Berechtigung für die Sicherung (ACL „cgi-io: backup“ bzw. Benutzer root nötig)": "No permission for the backup (ACL “cgi-io: backup” or user root required)",
+    "Sicherung nicht verfügbar – auf dem Router fehlt cgi-io (Teil von LuCI)": "Backup not available – cgi-io is missing on the router (part of LuCI)",
+    "WLAN beim Router nicht gefunden – Integration einmal abfragen": "Wi-Fi not found on the router – poll the integration once",
+    "Anmeldung abgelehnt – Benutzer und Passwort prüfen (rpcd-Benutzer, z. B. root)": "Sign-in rejected – check user and password (rpcd user, e.g. root)",
+    "Anmeldung ohne Sitzung – rpcd antwortet unerwartet": "Sign-in without session – rpcd answers unexpectedly",
+    "Zugriff verweigert – Sitzung abgelaufen oder fehlende Rechte": "Access denied – session expired or missing permissions",
+    "Keine ubus-Schnittstelle unter /ubus – auf dem Router das Paket uhttpd-mod-ubus installieren (bei LuCI vorhanden)":
+        "No ubus interface at /ubus – install the package uhttpd-mod-ubus on the router (included with LuCI)",
+    "Verbindung": "Connection", "automatisch (HTTPS, sonst HTTP)": "automatic (HTTPS, otherwise HTTP)", "Port (leer = 443 bzw. 80)": "Port (empty = 443 or 80)",
+    "ungültiger Befehl": "invalid command", "ungültiges Argument": "invalid argument", "Methode nicht gefunden": "method not found",
+    "nicht gefunden": "not found", "keine Daten": "no data", "keine Berechtigung": "permission denied", "Zeitüberschreitung": "timeout",
+    "nicht unterstützt": "not supported", "unbekannter Fehler": "unknown error", "Verbindung fehlgeschlagen": "connection failed",
+})
+PATTERNS += [
+    ("OpenWrt hat keine Sicherung geliefert (HTTP {})", "OpenWrt did not deliver a backup (HTTP {})"),
+    ("Unerwartete Antwort (HTTP {}) – ist das ein OpenWrt-Router mit LuCI?", "Unexpected response (HTTP {}) – is this an OpenWrt router with LuCI?"),
+    ("OpenWrt nicht erreichbar: {}", "OpenWrt not reachable: {}"), ("OpenWrt unter {} nicht erreichbar ({})", "OpenWrt at {} not reachable ({})"),
+]
+_PATTERNS = sorted(((de, _compile(de), en_) for de, en_ in PATTERNS), key=lambda x: _rank(x[0]))

@@ -173,7 +173,7 @@ def _slim_view(driver, res):
                                                                           "rssi", "voltage", "firmware")} for d in res.get("devices", [])])
     if driver == "docker":
         return dict(info=res.get("info"), containers=[{k: x[k] for k in ("name", "image", "state", "status", "ports", "ips")} for x in res.get("containers", [])])
-    if driver in ("mikrotik", "opnsense"):
+    if driver in ("mikrotik", "opnsense", "openwrt"):
         return dict(info=res.get("info"), wan=res.get("wan"), ports=res.get("ports"), wifi=res.get("wifi"), wifi_menu=res.get("wifi_menu"),
                     clients=len(res.get("clients", [])), online=sum(1 for x in res.get("clients", []) if x["online"]),
                     wlan=sum(1 for x in res.get("clients", []) if x["medium"] == "wlan"), fdb_size=res.get("fdb_size"))
@@ -379,7 +379,7 @@ def apply_snmp(c, row, res):
 
 def live_ports(c, did):
     """Port-Status aus der letzten SNMP-Abfrage eines Geräts bzw. vom Controller (UniFi) -> {port_no: {...}}"""
-    r = c.execute("SELECT state FROM integrations WHERE device_id=? AND driver IN ('snmp','mikrotik','opnsense') ORDER BY id LIMIT 1", (did,)).fetchone()
+    r = c.execute("SELECT state FROM integrations WHERE device_id=? AND driver IN ('snmp','mikrotik','opnsense','openwrt') ORDER BY id LIMIT 1", (did,)).fetchone()
     if r:
         st = json.loads(r["state"] or "{}")
         return {p["port_no"]: p for p in (st.get("result") or {}).get("ports") or []}
@@ -756,12 +756,15 @@ def apply_controller(c, row, res):
 
 # ------------------------------------------------------------ MikroTik
 def apply_mikrotik(c, row, res):
-    """Router mit Ports, Clients und Nachbarn (MikroTik, OPNsense)."""
+    """Router mit Ports, Clients und Nachbarn (MikroTik, OPNsense, OpenWrt)."""
     pid, info = row["profile_id"], res.get("info") or {}
     src = row["driver"]
     vendor = info.get("vendor") or "MikroTik"
     oui.ensure(lambda *a: None)
-    own = _own_device(c, row, info.get("name") or info.get("model") or vendor, info.get("model", ""), "", "firewall" if src == "opnsense" else "router", vendor)
+    own = _own_device(c, row, info.get("name") or info.get("model") or vendor, info.get("model", ""), "",
+                      res.get("role") or ("firewall" if src == "opnsense" else "router"), vendor)
+    if src == "openwrt":
+        _auto_set(c, own, software=f"OpenWrt {info.get('version', '')}".strip(), manufacturer=vendor if vendor != "OpenWrt" else "", model=info.get("model", ""))
     if res.get("ports") and not c.execute("SELECT 1 FROM interfaces WHERE device_id=? AND role='port'", (own,)).fetchone():
         data = json.loads(c.execute("SELECT data FROM devices WHERE id=?", (own,)).fetchone()["data"] or "{}")
         data["ports"] = ctl.port_groups([dict(p, max_speed=ctl.speed_text(p.get("speed") or 0)) for p in res["ports"]])
@@ -951,5 +954,5 @@ def apply_devolo(c, row, res):
 
 
 APPLY = {"fritzbox": apply_fritz, "snmp": apply_snmp, "asuswrt": apply_asus, "proxmox": apply_proxmox, "homeassistant": apply_ha,
-         "omada": apply_controller, "unifi": apply_controller, "mikrotik": apply_mikrotik, "opnsense": apply_mikrotik, "docker": apply_docker,
+         "omada": apply_controller, "unifi": apply_controller, "mikrotik": apply_mikrotik, "opnsense": apply_mikrotik, "openwrt": apply_mikrotik, "docker": apply_docker,
          "shelly": apply_shelly, "dnsfilter": apply_dnsfilter, "devolo": apply_devolo}

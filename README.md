@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.39 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.40 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -336,9 +336,13 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
   configuration backup – RouterOS has its own backups (also to the MikroTik cloud).
 - **OPNsense** (official REST API with key/secret): interfaces with status and traffic, clients from DHCP leases and
   ARP, WAN status/traffic, firmware updates, `config.xml` backup; internet block per device via a firewall alias.
+- **OpenWrt** (ubus/rpcd JSON-RPC as used by LuCI, user root or a dedicated rpcd user with an ACL): model and version,
+  ports with link, speed and traffic, WAN traffic, clients from DHCP leases and Wi-Fi association lists, Wi-Fi
+  networks, bridge VLANs (DSA) for the VLAN plan, configuration backup (same as "Download backup" in LuCI); actions:
+  Wi-Fi on/off and restart.
 - **Docker** (Engine API, ideally through a socket proxy): containers as virtual devices on the Docker host with image,
   state, networks and published ports; start/stop/restart as actions.
-- Omada, UniFi, MikroTik, OPNsense and Docker were built from the vendors' API documentation and tested against simulated controllers, not yet
+- Omada, UniFi, MikroTik, OPNsense, OpenWrt and Docker were built from the vendors' API documentation and tested against simulated controllers, not yet
   against real hardware – feedback welcome.
 - Connections set by an integration never replace connections entered by hand.
 - **Online monitoring:** all confirmed devices with an IP address are pinged every 30 s, 1 min or 5 min (per

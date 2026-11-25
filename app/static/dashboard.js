@@ -56,7 +56,7 @@ function issuesPanel(r, pid) {
 
 function wanPanel(w, since) {
   if (!w) return `<div class="panel s5"><div class="hud-h"><h3>${t('WAN-Traffic')}</h3></div>
-    <p class="muted">${t('Kommt aus der FRITZ!Box-, ASUS-, UniFi-, MikroTik- oder OPNsense-Integration.')}</p></div>`;
+    <p class="muted">${t('Kommt aus der FRITZ!Box-, ASUS-, UniFi-, MikroTik-, OPNsense- oder OpenWrt-Integration.')}</p></div>`;
   return `<div class="panel s5"><div class="hud-h"><h3>${t('WAN-Traffic')}<em>${h(w.name)}</em></h3>${rangeButtons(since)}</div>
     <div class="wan-wrap"><div class="wan-now">
         <div class="hstat"><span>↓ ${t('Download')} · ${t('jetzt')}</span>${bigVal(splitBps(w.rx_bps))}</div>

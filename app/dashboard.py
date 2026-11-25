@@ -5,7 +5,7 @@ import json
 from . import changes, health, watch
 from .actions import INFRA
 
-WAN_DRIVERS = ("fritzbox", "unifi", "mikrotik", "opnsense", "asuswrt")
+WAN_DRIVERS = ("fritzbox", "unifi", "mikrotik", "opnsense", "asuswrt", "openwrt")
 PORT_DRIVERS = ("snmp", "mikrotik", "opnsense")
 
 

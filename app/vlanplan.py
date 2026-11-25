@@ -41,7 +41,7 @@ def plan_info(c, pid):
 
 
 # ------------------------------------------------------------ vom Switch gelesen (SNMP)
-SOURCES = {"snmp": "SNMP", "mikrotik": "MikroTik", "opnsense": "OPNsense", "unifi": "UniFi", "omada": "Omada"}
+SOURCES = {"snmp": "SNMP", "mikrotik": "MikroTik", "opnsense": "OPNsense", "unifi": "UniFi", "omada": "Omada", "openwrt": "OpenWrt"}
 
 
 def apply_switch(c, pid, did, vres, source="snmp"):

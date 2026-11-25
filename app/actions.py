@@ -277,6 +277,18 @@ def available(c, pid, did, port_no=None):
             out.append(_act("reboot", row["id"], {}, "MikroTik neu starten", "Alle Verbindungen über dieses Gerät sind etwa eine Minute weg.", danger=True))
         elif mac and _uplink(c, did)[0] == row["device_id"]:
             out.append(_act("wol", row["id"], dict(mac=mac), "Aufwecken (Wake-on-LAN)", f"Weckruf an {mac} über den MikroTik"))
+    # OpenWrt: WLAN ein/aus, Neustart
+    for row in _integrations(c, pid, "openwrt"):
+        st = _state(row).get("result") or {}
+        if row["device_id"] != did:
+            continue
+        for w in st.get("wifi") or []:
+            if not w.get("id"):
+                continue
+            label = f"WLAN „{w['ssid'] or w['iface']}“{' (' + w['band'] + ')' if w.get('band') else ''} {'ausschalten' if w['enabled'] else 'einschalten'}"
+            out.append(_act("wlan", row["id"], dict(id=w["id"], on=not w["enabled"], ssid=w["ssid"]), label,
+                            "Geräte in diesem WLAN verlieren die Verbindung." if w["enabled"] else "", danger=w["enabled"]))
+        out.append(_act("reboot", row["id"], {}, "OpenWrt neu starten", "Alle Verbindungen über dieses Gerät sind etwa eine Minute weg.", danger=True))
     # OPNsense: Internetsperre über Alias für Geräte in seinen Netzen, Neustart
     for row in _integrations(c, pid, "opnsense"):
         st = _state(row).get("result") or {}
