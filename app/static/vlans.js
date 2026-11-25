@@ -1,5 +1,5 @@
 'use strict';
-/* VLAN-Plan: welcher Port in welchem VLAN – Produktiv (Ist, bei SNMP-Switches vom Switch gelesen) und Plan (Soll).
+/* VLAN-Plan: welcher Port in welchem VLAN – Produktiv (Ist, bei Geräten mit Integration vom Gerät bzw. Controller gelesen) und Plan (Soll).
    Port-Ansicht je Gerät mit VLAN-Farben, Mehrfachauswahl zum Zuweisen, Umstellungsliste, Hinweise, VLAN-Matrix.
    díktyo schreibt nichts auf die Switches. */
 
@@ -58,11 +58,11 @@ async function tabVlans(ctx) {
     const snmp = new Set(st.switches.filter(s => s.snmp).map(s => s.id));
     const peers = Object.fromEntries(st.switches.flatMap(s => s.ports.map(p => [p.id, p.peers.map(x => x.name).join(', ')])));
     return `<div class="panel"><div class="hud-h"><h3>${t('Umstellungsliste')}</h3><span class="hint">${t('{n} Ports', { n: st.diff.length })}</span></div>
-      <p class="muted small">${t('Das ist am Switch umzustellen. Bei Switches mit SNMP hakt sich ein Port von selbst ab, sobald der Switch den neuen Stand meldet; sonst „umgesetzt“ klicken.')}</p>
+      <p class="muted small">${t('Das ist am Gerät umzustellen. Liest díktyo die VLANs per Integration (SNMP, MikroTik, OPNsense, UniFi, Omada), hakt sich ein Port von selbst ab, sobald das Gerät den neuen Stand meldet; sonst „umgesetzt“ klicken.')}</p>
       <div class="table-wrap"><table class="compact"><thead><tr><th>${t('Gerät')}</th><th>${t('Port')}</th><th>${t('angeschlossen')}</th><th>${t('Produktiv')}</th><th></th><th>${t('Plan')}</th><th></th></tr></thead><tbody>
       ${st.diff.map(d => `<tr><td>${h(d.device)}</td><td class="mono">${h(d.port)}</td><td>${h(peers[d.interface_id] || '')}</td>
         <td class="mono">${memb(d.prod, vm)}</td><td>→</td><td class="mono"><b>${memb(d.plan, vm)}</b></td>
-        <td>${snmp.has(d.device_id) ? `<span class="muted small">${t('wartet auf den Switch')}</span>` : ctx.canEdit ? `<button type="button" class="sm" data-adopt="${d.interface_id}">✓ ${t('umgesetzt')}</button>` : ''}</td></tr>`).join('')}
+        <td>${snmp.has(d.device_id) ? `<span class="muted small">${t('wartet auf das Gerät')}</span>` : ctx.canEdit ? `<button type="button" class="sm" data-adopt="${d.interface_id}">✓ ${t('umgesetzt')}</button>` : ''}</td></tr>`).join('')}
       </tbody></table></div></div>`;
   }
 
@@ -86,7 +86,7 @@ async function tabVlans(ctx) {
 
   function swPanel(s, vm) {
     return `<div class="panel vp-sw"><div class="hud-h"><h3>${h(s.name)}<em>${h(typeName(s.type))}</em></h3>
-      <span class="row">${s.snmp ? `<span class="badge" title="${h(t('Produktiver Stand kommt per SNMP vom Switch und lässt sich hier nicht ändern.'))}">${t('vom Switch (SNMP)')}</span>` : `<span class="badge">${t('von Hand')}</span>`}
+      <span class="row">${s.snmp ? `<span class="badge" title="${h(t('Produktiver Stand kommt per Integration vom Gerät bzw. Controller und lässt sich hier nicht ändern.'))}">${s.source === 'SNMP' || !s.source ? t('vom Switch (SNMP)') : t('aus {s}', { s: h(s.source) })}</span>` : `<span class="badge">${t('von Hand')}</span>`}
       ${editable(s) && s.ports.length ? `<button type="button" class="sm" data-selall="${s.id}">${t('alle wählen')}</button>` : ''}</span></div>
       ${s.ports.length ? `<div class="vp-ports">${s.ports.map(p => portTile(s, p, vm)).join('')}</div>` : ''}
       ${s.guests?.length ? `<div class="vp-guests"><span class="vp-gh">${t('VMs und Container (Proxmox)')}</span>
@@ -106,11 +106,11 @@ async function tabVlans(ctx) {
         <div class="seg vp-mode"><button type="button" data-mode="prod" class="${ui.mode === 'prod' ? 'on' : ''}">● ${t('Produktiv')}</button>
           <button type="button" data-mode="plan" class="${ui.mode === 'plan' ? 'on plan' : ''}">✎ ${t('Plan')}${st.diff.length ? ` <span class="count">${st.diff.length}</span>` : ''}</button></div>
         <div class="seg"><button type="button" data-view="ports" class="${ui.view === 'ports' ? 'on' : ''}">${t('Ports')}</button><button type="button" data-view="matrix" class="${ui.view === 'matrix' ? 'on' : ''}">${t('Matrix')}</button></div>
-        <span class="grow"></span><span class="muted small">${ui.mode === 'prod' ? t('Ist-Stand: bei Switches mit SNMP vom Switch gelesen, sonst von Hand gepflegt.') : ''}</span></div>
+        <span class="grow"></span><span class="muted small">${ui.mode === 'prod' ? t('Ist-Stand: bei Geräten mit Integration vom Gerät gelesen, sonst von Hand gepflegt.') : ''}</span></div>
       ${planBar}
       ${noPlan ? `<div class="panel vp-start"><div class="hud-h"><h3>${t('VLAN-Umstellung planen')}</h3></div>
           <p>${t('Der Plan startet als Kopie des produktiven Stands. Darin legst du neue VLANs an und ordnest Ports neu zu, ohne dass sich am Netz etwas ändert. díktyo zeigt dann eine Umstellungsliste Port für Port und prüft den Plan (Adressen, Uplinks).')}</p>
-          ${!anyData ? `<p class="warnc small">${t('Noch kein produktiver Stand erfasst. Für Switches mit SNMP-Integration liest díktyo ihn bei der nächsten Abfrage, sonst zuerst im Modus „Produktiv“ eintragen (z. B. alle Ports VLAN 1).')}</p>` : ''}
+          ${!anyData ? `<p class="warnc small">${t('Noch kein produktiver Stand erfasst. Bei Geräten mit Integration (SNMP-Switch, MikroTik, OPNsense, UniFi, Omada) liest díktyo ihn bei der nächsten Abfrage, sonst zuerst im Modus „Produktiv“ eintragen (z. B. alle Ports VLAN 1).')}</p>` : ''}
           ${ctx.canEdit ? `<label>${t('Worum geht es? (optional)')}</label><input id="vpnote" maxlength="300" placeholder="${h(t('z. B. IoT und Gäste trennen'))}"><p><button type="button" class="pri" data-start>${t('Plan starten')}</button></p>` : ''}</div>` : `
       ${legend(vm)}
       ${ui.view === 'matrix' ? matrix(vm) : `<div class="vp-switches">${st.switches.filter(s => s.infra).map(s => swPanel(s, vm)).join('') || `<p class="muted">${t('Noch keine Geräte mit Ports (Switch, Router).')}</p>`}</div>
@@ -135,7 +135,7 @@ async function tabVlans(ctx) {
     if (fin) fin.onclick = async () => {
       const snmpOpen = st.diff.filter(d => st.switches.find(s => s.id === d.device_id)?.snmp).length;
       const txt = t('Plan abschließen: Bei von Hand gepflegten Geräten wird der Plan zum produktiven Stand, geplante VLANs werden normale VLANs.')
-        + (snmpOpen ? ' ' + t('{n} Ports an SNMP-Switches sind laut Switch noch nicht umgestellt – sie fallen aus dem Plan heraus.', { n: snmpOpen }) : '');
+        + (snmpOpen ? ' ' + t('{n} Ports an Geräten mit Integration sind laut Gerät noch nicht umgestellt – sie fallen aus dem Plan heraus.', { n: snmpOpen }) : '');
       if (!await confirmDlg(t('Plan abschließen'), h(txt), t('Abschließen'))) return;
       if (await save('POST', '/vlanplan/plan/finish', null, t('Plan abgeschlossen'))) { ui.mode = 'prod'; draw(); }
     };

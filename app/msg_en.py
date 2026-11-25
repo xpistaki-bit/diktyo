@@ -454,3 +454,10 @@ ERR_EN.update({
     "rclone ist nicht installiert (apt install rclone, danach 'rclone config')": "rclone is not installed (apt install rclone, then 'rclone config')",
 })
 ERR_EN_RE.append((r"^WebDAV-Server meldet HTTP (\d+)$", r"WebDAV server returns HTTP \1"))
+
+
+# ------------------------------------------------------------ 0.39: VLANs aus MikroTik, OPNsense, UniFi, Omada
+ERR_EN.update({
+    "Dieses Gerät meldet seine VLANs selbst (Integration) – der produktive Stand lässt sich hier nicht ändern":
+        "This device reports its VLANs itself (integration) – the production state cannot be changed here",
+})

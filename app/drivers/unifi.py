@@ -11,7 +11,7 @@ import httpx
 
 import time
 
-from .controller import DriverError, counter_rates, mac, speed_text
+from .controller import DriverError, counter_rates, mac, speed_text, vid_list, vlan_result
 
 NAME = "Ubiquiti UniFi"
 DEFAULT_INTERVAL = 60
@@ -159,7 +159,89 @@ def _collect(conf, state, details=True):
             out.append((s, devs, api.pages(f"/sites/{sid}/clients"), stats))
         if details and not state.get("no_sta"):
             state["sta"] = _sta(cl, state, [s.get("internalReference") or "default" for s in sites])
+        if details and time.time() - (state.get("no_vlans") or 0) > 86400:
+            state["vlans"] = _vlans(cl, state, [s.get("internalReference") or "default" for s in sites])
         return out
+
+
+def _classic(cl, state, path):
+    base = "/proxy/network" if state.get("prefix", PREFIXES[0]) == PREFIXES[0] else ""
+    try:
+        r = cl.get(f"{base}{path}")
+        return r.json().get("data") if r.status_code == 200 else None
+    except (httpx.HTTPError, ValueError, AttributeError):
+        return None
+
+
+def _vlans(cl, state, refs):
+    """VLANs je Switch-Port aus der klassischen Network-API (Netze, Port-Profile, Port-Überschreibungen). Die Integration
+    API kennt keine Port-VLANs. Antwortet die Konsole darauf nicht, wird es erst am nächsten Tag wieder versucht. -> {Switch-MAC: Ergebnis}"""
+    out = {}
+    for ref in refs:
+        nets, profiles, devs = (_classic(cl, state, f"/api/s/{ref}/{p}") for p in ("rest/networkconf", "rest/portconf", "stat/device"))
+        if nets is None or devs is None:
+            state["no_vlans"] = time.time()  # erst am nächsten Tag wieder versuchen
+            return {}
+        out.update(port_vlans(nets, profiles or [], devs))
+    return out
+
+
+def port_vlans(nets, profiles, devs):
+    """Netze (networkconf), Port-Profile (portconf) und Geräte (stat/device mit port_table/port_overrides) -> {MAC: Ergebnis}"""
+    vid_of, names = {}, {}
+    for n in nets:
+        if n.get("purpose") not in ("corporate", "vlan-only", "guest") or not n.get("_id"):
+            continue
+        if n.get("vlan_enabled") or n.get("purpose") == "vlan-only":
+            vid = vid_list(n.get("vlan"))[:1]
+        else:  # ohne VLAN-ID nur das Standardnetz (untagged, VLAN 1)
+            vid = [1] if n.get("attr_no_delete") or n.get("attr_hidden_id") == "LAN" else []
+        if vid:
+            vid_of[n["_id"]] = vid[0]
+            names.setdefault(vid[0], n.get("name") or "")
+    if not vid_of:
+        return {}
+    default = next((i for i, v in vid_of.items() if v == 1), None)
+    prof = {p.get("_id"): p for p in profiles}
+
+    def apply(cfg, st):
+        if cfg.get("native_networkconf_id") is not None:
+            st["native"] = cfg.get("native_networkconf_id") or None
+        mgmt, fwd = cfg.get("tagged_vlan_mgmt"), cfg.get("forward")
+        if mgmt == "block_all" or fwd in ("native", "disabled"):
+            st["tagged"] = set()
+        elif mgmt == "auto" or fwd == "all":
+            st["tagged"] = set(vid_of)
+        elif mgmt == "custom" or fwd == "customize":
+            if cfg.get("tagged_networkconf_ids") is not None:
+                st["tagged"] = set(cfg.get("tagged_networkconf_ids") or [])
+            else:
+                st["tagged"] = set(vid_of) - set(cfg.get("excluded_networkconf_ids") or [])
+        if fwd == "disabled":
+            st["native"] = None
+
+    out = {}
+    for d in devs:
+        if d.get("type") not in ("usw", "udm") or not d.get("mac"):
+            continue
+        ov = {o.get("port_idx"): o for o in d.get("port_overrides") or []}
+        members = {}
+        for p in d.get("port_table") or []:
+            idx = p.get("port_idx")
+            if not isinstance(idx, int):
+                continue
+            st = dict(native=default, tagged=set(vid_of))  # ohne Einstellung: Standardnetz untagged, alle anderen tagged
+            o = ov.get(idx) or {}
+            pc = prof.get(o.get("portconf_id") or p.get("portconf_id"))
+            if pc:
+                apply(pc, st)
+            apply(o, st)
+            u = vid_of.get(st["native"])
+            members[idx] = dict(untagged=u, tagged={vid_of[i] for i in st["tagged"] if i in vid_of} - {u})
+        vl = vlan_result(names, members)
+        if vl:
+            out[mac(d["mac"])] = vl
+    return out
 
 
 def _sta(cl, state, refs):
@@ -199,6 +281,10 @@ def poll(conf, state):
     sites = _collect(conf, state)
     devices, clients, wan = normalize(sites)
     sta = state.pop("sta", None) or {}
+    for dev, vl in (state.pop("vlans", None) or {}).items():
+        for d in devices:
+            if d["mac"] == dev:
+                d["vlans"] = vl
     for x in clients:
         if x["mac"] in sta:
             x["_down"], x["_up"] = sta[x["mac"]]

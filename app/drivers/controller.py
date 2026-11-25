@@ -20,6 +20,35 @@ def mac(v):
     return ":".join(h[i:i + 2] for i in range(0, 12, 2)).upper() if len(h) == 12 else ""
 
 
+def vid_list(v):
+    """VLAN-IDs aus "10", "10,20", "10-12", [10, "20"] -> sortierte Liste gültiger IDs (1–4094)."""
+    out = set()
+    for part in (v if isinstance(v, (list, tuple, set)) else str(v or "").replace(";", ",").split(",")):
+        s = str(part).strip()
+        if "-" in s:
+            a, _, b = s.partition("-")
+            if a.strip().isdigit() and b.strip().isdigit() and int(b) - int(a) <= 4094:
+                out.update(range(int(a), int(b) + 1))
+        elif s.isdigit():
+            out.add(int(s))
+    return sorted(x for x in out if 1 <= x <= 4094)
+
+
+def vlan_result(names, members):
+    """Einheitliches VLAN-Ergebnis wie beim SNMP-Switch.
+    names = {vid: name}, members = {port_no: dict(untagged=vid|None, tagged=set)} -> dict(vlans, ports) oder None"""
+    ports = {}
+    for no, m in members.items():
+        u = m.get("untagged")
+        t = sorted(set(m.get("tagged") or ()) - {u})
+        if u or t:
+            ports[int(no)] = dict(untagged=u, tagged=t)
+    if not ports:
+        return None
+    used = {v for p in ports.values() for v in ([p["untagged"]] if p["untagged"] else []) + p["tagged"]}
+    return dict(vlans=[dict(vid=v, name=(names.get(v) or "")[:80]) for v in sorted(used | set(names))], ports=ports)
+
+
 def port_groups(ports):
     """Ports eines Geräts (port_no, kind, speed) -> Port-Gruppen wie im Katalog."""
     groups = []

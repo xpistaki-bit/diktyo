@@ -373,7 +373,7 @@ def apply_snmp(c, row, res):
     vlans = 0
     if res.get("vlans"):
         from . import vlanplan
-        vlans = vlanplan.apply_switch(c, pid, sw, res["vlans"])
+        vlans = vlanplan.apply_switch(c, pid, sw, res["vlans"], "snmp")
     return dict(device_id=sw, ports=len(res.get("ports", [])), up=up, links=links, macs=res.get("fdb_size", 0), vlan_ports=vlans)
 
 
@@ -742,9 +742,16 @@ def apply_controller(c, row, res):
             continue
         if set_auto_uplink(c, pid, d["id"], parent, x["medium"], port_id=_port_by_no(c, parent, x["port"]) if x["medium"] == "lan" else None, source=src):
             links += 1
+    vlan_ports = 0
+    if any(d.get("vlans") for d in res.get("devices", [])):
+        from . import vlanplan
+        for d in res.get("devices", []):
+            if d.get("vlans") and d["mac"] in dev_of:
+                vlan_ports += vlanplan.apply_switch(c, pid, dev_of[d["mac"]], d["vlans"], src)
     if own:
         c.execute("UPDATE integrations SET device_id=? WHERE id=? AND device_id IS NULL", (own, row["id"]))
-    return dict(device_id=own, devices=len(dev_of), clients=len(res.get("clients", [])), new=stats["new"] + new, links=links)
+    return dict(device_id=own, devices=len(dev_of), clients=len(res.get("clients", [])), new=stats["new"] + new, links=links,
+                vlan_ports=vlan_ports)
 
 
 # ------------------------------------------------------------ MikroTik
@@ -796,7 +803,12 @@ def apply_mikrotik(c, row, res):
             continue  # mehrere Geräte am Port: dahinter steckt ein Switch/AP – SNMP bzw. Nachbarn klären das
         if set_auto_uplink(c, pid, d["id"], own, x["medium"], port_id=pid_port, source=src):
             links += 1
-    return dict(device_id=own, clients=len(res.get("clients", [])), new=stats["new"], links=links, ports=len(res.get("ports", [])))
+    vlan_ports = 0
+    if res.get("vlans"):
+        from . import vlanplan
+        vlan_ports = vlanplan.apply_switch(c, pid, own, res["vlans"], src)
+    return dict(device_id=own, clients=len(res.get("clients", [])), new=stats["new"], links=links, ports=len(res.get("ports", [])),
+                vlan_ports=vlan_ports)
 
 
 # ------------------------------------------------------------ Docker

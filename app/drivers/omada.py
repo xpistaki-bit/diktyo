@@ -11,7 +11,7 @@ import time
 
 import httpx
 
-from .controller import DriverError, counter_rates, mac
+from .controller import DriverError, counter_rates, mac, vlan_result
 
 NAME = "TP-Link Omada"
 DEFAULT_INTERVAL = 60
@@ -120,6 +120,7 @@ def normalize(sites):
     for site in sites:
         _site, devs, cls = site[:3]
         sw_ports = site[3] if len(site) > 3 else {}
+        sw_nets = site[4] if len(site) > 4 else {}
         site_id = (_site or {}).get("siteId") or (_site or {}).get("id") or ""
         for d in devs:
             port = d.get("uplinkDevicePort")
@@ -129,7 +130,8 @@ def normalize(sites):
                     pm = p.get("poe") if isinstance(p.get("poe"), bool) else (p.get("poeMode") == 1 if "poeMode" in p else None)
                     ports.append(dict(port_no=int(p["port"]), oper="up" if p.get("linkStatus") == 1 else "down" if "linkStatus" in p else "",
                                       speed="", kind="rj45", in_bps=None, out_bps=None, macs=[], lldp=[], poe=pm, name=p.get("name") or ""))
-            devices.append(dict(mac=mac(d.get("mac")), ip=d.get("ip") or "", name=d.get("name") or d.get("model") or "", model=d.get("model") or "",
+            vl = vlans(sw_nets.get(d.get("mac")) or [])
+            devices.append(dict(vlans=vl, mac=mac(d.get("mac")), ip=d.get("ip") or "", name=d.get("name") or d.get("model") or "", model=d.get("model") or "",
                                 type=TYPES.get(str(d.get("type", "")).lower(), "other"), online=_online(d),
                                 uplink_mac=mac(d.get("uplinkDeviceMac")), uplink_port=int(port) if str(port or "").isdigit() else None,
                                 clients=int(d.get("clientNum") or 0), firmware=d.get("firmwareVersion") or "", ports=ports,
@@ -148,6 +150,27 @@ def normalize(sites):
     return devices, clients
 
 
+def vlans(nets):
+    """Netze eines Switches mit Port-Zuordnung (networks-detail): Native = untagged (PVID), Tag = tagged, Untag = untagged."""
+    names, members = {}, {}
+    for n in nets:
+        vid = n.get("vlan")
+        if not isinstance(vid, int) or not 1 <= vid <= 4094:
+            continue
+        names.setdefault(vid, n.get("name") or "")
+        info = n.get("portLagNetworkInfo") or {}
+        for key, tagged in (("nativePorts", False), ("untagPorts", False), ("tagPorts", True)):
+            for no in info.get(key) or []:
+                if not isinstance(no, int):
+                    continue
+                m = members.setdefault(no, dict(untagged=None, tagged=set()))
+                if tagged:
+                    m["tagged"].add(vid)
+                elif not m["untagged"] or key == "nativePorts":
+                    m["untagged"] = vid
+    return vlan_result(names, members)
+
+
 def _collect(conf, state):
     with _client(conf) as cl:
         api = _Api(cl, conf, state)
@@ -155,7 +178,7 @@ def _collect(conf, state):
         for s in _sites(api, conf):
             sid = s.get("siteId") or s.get("id")
             devs = api.pages(f"/sites/{sid}/devices")
-            sw_ports = {}
+            sw_ports, sw_nets = {}, {}
             for d in devs:  # Ports der Switches (PoE-Status) – fehlt der Endpunkt, bleibt es bei den Geräten
                 if str(d.get("type", "")).lower() == "switch" and d.get("mac"):
                     try:
@@ -163,7 +186,12 @@ def _collect(conf, state):
                         sw_ports[d["mac"]] = res if isinstance(res, list) else (res or {}).get("data") or []
                     except Exception:  # nur Zusatzinformation – darf die Abfrage nicht stören
                         pass
-            out.append((s, devs, api.pages(f"/sites/{sid}/clients"), sw_ports))
+                    if time.time() - state.get("no_vlans", 0) > 86400:
+                        try:  # Netze mit Port-Zuordnung (VLAN-Plan)
+                            sw_nets[d["mac"]] = api.pages(f"/sites/{sid}/switches/{d['mac']}/networks-detail")
+                        except Exception:  # ältere Controller kennen den Endpunkt nicht – erst am nächsten Tag wieder versuchen
+                            state["no_vlans"] = time.time()
+            out.append((s, devs, api.pages(f"/sites/{sid}/clients"), sw_ports, sw_nets))
         return out
 
 

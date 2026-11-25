@@ -16,7 +16,7 @@ import time
 import httpx
 
 from . import mikrotik_snmp, routeros_api
-from .controller import DriverError, counter_rates, parse_rate, mac as norm_mac
+from .controller import DriverError, counter_rates, parse_rate, mac as norm_mac, vid_list, vlan_result
 
 NAME = "MikroTik (RouterOS)"
 DEFAULT_INTERVAL = 60
@@ -206,7 +206,9 @@ def collect(conf, state):
                    arp=_get(cl, "ip/arp", optional=True) or [], hosts=_get(cl, "interface/bridge/host", optional=True) or [],
                    neighbors=_get(cl, "ip/neighbor", optional=True) or [],
                    wan_members=[m for m in (_get(cl, "interface/list/member", optional=True) or []) if m.get("list") == "WAN"],
-                   kid=_get(cl, "ip/kid-control/device", optional=True) or [])
+                   kid=_get(cl, "ip/kid-control/device", optional=True) or [],
+                   bridges=_get(cl, "interface/bridge", optional=True) or [], bridge_vlans=_get(cl, "interface/bridge/vlan", optional=True) or [],
+                   bridge_ports=_get(cl, "interface/bridge/port", optional=True) or [], vlan_ifaces=_get(cl, "interface/vlan", optional=True) or [])
         out["wifi_menu"], out["wifi"], out["registrations"] = None, [], []
         for menu in WIFI_MENUS:
             ifs = _get(cl, menu, optional=True)
@@ -215,6 +217,44 @@ def collect(conf, state):
                 out["registrations"] = _get(cl, f"{menu}/registration-table", optional=True) or []
                 break
     return out
+
+
+def _members(v):
+    return [x.strip() for x in (v if isinstance(v, list) else str(v or "").split(",")) if x.strip()]
+
+
+def vlans(raw, ports):
+    """VLANs je Port: Bridge-VLAN-Tabelle (nur bei Bridges mit vlan-filtering), PVID der Bridge-Ports und
+    VLAN-Schnittstellen direkt auf einem Port (Router-on-a-stick). -> Ergebnis wie beim SNMP-Switch oder None"""
+    by_iface = {p["iface"]: p["port_no"] for p in ports}
+    filtering = {b.get("name") for b in raw.get("bridges") or [] if _bool(b.get("vlan-filtering"))}
+    names, members = {}, {}
+    m = lambda iface: members.setdefault(by_iface[iface], dict(untagged=None, tagged=set()))  # noqa: E731
+    for v in raw.get("vlan_ifaces") or []:
+        vid = vid_list(v.get("vlan-id"))
+        if not vid:
+            continue
+        names.setdefault(vid[0], v.get("name") or "")
+        if v.get("interface") in by_iface and not _bool(v.get("disabled")):
+            m(v["interface"])["tagged"].add(vid[0])
+    for e in raw.get("bridge_vlans") or []:
+        if e.get("bridge") not in filtering or _bool(e.get("disabled")):
+            continue
+        vids = vid_list(e.get("vlan-ids"))
+        tagged = set(_members(e.get("tagged"))) | set(_members(e.get("current-tagged")))
+        untagged = set(_members(e.get("untagged"))) | set(_members(e.get("current-untagged")))
+        for iface in tagged & set(by_iface):
+            m(iface)["tagged"].update(vids)
+        for iface in untagged & set(by_iface):
+            if vids:
+                m(iface)["untagged"] = m(iface)["untagged"] or vids[0]
+    for bp in raw.get("bridge_ports") or []:
+        iface = bp.get("interface")
+        if bp.get("bridge") in filtering and iface in by_iface and bp.get("frame-types") != "admit-only-vlan-tagged":
+            pvid = vid_list(bp.get("pvid") or "1")
+            if pvid and not m(iface)["untagged"]:
+                m(iface)["untagged"] = pvid[0]
+    return vlan_result(names, members)
 
 
 def normalize(raw, state, now=None):
@@ -336,6 +376,9 @@ def normalize(raw, state, now=None):
     info["addresses"] = addrs
     res = dict(info=info, ports=ports, wifi=wifi, clients=out_clients, wan=wan, wifi_menu=raw.get("wifi_menu"),
                fdb_size=sum(len(p["macs"]) for p in ports))
+    vl = vlans(raw, ports)
+    if vl:
+        res["vlans"] = vl
     return res, metrics, counters
 
 

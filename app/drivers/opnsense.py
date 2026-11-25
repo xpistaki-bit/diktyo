@@ -11,7 +11,7 @@ import time
 
 import httpx
 
-from .controller import DriverError, mac as norm_mac
+from .controller import DriverError, mac as norm_mac, vid_list, vlan_result
 
 NAME = "OPNsense"
 DEFAULT_INTERVAL = 60
@@ -70,6 +70,7 @@ def collect(conf, state):
                    sysinfo=_req(cl, "GET", "diagnostics/system/system_information", optional=True) or {},
                    interfaces=_req(cl, "GET", "interfaces/overview/export", optional=True),
                    arp=_rows(_req(cl, "GET", "diagnostics/interface/search_arp?resolve=no", optional=True)),
+                   vlans=_rows(_req(cl, "GET", "interfaces/vlan_settings/search_item", optional=True)),
                    leases=[])
         out["top"] = _req(cl, "GET", "diagnostics/traffic/top/" + ",".join(state.get("lan_ifs") or ["lan"]), optional=True) or {}
         if out["interfaces"] is None:  # Pflicht – sonst stimmt etwas mit Rechten oder Version nicht
@@ -120,7 +121,7 @@ def normalize(raw, state, now=None):
         ports.append(dict(port_no=n, iface=key, id=key, name=f'{i.get("description") or key.upper()} ({i.get("device") or ""})'.replace(" ()", ""),
                           alias=key, kind="rj45", oper="up" if up else "down", admin="down" if i.get("enabled") is False else "up", speed=0, poe=None,
                           in_bps=rate[0] if rate else None, out_bps=rate[1] if rate else None, macs=[], lldp=None, mac=norm_mac(i.get("macaddr")),
-                          addr4=addr))
+                          addr4=addr, device=str(i.get("device") or "")))
         if key == "wan":
             wan = dict(iface=key, mac=norm_mac(i.get("macaddr")), connected=up, rx_bps=rate[0] if rate else None, tx_bps=rate[1] if rate else None)
             if rate:
@@ -158,7 +159,31 @@ def normalize(raw, state, now=None):
                     info=f'https://github.com/opnsense/changelog' if fw_raw.get("status") == "update" else "")
     info["addresses"] = addresses
     res = dict(info=info, ports=ports, wifi=[], clients=out_clients, wan=wan, firmware=firmware, fdb_size=None)
+    vl = vlans(raw.get("vlans") or [], ports)
+    if vl:
+        res["vlans"] = vl
     return res, metrics, counters
+
+
+def vlans(rows, ports):
+    """VLAN-Schnittstellen (Interfaces → Devices → VLAN): auf der Eltern-Schnittstelle tagged, die zugewiesene
+    VLAN-Schnittstelle selbst gehört untagged zu ihrem VLAN. -> Ergebnis wie beim SNMP-Switch oder None"""
+    by_dev = {p["device"]: p for p in ports if p.get("device")}
+    names, members = {}, {}
+    for r in rows:
+        vid = vid_list(r.get("tag"))
+        if not vid:
+            continue
+        vid = vid[0]
+        dev = str(r.get("vlanif") or "")
+        own = by_dev.get(dev)
+        names.setdefault(vid, str(r.get("descr") or "") or (own["name"].split(" (")[0] if own else ""))
+        parent = by_dev.get(str(r.get("if") or ""))
+        if parent:
+            members.setdefault(parent["port_no"], dict(untagged=None, tagged=set()))["tagged"].add(vid)
+        if own:
+            members.setdefault(own["port_no"], dict(untagged=None, tagged=set()))["untagged"] = vid
+    return vlan_result(names, members)
 
 
 def test(conf):

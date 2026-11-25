@@ -1,3 +1,3 @@
 """Version und Projektadresse von díktyo (eine Stelle für alles)."""
-VERSION = "0.38.1"
+VERSION = "0.39.0"
 REPO_URL = "https://github.com/xpistaki-bit/diktyo"

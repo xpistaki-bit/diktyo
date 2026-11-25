@@ -705,9 +705,20 @@ und zeigt die Gäste im VLAN-Plan unter ihrem Host – mit VLAN-Nummer und -Farb
 Der Plan prüft, ob der Switch-Port zum Host alle VLANs seiner Gäste **tagged** führt, und meldet VLANs, die Gäste nutzen,
 die es in díktyo aber noch nicht gibt. Damit das klappt, muss die Linux-Bridge in Proxmox *VLAN aware* sein.
 
-**Produktiv** ist der Ist-Stand. Bei Switches mit SNMP-Integration liest díktyo ihn bei jeder Abfrage aus dem Switch
-(Q-BRIDGE-MIB, nur lesend; Kennzeichen *vom Switch (SNMP)*) – dort lässt er sich nicht von Hand ändern. Bei anderen
-Geräten trägst du ihn selbst ein. VLANs, die der Switch meldet, legt díktyo automatisch an.
+**Produktiv** ist der Ist-Stand. Bei Geräten mit passender Integration liest díktyo ihn bei jeder Abfrage (nur
+lesend) – dort lässt er sich nicht von Hand ändern. Das Kennzeichen am Gerät nennt die Quelle:
+
+| Quelle | Kennzeichen | Was gelesen wird |
+|---|---|---|
+| Switch (SNMP) | *vom Switch (SNMP)* | Q-BRIDGE-MIB: untagged/tagged je Port, VLAN-Namen |
+| MikroTik (RouterOS-API/REST) | *aus MikroTik* | Bridge-VLAN-Tabelle (nur Bridges mit *vlan-filtering*), PVID der Bridge-Ports, VLAN-Schnittstellen direkt auf einem Port; Namen der VLAN-Schnittstellen. Mit SNMP-Zugang keine VLANs |
+| OPNsense | *aus OPNsense* | VLAN-Geräte (*Schnittstellen → Geräte → VLAN*): auf der Eltern-Schnittstelle tagged, die zugewiesene VLAN-Schnittstelle untagged; Recht „Interfaces: VLAN settings“ nötig |
+| UniFi | *aus UniFi* | je Switch-Port Native-Netz und getaggte Netze aus Port-Profil und Port-Einstellung („Alle erlauben“, „Alle blockieren“, eigene Auswahl); dafür nutzt díktyo die klassische Network-API mit demselben API-Schlüssel – lässt die Konsole das nicht zu, fehlen nur die VLANs |
+| Omada | *aus Omada* | Netze je Switch mit Native-, Tagged- und Untagged-Ports (Open API, *networks-detail*) |
+
+Meldet ein Switch seine VLANs selbst per SNMP, hat das Vorrang vor einem Controller. Bei anderen Geräten trägst du den
+Ist-Stand selbst ein. VLANs, die ein Gerät meldet, legt díktyo automatisch an (Beschreibung „vom Switch gelesen“ bzw.
+„aus … gelesen“); einem vorhandenen VLAN ohne Namen gibt díktyo den Namen vom Gerät.
 
 **Plan** ist für die Umstellung:
 1. *Plan* → **Plan starten** (optional mit Stichwort, z. B. „IoT und Gäste trennen“). Der Plan beginnt als Kopie des

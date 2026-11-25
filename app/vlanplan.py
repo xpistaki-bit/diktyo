@@ -1,7 +1,8 @@
 """VLAN-Plan: welcher Port in welchem VLAN – produktiv (Ist) und geplant (Soll), mit Umstellungsliste und Prüfungen.
 
-Produktiv steht in port_vlans. Bei Switches mit SNMP-Integration kommt der Stand vom Switch (Q-BRIDGE-MIB, nur lesend,
-source='snmp') und wird bei jeder Abfrage ersetzt; bei anderen Geräten pflegt man ihn von Hand (source='manual').
+Produktiv steht in port_vlans. Bei Geräten mit passender Integration kommt der Stand vom Gerät bzw. Controller (nur lesend,
+source = Treiber: snmp, mikrotik, opnsense, unifi, omada) und wird bei jeder Abfrage ersetzt; bei anderen Geräten pflegt man
+ihn von Hand (source='manual'). SNMP liest direkt am Switch und hat Vorrang vor einem Controller.
 Der Plan ist eine eigene vollständige Kopie (port_vlans_plan), angelegt aus dem produktiven Stand. Abweichungen ergeben
 die Umstellungsliste; bei SNMP-Switches erledigt sie sich, sobald der Switch den neuen Stand meldet, bei anderen Geräten
 übernimmt man einen Port mit „umgesetzt“. VLANs, die es nur im Plan gibt, haben planned=1.
@@ -40,19 +41,27 @@ def plan_info(c, pid):
 
 
 # ------------------------------------------------------------ vom Switch gelesen (SNMP)
-def apply_switch(c, pid, did, vres):
-    """Produktiven Stand eines Switches aus der SNMP-Abfrage übernehmen. vres = {"vlans": [{vid, name}], "ports": {no: {untagged, tagged}}}"""
+SOURCES = {"snmp": "SNMP", "mikrotik": "MikroTik", "opnsense": "OPNsense", "unifi": "UniFi", "omada": "Omada"}
+
+
+def apply_switch(c, pid, did, vres, source="snmp"):
+    """Produktiven Stand eines Geräts aus einer Integration übernehmen. vres = {"vlans": [{vid, name}], "ports": {no: {untagged, tagged}}}"""
     if not vres or not vres.get("ports"):
         return 0
+    if source != "snmp" and c.execute("""SELECT 1 FROM port_vlans pv JOIN interfaces i ON i.id=pv.interface_id
+                                         WHERE i.device_id=? AND pv.source='snmp' LIMIT 1""", (did,)).fetchone():
+        return 0  # SNMP liest direkt am Switch – das hat Vorrang
     have = {r["vid"]: r["id"] for r in c.execute("SELECT id, vid FROM vlans WHERE profile_id=?", (pid,))}
     names = {int(v["vid"]): v.get("name") or "" for v in vres.get("vlans", [])}
     used = {int(x) for p in vres["ports"].values() for x in ([p.get("untagged")] if p.get("untagged") else []) + list(p.get("tagged") or [])}
     for vid in sorted(used):
         if vid not in have and 1 <= vid <= 4094:
             have[vid] = c.execute("INSERT INTO vlans(profile_id, vid, name, description) VALUES(?,?,?,?)",
-                                  (pid, vid, names.get(vid, "")[:80], "vom Switch gelesen")).lastrowid
-        elif vid in have:  # VLAN gibt es am Switch: nicht mehr nur geplant
+                                  (pid, vid, names.get(vid, "")[:80], "vom Switch gelesen" if source == "snmp" else f"aus {SOURCES.get(source, source)} gelesen")).lastrowid
+        elif vid in have:  # VLAN gibt es am Switch: nicht mehr nur geplant; Name ergänzen, wenn noch leer
             c.execute("UPDATE vlans SET planned=0 WHERE id=? AND planned=1", (have[vid],))
+            if names.get(vid):
+                c.execute("UPDATE vlans SET name=? WHERE id=? AND name=''", (names[vid][:80], have[vid]))
     ports = {r["port_no"]: r["id"] for r in c.execute("SELECT id, port_no FROM interfaces WHERE device_id=? AND role='port'", (did,))}
     c.execute(f"DELETE FROM port_vlans WHERE interface_id IN ({','.join('?' * len(ports))})", list(ports.values())) if ports else None
     n = 0
@@ -62,10 +71,10 @@ def apply_switch(c, pid, did, vres):
             continue
         u = p.get("untagged")
         if u and u in have:
-            c.execute("INSERT OR REPLACE INTO port_vlans(interface_id, vlan_id, tagged, source) VALUES(?,?,0,'snmp')", (iid, have[u]))
+            c.execute("INSERT OR REPLACE INTO port_vlans(interface_id, vlan_id, tagged, source) VALUES(?,?,0,?)", (iid, have[u], source))
         for t in p.get("tagged") or []:
             if t in have and t != u:
-                c.execute("INSERT OR REPLACE INTO port_vlans(interface_id, vlan_id, tagged, source) VALUES(?,?,1,'snmp')", (iid, have[t]))
+                c.execute("INSERT OR REPLACE INTO port_vlans(interface_id, vlan_id, tagged, source) VALUES(?,?,1,?)", (iid, have[t], source))
         n += 1
     return n
 
@@ -78,8 +87,10 @@ def _table(mode):
 
 
 def snmp_devices(c, pid):
-    return {r["device_id"] for r in c.execute("""SELECT DISTINCT i.device_id FROM port_vlans pv JOIN interfaces i ON i.id=pv.interface_id
-                                                 JOIN devices d ON d.id=i.device_id WHERE d.profile_id=? AND pv.source='snmp'""", (pid,))}
+    """Geräte, deren produktiven Stand eine Integration liefert -> {device_id: Quelle} (Name historisch: zuerst nur SNMP)."""
+    return {r["device_id"]: r["source"] for r in c.execute("""SELECT i.device_id, MIN(pv.source) AS source FROM port_vlans pv
+                                                 JOIN interfaces i ON i.id=pv.interface_id JOIN devices d ON d.id=i.device_id
+                                                 WHERE d.profile_id=? AND pv.source<>'manual' GROUP BY i.device_id""", (pid,))}
 
 
 def set_ports(c, pid, mode, iface_ids, untagged="keep", tagged=None):
@@ -96,8 +107,8 @@ def set_ports(c, pid, mode, iface_ids, untagged="keep", tagged=None):
                      (pid, *iface_ids)).fetchall()
     if not rows:
         raise VlanError("Keine Ports gewählt")
-    if mode == "prod" and {r["device_id"] for r in rows} & snmp_devices(c, pid):
-        raise VlanError("Dieser Switch meldet seine VLANs selbst (SNMP) – der produktive Stand lässt sich hier nicht ändern")
+    if mode == "prod" and {r["device_id"] for r in rows} & set(snmp_devices(c, pid)):
+        raise VlanError("Dieses Gerät meldet seine VLANs selbst (Integration) – der produktive Stand lässt sich hier nicht ändern")
     tagged = {int(k): bool(v) for k, v in (tagged or {}).items()}
     for k in list(tagged) + ([untagged] if untagged not in ("keep", None) else []):
         if k not in vlans:
@@ -245,7 +256,8 @@ def state(c, pid):
             pr = [dict(id=x, name=devs[x]["name"], type=devs[x]["type"]) for x in peers.get(p["id"], []) if x in devs and x != d["id"]]
             ports.append(dict(id=p["id"], no=p["port_no"], name=p["name"] or str(p["port_no"]), peers=pr,
                               prod=prod.get(p["id"]) or dict(u=None, t=[]), plan=(planm.get(p["id"]) or dict(u=None, t=[])) if plan else None))
-        switches.append(dict(id=d["id"], name=d["name"], type=d["type"], snmp=d["id"] in snmp, ports=ports, infra=d["type"] in VLAN_TYPES))
+        switches.append(dict(id=d["id"], name=d["name"], type=d["type"], snmp=d["id"] in snmp, source=SOURCES.get(snmp.get(d["id"]), ""),
+                             ports=ports, infra=d["type"] in VLAN_TYPES))
     # VMs und Container (Proxmox): VLAN-Tag aus der Netzwerkkarte des Gasts, angezeigt beim Host
     by_vid = {v["vid"]: v["id"] for v in vlans}
     guests = {}
@@ -262,7 +274,7 @@ def state(c, pid):
     have = {s["id"] for s in switches}
     for hid in guests:
         if hid not in have and hid in devs and devs[hid]["status"] == "confirmed":
-            switches.append(dict(id=hid, name=devs[hid]["name"], type=devs[hid]["type"], snmp=False, ports=[], infra=devs[hid]["type"] in VLAN_TYPES))
+            switches.append(dict(id=hid, name=devs[hid]["name"], type=devs[hid]["type"], snmp=False, source="", ports=[], infra=devs[hid]["type"] in VLAN_TYPES))
     for s in switches:
         s["guests"] = guests.get(s["id"], [])
     out = dict(vlans=vlans, switches=switches, plan=plan, diff=diff(c, pid) if plan else [])
