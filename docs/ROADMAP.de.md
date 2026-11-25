@@ -51,6 +51,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | VLAN-Plan und Topologie | VMs/Container (Proxmox) mit ihrem VLAN-Tag beim Host, Prüfung des Host-Ports (tagged); Topologie hängt am Internet-Gateway, auch wenn die Erkennung den Router als Gerät am Switch eingetragen hat; Suchfeld-✕ als Kästchen direkt am Feld | 0.32.1 |
 | Update per Knopf, MikroTik per SNMP | Neue Version auf GitHub erkennen (mit Änderungen, Hinweis in der Kopfzeile) und per Knopf installieren: Anfrage-Datei → systemd-Pfad-Einheit → festes Update-Skript als root (Datenbank sichern, laden, setup.sh), Fortschritt und Protokoll in der Oberfläche; Docker mit Anleitung. MikroTik zusätzlich per SNMP v2c/v3 (nur lesen, MIKROTIK-MIB für Board, Version, RouterBOOT, PoE, WLAN, Nachbarn) | 0.34 |
 | Code-Scanning (CodeQL) | SSH-Host-Schlüssel wird vor der Anmeldung geprüft (Passwort geht nicht mehr an ein Gerät mit geändertem Schlüssel), Ausdrücke ohne exponentielles Rückverfolgen (E-Mail, Systeminfo), API-SSL ab TLS 1.2, Konfigurations-Backup-Dateien nur innerhalb des Datenordners, unerwartete Fehler nur noch allgemein in der Oberfläche (Details im Protokoll), Kommandozeile zeigt nur selbst erzeugte Passwörter | 0.34.1 |
+| Kabel-Etiketten | Kabelnummern aus den Kabelwegen als Aufkleber: Nummer groß, darunter beide Enden (bzw. je Kabelende ein Etikett mit der Gegenstelle), Farbstreifen nach Art (Patch-, Verlege-, Anschlusskabel); A4-Bögen (Avery 3666/L7651, 3657, 3474), Etikettendrucker (Brother 62 × 29, Dymo 54 × 25) und Schriftband 12 mm; in *Ausgabe* und im Reiter *Verkabelung* | 0.35 |
 | MikroTik und Sprache | MikroTik über die RouterOS-API (Port 8728/8729, RouterOS 6 und 7) als Standard, REST weiter wählbar, kein SSH-Backup mehr (RouterOS hat eigene Backups); alle Server-Meldungen, Aktionen, Diagnosen und gespeicherten Fehler auf Englisch, wenn Englisch gewählt ist (auch in Benachrichtigungen), Test gegen fehlende Übersetzungen; automatisch erzeugte Gerätenamen auf Englisch | 0.33.1 |
 | Netzplan-Export | Topologie als SVG, PNG (doppelte Auflösung), draw.io (Geräte mit IP/MAC/Typ/Modell/Standort als Eigenschaften) und Poster-PDF A4–A0 mit Schriftfeld, wahlweise auf A4 gekachelt mit Überlappung und Blattnummern; Gruppen aufklappbar; in Topologie und Ausgabe | 0.33 |
 
@@ -138,8 +139,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 | Idee | Nutzen | Aufwand |
 |---|---|---|
 | Grundriss/Raumplan mit Geräten, Rack-Ansicht | ★★ | L |
-| Kabel-Etiketten (Kabelnummern aus der Verkabelung als Aufkleber, wie die QR-Etiketten) | ★★ | S |
-| Erledigt: ~~Änderungsverlauf~~ (0.14), ~~QR-Etiketten~~ (0.28), ~~Kabel und Patchpanels~~ (0.29), ~~VLAN-Plan~~ (0.30), ~~Export nach draw.io / SVG / PNG, Netzplan als Poster-PDF~~ (0.33) | | |
+| Erledigt: ~~Änderungsverlauf~~ (0.14), ~~QR-Etiketten~~ (0.28), ~~Kabel und Patchpanels~~ (0.29), ~~Kabel-Etiketten~~ (0.35), ~~VLAN-Plan~~ (0.30), ~~Export nach draw.io / SVG / PNG, Netzplan als Poster-PDF~~ (0.33) | | |
 
 ### Automatisierung
 

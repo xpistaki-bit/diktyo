@@ -190,7 +190,7 @@ ERR_EN.update({
     "Dieser Switch meldet seine VLANs selbst – der Port gilt als umgesetzt, sobald der Switch den neuen Stand meldet": "This switch reports its VLANs itself – the port counts as done as soon as the switch reports the new state",
     "Unbekannter Modus": "Unknown mode", "Dieses Diagramm ist schon angeheftet": "This chart is already pinned",
     "Messreihe gibt es in diesem Profil nicht (mehr)": "This data series does not exist in this profile (any more)", "Ungültiges Diagramm": "Invalid chart",
-    "Ungültiges Layout": "Invalid layout", "Keine Geräte ausgewählt": "No devices selected", "Unbekanntes Etikettenformat": "Unknown label format",
+    "Ungültiges Layout": "Invalid layout", "Keine Geräte ausgewählt": "No devices selected", "Keine Kabel ausgewählt": "No cables selected", "Unbekanntes Etikettenformat": "Unknown label format",
     "Adresse der Weboberfläche bitte mit http:// oder https:// angeben": "Please enter the web interface address with http:// or https://",
     "Unbekanntes Papierformat": "Unknown paper size", "Noch keine Geräte in der Topologie.": "No devices in the topology yet.",
     "Unbekanntes Format": "Unknown format", "Token fehlt oder ist ungültig ": "Token missing or invalid",

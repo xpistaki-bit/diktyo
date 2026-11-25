@@ -511,9 +511,11 @@ function tabOutput(ctx) {
     <div class="panel"><h3>${t('Tabellen (CSV)')}</h3><p class="muted">${t('Für Excel, LibreOffice oder Numbers. Trennzeichen ist das Semikolon.')}</p>
       <div class="row"><a class="btn" href="${P}/export/devices.csv?lang=${LANG}">${t('Geräteliste')}</a><a class="btn" href="${P}/export/ips.csv?lang=${LANG}">${t('IP-Adressen')}</a></div></div>
     <div class="panel" id="netplan"></div>
-    <div class="panel lab-panel" id="labels"></div></div>`;
+    <div class="panel lab-panel" id="labels"></div>
+    <div class="panel lab-panel" id="cablelabels"></div></div>`;
   netplanPanel(ctx, $('#netplan', ctx.el));
   labelsPanel(ctx, $('#labels', ctx.el)).catch(e => { $('#labels', ctx.el).innerHTML = `<p class="errtxt">${h(e.message)}</p>`; });
+  cableLabelsPanel(ctx, $('#cablelabels', ctx.el)).catch(e => { $('#cablelabels', ctx.el).innerHTML = `<p class="errtxt">${h(e.message)}</p>`; });
   $('#pdf').onclick = () => {
     const secs = $$('[data-sec]', ctx.el).filter(x => x.checked).map(x => x.dataset.sec);
     if (!secs.length) return toast(t('Bitte mindestens einen Abschnitt wählen'), true);

@@ -685,6 +685,16 @@ Gerät führt – mit den Nummern auf den Kabeln.
 Im **Gerätedialog** stehen die Kabelwege des Geräts (beim Switch alle seine Ports). Im PDF (*Ausgabe*) gibt es den
 Abschnitt *Verkabelung* mit allen Kabelwegen und Patchfeldern. Die Sicherung enthält alles.
 
+**Kabel-Etiketten:** Sobald Kabelnummern eingetragen sind, erscheint oben der Knopf *Kabel-Etiketten* (dasselbe gibt es
+unter *Ausgabe*). Jedes Kabel mit Nummer wird ein Aufkleber: die Nummer groß, darunter die beiden Enden – z. B.
+„Switch · Port 5“ und „PP1 Keller · 12“. Ein Kabel reicht dabei bis zur nächsten eingetragenen Station; fehlt das
+Patchfeld, geht das Patchkabel also vom Switch direkt zur Dose. Mit *je Kabelende ein Etikett* entstehen zwei
+Aufkleber je Kabel: Oben steht das Ende, an das der Aufkleber kommt, mit dem Pfeil die Gegenstelle. Der Farbstreifen
+links zeigt die Art: Patchkabel türkis, Verlegekabel orange, Anschlusskabel grau. Formate: A4-Bögen 38 × 21,2 mm
+(65 Stück, z. B. Avery Zweckform 3666 / L7651), 48,5 × 25,4 mm (40) und 70 × 37 mm (24), Etikettendrucker 62 × 29 mm
+und 54 × 25 mm sowie Schriftband 12 mm (Brother P-touch, 60 mm je Etikett). Lange Nummern werden kleiner gesetzt,
+nie gekürzt. *Erstes freies Etikett* und *Schnittlinien* wie bei den QR-Etiketten.
+
 - *Ausgabe:* PDF (Topologie-Grafik, Geräteliste, IP-Plan, VLANs, Portbelegung, WLAN-Übersicht, Notizen – wählbar) und CSV.
 - **Netzplan** (*Ausgabe → Netzplan* oder *Topologie → Exportieren*): die Topologie – so angeordnet wie in der
   Oberfläche, auch mit von Hand verschobenen Geräten – als **Poster-PDF**, **SVG**, **PNG** oder **draw.io**-Datei.

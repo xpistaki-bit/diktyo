@@ -364,6 +364,31 @@ def labels_pdf(pid: int, request: Request, ids: str = "", fmt: str = "a4-70x37",
                     headers={"Content-Disposition": f'inline; filename="{_fname(p["name"], "-qr-etiketten.pdf")}"'})
 
 
+@router.get("/export/cable-labels")
+def cable_labels_info(pid: int, request: Request, user=Depends(require_user)):
+    """Formate und alle Kabel mit Nummer (für die Auswahl)."""
+    from . import cablelabels
+    lang = lang_of(request)
+    with db() as c:
+        profile_access(c, user, pid)
+        return dict(formats=cablelabels.formats(lang), cables=cablelabels.cables(c, pid, lang))
+
+
+@router.get("/export/cable-labels.pdf")
+def cable_labels_pdf(pid: int, request: Request, keys: str = "", fmt: str = "a4-48x25", both: int = 0, skip: int = 0, outline: int = 0,
+                     user=Depends(require_user)):
+    from . import cablelabels, labels
+    with db() as c:
+        p, _ = profile_access(c, user, pid)
+        try:
+            data = cablelabels.render(c, pid, [k for k in keys.split(",") if re.fullmatch(r"\d{1,9}[abc]", k)], fmt, bool(both), skip,
+                                      bool(outline), lang_of(request))
+        except labels.LabelError as ex:
+            raise HTTPException(400, str(ex))
+    return Response(data, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{_fname(p["name"], "-kabel-etiketten.pdf")}"'})
+
+
 @router.get("/meta")
 def meta(pid: int, request: Request, user=Depends(require_user)):
     """Auswahllisten für die Oberfläche."""

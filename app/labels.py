@@ -119,25 +119,31 @@ def render(c, pid, ids, fmt="a4-70x37", fields=FIELDS, base="", skip=0, outline=
     devs = [by_id[i] for i in ids if i in by_id][:MAX_LABELS]
     if not devs:
         raise LabelError("Keine Geräte ausgewählt")
+    return sheets(f, [(lambda w, h, d=d: _label(d, device_url(base, pid, d["id"]), w, h, fields, lang, outline)) for d in devs], skip,
+                  "díktyo – QR-Etiketten" if lang != "en" else "díktyo – QR labels")
+
+
+def sheets(f, items, skip=0, title="díktyo"):
+    """Setzt Etiketten auf Bögen bzw. Einzelseiten -> PDF-Bytes. items: Funktionen (Breite, Höhe) -> SVG-Inhalt eines Etiketts."""
     per = f["cols"] * f["rows"]
     skip = max(0, min(int(skip or 0), per - 1)) if per > 1 else 0
     (pw, ph), (lw, lh) = f["page"], f["label"]
-    slots = [None] * skip + devs
+    slots = [None] * skip + list(items)
     pages = [slots[i:i + per] for i in range(0, len(slots), per)]
     w = PdfWriter()
     for page in pages:
         body = []
-        for n, dev in enumerate(page):
-            if dev is None:
+        for n, draw in enumerate(page):
+            if draw is None:
                 continue
             col, row = n % f["cols"], n // f["cols"]
             x, y = f["left"] + col * (lw + f["gx"]), f["top"] + row * (lh + f["gy"])
-            body.append(f'<g transform="translate({x:.2f} {y:.2f})">{_label(dev, device_url(base, pid, dev["id"]), lw, lh, fields, lang, outline)}</g>')
+            body.append(f'<g transform="translate({x:.2f} {y:.2f})">{draw(lw, lh)}</g>')
         svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{pw}mm" height="{ph}mm" viewBox="0 0 {pw} {ph}">'
                f'<rect width="{pw}" height="{ph}" fill="#fff"/>{"".join(body)}</svg>')
         for p in PdfReader(io.BytesIO(cairosvg.svg2pdf(bytestring=svg.encode("utf-8")))).pages:
             w.add_page(p)
-    w.add_metadata({"/Title": "díktyo – QR-Etiketten" if lang != "en" else "díktyo – QR labels", "/Producer": "díktyo"})
+    w.add_metadata({"/Title": title, "/Producer": "díktyo"})
     out = io.BytesIO()
     w.write(out)
     return out.getvalue()

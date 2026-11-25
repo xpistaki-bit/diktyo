@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.34.1 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.35 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -460,6 +460,11 @@ if needed), with name and optionally IP, MAC, location and type next to it. Form
 99.1 × 38.1 mm (14), 48.5 × 25.4 mm (40) and label printers 62 × 29 mm (Brother DK-11209) and 54 × 25 mm (Dymo 11352).
 Choose devices, a start position for partly used sheets and optional cut lines; the address in the QR code defaults
 to the "web interface address" from the e-mail settings. The device dialog has a "QR label" button for a single device.
+
+**Cable labels** from the cable numbers in *Cabling*: the number in large type with both ends of the cable below it
+(or one label per end that names the far end), a colour bar for the kind (patch, installation, device cable).
+Formats: A4 sheets 38 × 21.2 mm (65, Avery 3666/L7651), 48.5 × 25.4 mm and 70 × 37 mm, label printers 62 × 29 mm and
+54 × 25 mm, and 12 mm label tape (Brother P-touch). Available under *Output* and from the *Cabling* tab.
 
 ## Backup
 

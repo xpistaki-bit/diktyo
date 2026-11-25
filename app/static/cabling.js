@@ -45,7 +45,7 @@ async function tabCabling(ctx) {
     const runs = o.runs.filter(r => !ql || [r.switch, r.port_name, r.panel, r.outlet, r.device, r.cable_a, r.cable_b, r.cable_c, r.note].join(' ').toLowerCase().includes(ql));
     const ck = r => { const [cls, ic, txt] = CHECK[r.check]; return `<span class="ck ${cls}" title="${h(t(txt))}${r.check === 'mismatch' ? ': ' + h(r.peers.map(x => x.name).join(', ')) : ''}">${ic}${r.check === 'mismatch' ? ' ' + h(r.peers.map(x => x.name).join(', ')) : ''}</span>`; };
     ctx.el.innerHTML = `<div class="toolbar"><input type="search" id="cq" placeholder="${h(t('Suchen: Port, Patchfeld, Dose, Kabelnummer, Gerät …'))}" value="${h(q)}">
-        <span class="grow"></span>${ctx.canEdit ? `<button type="button" data-addpanel="panel">+ ${t('Patchfeld')}</button><button type="button" data-addpanel="outlet">+ ${t('Dose')}</button>
+        <span class="grow"></span>${o.runs.some(r => r.cable_a || r.cable_b || r.cable_c) ? `<button type="button" data-cablabels>${t('Kabel-Etiketten')}</button>` : ''}${ctx.canEdit ? `<button type="button" data-addpanel="panel">+ ${t('Patchfeld')}</button><button type="button" data-addpanel="outlet">+ ${t('Dose')}</button>
         <button type="button" class="pri" data-addrun>+ ${t('Kabelweg')}</button>` : ''}</div>
       ${!o.panels.length && !o.runs.length ? `<div class="panel"><div class="hud-h"><h3>${t('Verkabelung dokumentieren')}</h3></div>
         <p>${t('Hier hältst du fest, welcher Switch-Port über welches Patchfeld und welche Netzwerkdose zu welchem Gerät führt – mit den Nummern auf den Kabeln.')}</p>
@@ -63,6 +63,8 @@ async function tabCabling(ctx) {
     cq.oninput = e => { q = e.target.value; const pos = e.target.selectionStart; draw(); const n = $('#cq', ctx.el); n.focus(); n.setSelectionRange(pos, pos); };
     $$('[data-addpanel]', ctx.el).forEach(b => b.onclick = () => panelDialog({ kind: b.dataset.addpanel }));
     $$('[data-ppedit]', ctx.el).forEach(b => b.onclick = () => panelDialog(o.panels.find(p => p.id === +b.dataset.ppedit)));
+    const cbl = $('[data-cablabels]', ctx.el);
+    if (cbl) cbl.onclick = () => cableLabelsDialog(ctx);
     const ar = $('[data-addrun]', ctx.el);
     if (ar) ar.onclick = () => runDialog({});
     $$('.pp-port.ed', ctx.el).forEach(b => b.onclick = () => {
@@ -165,4 +167,75 @@ async function cableBox(ctx, did, el) {
   const runs = [...r.runs].sort((a, b) => (a.switch_port || 0) - (b.switch_port || 0));
   el.innerHTML = `<h4>${t('Verkabelung')} <a class="small" href="#/p/${ctx.pid}/verkabelung">${t('alle Kabelwege')} →</a></h4>
     <div class="cw-list">${runs.slice(0, 48).map(x => `<div class="cw-line">${runChain(x)}${x.check !== 'unknown' ? `<span class="ck ${CHECK[x.check][0]}" title="${h(t(CHECK[x.check][2]))}">${CHECK[x.check][1]}</span>` : ''}</div>`).join('')}</div>`;
+}
+
+/* ---------- Kabel-Etiketten: Kabelnummern als Aufkleber (Ausgabe und Dialog im Reiter Verkabelung) ---------- */
+function cableLabelPrefs() {
+  let s = {};
+  try { s = JSON.parse(localStorage.getItem('dk_cablelabels') || '{}') || {}; } catch { }
+  return { fmt: s.fmt || 'a4-38x21', both: s.both !== false, outline: !!s.outline };
+}
+async function cableLabelsPanel(ctx, el, { inDialog = false } = {}) {
+  const P = `/api/profiles/${ctx.pid}`;
+  const info = await api('GET', `${P}/export/cable-labels?lang=${LANG}`);
+  const o = cableLabelPrefs();
+  const sel = cableLabelsPanel.sel[ctx.pid] || (cableLabelsPanel.sel[ctx.pid] = new Set(info.cables.map(x => x.key)));
+  for (const k of [...sel]) if (!info.cables.some(x => x.key === k)) sel.delete(k);
+  let q = '';
+  const head = inDialog ? '' : `<h3>${t('Kabel-Etiketten')}</h3>`;
+  if (!info.cables.length) {
+    el.innerHTML = `${head}<p class="muted">${t('Noch keine Kabelnummern. Trage sie im Reiter Verkabelung bei den Kabelwegen ein (Patchkabel, Verlegekabel, Anschlusskabel).')}</p>`;
+    return;
+  }
+  el.innerHTML = `${head}<p class="muted">${t('Aufkleber mit der Kabelnummer und den beiden Enden des Kabels – aus den Kabelwegen im Reiter Verkabelung. Der Farbstreifen zeigt die Art: Patchkabel türkis, Verlegekabel orange, Anschlusskabel grau.')}</p>
+    <div class="lab-grid">
+      <div><label>${t('Format')}</label><select id="clfmt">${info.formats.map(f => `<option value="${f.key}" data-sheet="${f.sheet}" ${f.key === o.fmt ? 'selected' : ''}>${h(f.name)}</option>`).join('')}</select>
+        <div class="row lab-opts">
+          <label class="chk"><input type="checkbox" id="clboth" ${o.both ? 'checked' : ''}> ${t('je Kabelende ein Etikett (nennt die Gegenstelle)')}</label>
+          <label class="chk"><input type="checkbox" id="clout" ${o.outline ? 'checked' : ''}> ${t('Schnittlinien (für normales Papier)')}</label></div>
+        <div id="clskipw"><label>${t('Erstes freies Etikett auf dem Bogen')}</label><input id="clskip" type="number" min="1" value="1" style="max-width:120px">
+          <p class="muted small">${t('Für angebrochene Bögen: Die Etiketten davor bleiben frei (zeilenweise von links oben gezählt).')}</p></div></div>
+      <div><div class="toolbar lab-tb"><input type="search" id="clq" placeholder="${h(t('Kabel suchen …'))}"><button type="button" class="sm" data-clall>${t('Alle')}</button>
+          <button type="button" class="sm" data-clnone>${t('Keine')}</button></div>
+        <div class="lab-list" id="cllist"></div></div></div>
+    <div class="row" style="margin-top:14px"><button class="pri" id="clgo"></button><span class="muted small" id="clhint"></span></div>`;
+  const shown = () => info.cables.filter(c => !q || [c.number, c.kind, c.a, c.b].join(' ').toLowerCase().includes(q));
+  const sheet = () => +$('#clfmt', el).selectedOptions[0].dataset.sheet;
+  const count = () => {
+    const n = sel.size * ($('#clboth', el).checked ? 2 : 1), s = sheet();
+    $('#clgo', el).textContent = n === 1 ? t('1 Etikett erstellen') : t('{n} Etiketten erstellen', { n });
+    $('#clgo', el).disabled = !n;
+    const skip = Math.max(0, (+$('#clskip', el).value || 1) - 1);
+    $('#clhint', el).textContent = n && s > 1 ? t('{p} Bogen/Bögen', { p: Math.ceil((n + skip) / s) }) : '';
+  };
+  const list = () => {
+    $('#cllist', el).innerHTML = shown().map(c => `<label class="chk lab-dev"><input type="checkbox" data-cl="${h(c.key)}" ${sel.has(c.key) ? 'checked' : ''}>
+      <b class="mono">${h(c.number)}</b><span class="small muted">${h(c.kind)}</span><span class="small">${h(c.a || '–')} ⇄ ${h(c.b || '–')}</span></label>`).join('')
+      || `<p class="muted">${t('Kein Kabel passt.')}</p>`;
+    $$('[data-cl]', el).forEach(cb => cb.onchange = () => { cb.checked ? sel.add(cb.dataset.cl) : sel.delete(cb.dataset.cl); count(); });
+    count();
+  };
+  const skipVis = () => { const s = sheet(); $('#clskipw', el).hidden = s <= 1; $('#clskip', el).max = s; count(); };
+  $('#clq', el).oninput = e => { q = e.target.value.trim().toLowerCase(); list(); };
+  $('[data-clall]', el).onclick = () => { shown().forEach(c => sel.add(c.key)); list(); };
+  $('[data-clnone]', el).onclick = () => { sel.clear(); list(); };
+  $('#clfmt', el).onchange = skipVis;
+  $('#clboth', el).onchange = count;
+  $('#clskip', el).oninput = count;
+  $('#clgo', el).onclick = () => {
+    const v = { fmt: $('#clfmt', el).value, both: $('#clboth', el).checked, outline: $('#clout', el).checked };
+    try { localStorage.setItem('dk_cablelabels', JSON.stringify(v)); } catch { }
+    const keys = info.cables.filter(c => sel.has(c.key)).map(c => c.key);
+    const qs = new URLSearchParams({ keys: keys.join(','), fmt: v.fmt, both: v.both ? '1' : '0', outline: v.outline ? '1' : '0', lang: LANG,
+      skip: String(sheet() > 1 ? Math.max(0, (+$('#clskip', el).value || 1) - 1) : 0) });
+    window.open(`${P}/export/cable-labels.pdf?${qs}`, '_blank');
+  };
+  list(); skipVis();
+}
+cableLabelsPanel.sel = {};
+async function cableLabelsDialog(ctx) {
+  await dialog(t('Kabel-Etiketten'), `<div id="cldlg"></div>`, {
+    wide: true, ok: null,
+    onOpen: f => cableLabelsPanel(ctx, $('#cldlg', f), { inDialog: true }).catch(e => { $('#cldlg', f).innerHTML = `<p class="errtxt">${h(e.message)}</p>`; }),
+  });
 }
