@@ -1,4 +1,5 @@
 """KI-Recherche für den Katalog (Claude API) – mit nachgebildetem Client, ohne echte Anfragen."""
+from urllib.parse import urlparse
 from types import SimpleNamespace as NS
 
 from app import ai, security
@@ -50,7 +51,7 @@ def test_ai_settings_lookup_and_privacy(monkeypatch):
                                                 "serial": "GEHEIM123", "uuid": "0000-1111", "nics": ["Intel I219-LM"]}, headers=H).json()
     e = r["entry"]
     assert (e["type"], e["model"], e["ports"][0]["kind"]) == ("computer", "EliteDesk 800 G4 DM", "rj45") and r["confidence"] == "high"
-    assert r["sources"] == ["https://support.hp.com/quickspecs-800g4dm"] and e["source"].startswith("https://support.hp.com")
+    assert r["sources"] == ["https://support.hp.com/quickspecs-800g4dm"] and urlparse(e["source"]).hostname == "support.hp.com"
     # Kosten: Opus 5.5 $4/$20 je 1 Mio. + 3 Websuchen à 1 Cent
     assert r["usage"]["searches"] == 3 and abs(r["usage"]["cost"] - (4000 * 4 / 1e6 + 800 * 20 / 1e6 + 0.03)) < 1e-6
     # Anfrage: Modell, Websuche, strenges Werkzeug, Fallback; pause_turn wurde fortgesetzt

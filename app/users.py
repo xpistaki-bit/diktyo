@@ -7,7 +7,7 @@ from .db import audit, now
 
 MIN_PW = 8
 RESET_VALID_S = 3600
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s.]+(?:\.[^@\s.]+)+$")  # eindeutig zerlegbar (kein Rückverfolgen über Punkte)
 
 
 class UserError(Exception):
@@ -19,7 +19,7 @@ class UserError(Exception):
 
 def norm_email(email):
     e = str(email or "").strip().lower()
-    if not EMAIL_RE.match(e):
+    if len(e) > 254 or not EMAIL_RE.match(e):
         raise UserError(400, "Bitte eine gültige E-Mail-Adresse angeben")
     return e
 

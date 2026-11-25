@@ -298,7 +298,8 @@ async function viewProfile(pid, tab, sub, keep = null) {
   const reload = () => viewProfile(pid, tab, sub, { y: scroller().scrollTop, h: ($('#tab') || {}).offsetHeight || 0 });
   const ctx = { pid, p, members: r.members, canEdit, isOwner, sub, el: $('#tab'), reload };
   if (keep) { ctx.el.style.minHeight = keep.h + 'px'; scroller().scrollTop = keep.y; }
-  if (tab === 'freigabe') renderSharing(ctx); else await window.INV[tab](ctx);
+  if (tab === 'freigabe') renderSharing(ctx);
+  else if (Object.hasOwn(window.INV, tab) && TABS.some(x => x[0] === tab)) await window.INV[tab](ctx);
   if (keep) {
     scroller().scrollTop = keep.y;
     setTimeout(() => { if (document.body.contains(ctx.el)) ctx.el.style.minHeight = ''; }, 2500);
@@ -480,14 +481,14 @@ async function renderAI(el) {
 const TARGET = { local: 'Ordner / NAS', webdav: 'WebDAV (z. B. Nextcloud)', rclone: 'rclone (Google Drive, OneDrive, S3 …)' };
 async function renderBackup(el) {
   const { settings: s, last } = await api('GET', '/api/backup');
-  const row = tg => `<div class="target panel" data-type="${tg.type}">
+  const row = tg => (tg = { ...tg, type: Object.hasOwn(TARGET, tg.type) ? tg.type : 'local' }, `<div class="target panel" data-type="${h(tg.type)}">
       <div class="row between"><b>${t(TARGET[tg.type])}</b><button type="button" class="sm danger" data-rmt>${t('Entfernen')}</button></div>
       ${tg.type === 'local' ? `<label>${t('Pfad im Container')}</label><input data-f="path" value="${h(tg.path || '')}" placeholder="/mnt/sicherung">`
       : tg.type === 'webdav' ? `<label>${t('Adresse')}</label><input data-f="url" value="${h(tg.url || '')}" placeholder="https://cloud.example.com/remote.php/dav/files/NAME/diktyo">
         <div class="grid2"><div><label>${t('Benutzername')}</label><input data-f="user" value="${h(tg.user || '')}"></div><div><label>${t('Passwort')}</label><input data-f="password" type="password" autocomplete="new-password" value="${h(tg.password || '')}"></div></div>`
       : `<label>${t('rclone-Ziel')}</label><input data-f="remote" value="${h(tg.remote || '')}" placeholder="gdrive:diktyo">
         <small class="muted">${t('Form „Name:Ordner“, z. B. gdrive:diktyo. Der Name ist eine in rclone eingerichtete Verbindung.')} <span data-remotes></span></small>
-        <div class="row" style="margin-top:6px"><button type="button" class="sm" data-gdrive>${t('Google Drive verbinden')}</button></div>`}</div>`;
+        <div class="row" style="margin-top:6px"><button type="button" class="sm" data-gdrive>${t('Google Drive verbinden')}</button></div>`}</div>`);
   el.innerHTML = `<form class="panel stack" id="bk">
     <p class="muted" style="margin:0">${t('Jede Sicherung ist eine ZIP-Datei mit allen Konten, Profilen, Geräten und Einstellungen sowie einem PDF und CSV je Profil.')}</p>
     <div id="targets" class="stack">${s.targets.map(row).join('') || `<p class="muted" id="notargets">${t('Noch kein Sicherungsziel.')}</p>`}</div>
@@ -534,7 +535,8 @@ async function renderBackup(el) {
     rcloneInfo();
   }
   bindRm();
-  $('#addt', el).onclick = () => { const n = $('#notargets', el); if (n) n.remove(); $('#targets', el).insertAdjacentHTML('beforeend', row({ type: $('#newt', el).value })); bindRm(); };
+  $('#addt', el).onclick = () => { const n = $('#notargets', el); if (n) n.remove(); const pick = $('#newt', el).value, type = Object.keys(TARGET).find(k => k === pick) || 'local';  // nur Typen aus der festen Liste
+    $('#targets', el).insertAdjacentHTML('beforeend', row({ type })); bindRm(); };
   const collect = () => ({
     targets: $$('.target', el).map(d => Object.fromEntries([['type', d.dataset.type], ...$$('[data-f]', d).map(i => [i.dataset.f, i.value.trim()])])),
     auto_hours: +$('[name=auto_hours]', el).value, passphrase: $('[name=passphrase]', el).value,

@@ -1,4 +1,5 @@
 """Katalogeintrag aus Systeminformationen (dmidecode, lspci, Lenovo, VM, Windows) – Nachschlagen ist hier nachgebildet."""
+from urllib.parse import urlparse
 from app import sysinfo
 from tests.test_m6 import H, login
 
@@ -46,7 +47,7 @@ def test_api_suggestion_and_privacy(monkeypatch):
     assert "ABC1234" not in str(r)
     # speichern, danach erkennt der Vorschlag den vorhandenen Eintrag
     saved = cl.post("/api/catalog", json=s, headers=H).json()
-    assert saved["source"].startswith("https://en.wikipedia.org") and saved["port_summary"]
+    assert urlparse(saved["source"]).hostname == "en.wikipedia.org" and saved["port_summary"]
     again = cl.post("/api/catalog/from-sysinfo", json={"text": DELL, "lookup": False}, headers=H).json()
     assert again["existing"]["id"] == saved["id"] and len(sent) == 1
     bad = cl.post("/api/catalog/from-sysinfo", json={"text": "hallo welt"}, headers=H)
@@ -59,4 +60,4 @@ def test_hp_family_cleanup_and_lookup_status(monkeypatch):
     assert (i["model"], i["family"], i["type"]) == ("EliteDesk 800 G4 DM 35W", "EliteDesk", "computer")
     monkeypatch.setattr(sysinfo, "lookup", lambda *a, **k: (_ for _ in ()).throw(OSError("Name or service not known")))
     r = sysinfo.suggest(hp)
-    assert r["lookup"] is None and r["lookup_status"].startswith("error: OSError")
+    assert r["lookup"] is None and r["lookup_status"] == "error"  # Details nur im Protokoll

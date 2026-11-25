@@ -82,7 +82,7 @@ async function sysinfoDialog() {
   const intro = `<div class="hint-box small"><b>${t('Erkannt')}:</b> ${h(facts.join(' · '))}
     ${res.lookup ? `<br><b>${t('Gefunden')}:</b> <a href="${h(res.lookup.url)}" target="_blank" rel="noopener">${h(res.lookup.title)} (Wikipedia)</a>`
       : res.lookup_status === 'none' ? `<br><b>Wikipedia:</b> ${t('nichts Passendes gefunden')}`
-      : res.lookup_status?.startsWith('error') ? `<br><b>Wikipedia:</b> <span class="warnc">${t('nicht erreichbar')} (${h(res.lookup_status.slice(7))})</span>` : ''}
+      : res.lookup_status?.startsWith('error') ? `<br><b>Wikipedia:</b> <span class="warnc">${t('nicht erreichbar')}${res.lookup_status.length > 7 ? ` (${h(res.lookup_status.slice(7))})` : ''}</span>` : ''}
     ${res.ignored.length ? `<br><span class="muted">${t('Seriennummer und UUID gehören zum einzelnen Gerät und werden nicht in den Katalog übernommen.')}</span>` : ''}
     ${i.virtual ? `<br><span class="warnc">${t('Das ist eine virtuelle Maschine – meist besser direkt als Gerät vom Typ „VM“ anlegen.')}</span>` : ''}
     <br><span class="muted">${t('Bitte prüfen und ergänzen (Ports, WLAN), dann speichern.')}</span></div>`;

@@ -51,8 +51,10 @@ def _fields(text):
     """Schlüssel: Wert aus allen bekannten Formaten -> {schluessel_klein: wert}"""
     out = {}
     for line in text.splitlines():
-        m = re.match(r"\s*([A-Za-z][A-Za-z0-9 _./()-]{1,40}?)\s*[:=]\s*(.+?)\s*$", line)
-        if m:
+        if len(line) > 1000:
+            continue
+        m = re.match(r"\s*([A-Za-z][A-Za-z0-9 _./()-]{1,40}?)[ \t]*[:=](.*)$", line)
+        if m and m.group(2).strip():
             k = m.group(1).strip().lower().replace("_", " ")
             out.setdefault(k, m.group(2).strip().strip('"'))
     return out
@@ -77,7 +79,7 @@ def parse(text):
     chassis = pick("type", "chassis type", "chassis")
     nics = []
     for line in text.splitlines():
-        m = re.search(r"(ethernet controller|network controller)[^:]*:\s*(.+)", line, re.I)
+        m = re.search(r"(ethernet controller|network controller)[^:\n]{0,200}:[ \t]*(\S.*)", line[:1000], re.I)
         if m and not re.search(r"wireless|wi-?fi|wlan|802\.11|centrino|ax2\d\d|ac \d{4}", m.group(2), re.I):
             nics.append(m.group(2).strip()[:120])
     joined = " ".join([vendor, product, version, family]).lower()
@@ -145,8 +147,9 @@ def suggest(text, do_lookup=True, lang="de"):
         try:
             wiki = lookup(info["manufacturer"], info["model"], info["family"], lang)
             status = "found" if wiki else "none"
-        except Exception as ex:
-            status = f"error: {type(ex).__name__}: {str(ex)[:120]}"
+        except Exception as ex:  # Wikipedia nicht erreichbar o. ä.: nur die Art des Fehlers melden
+            print(f"Wikipedia-Suche: {type(ex).__name__}: {ex}", flush=True)
+            status = "error"
     note = f"{wiki['title']}: {wiki['extract']}" if wiki else ""
     if info["manufacturer"] == "Lenovo" and info["version"] and info["model"] == info["version"] and info["sku"]:
         note = (note + " " if note else "") + f"Maschinentyp {info['sku']}"

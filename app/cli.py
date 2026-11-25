@@ -50,11 +50,12 @@ def main(argv=None):
                 u = need(c, a.email)
                 pw = a.password or security.generate_password()
                 users.set_password(c, u["id"], pw)
-                print(f"Neues Passwort für {u['email']}: {pw}\nAlle Sitzungen dieses Kontos wurden abgemeldet.")
+                print(f"Neues Passwort für {u['email']}: {pw}" if not a.password else f"Passwort für {u['email']} gesetzt.")
+                print("Alle Sitzungen dieses Kontos wurden abgemeldet.")
             elif a.cmd == "create-user":
                 pw = a.password or security.generate_password()
                 u = users.create(c, a.email, pw, is_admin=a.admin)
-                print(f"{'Administrator-' if u['is_admin'] else ''}Konto {u['email']} angelegt, Passwort: {pw}")
+                print(f"{'Administrator-' if u['is_admin'] else ''}Konto {u['email']} angelegt" + (f", Passwort: {pw}" if not a.password else "."))
             elif a.cmd == "set-admin":
                 u = need(c, a.email)
                 users.set_admin(c, u["id"], a.state == "on")

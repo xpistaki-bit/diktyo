@@ -64,6 +64,21 @@ def own_key(c):
     return key, f"{key.get_name()} {key.get_base64()} diktyo"
 
 
+def fingerprint(key):
+    return f"{key.get_name()} {key.fingerprint}" if hasattr(key, "fingerprint") else f"{key.get_name()} {key.get_base64()[:32]}"
+
+
+def _policy(paramiko, known):
+    """Host-Schlüssel beim Verbindungsaufbau prüfen – vor dem Senden von Passwort oder Schlüssel. Ohne bekannten Schlüssel
+    (erste Verbindung) wird er angenommen und danach gespeichert; weicht er später ab, bricht die Verbindung ab."""
+    class Policy(paramiko.MissingHostKeyPolicy):
+        def missing_host_key(self, client, hostname, key):
+            fp = fingerprint(key)
+            if known and fp != known:
+                raise paramiko.SSHException(f"hostkey-changed:{fp}")
+    return Policy()
+
+
 def run(host, port, user, password, command, known=None, timeout=15, pkey=None, mode="auto"):
     """-> (Ausgabe, Fingerabdruck des Host-Schlüssels). pkey statt password für die Anmeldung mit Schlüssel.
     mode: auto (Einzelbefehl, sonst interaktive Sitzung) | exec | shell"""
@@ -72,7 +87,7 @@ def run(host, port, user, password, command, known=None, timeout=15, pkey=None, 
     except ImportError:
         raise SSHError("paramiko ist nicht installiert")
     c = paramiko.SSHClient()
-    c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    c.set_missing_host_key_policy(_policy(paramiko, known))
     kw = dict(port=port, username=user, look_for_keys=False, allow_agent=False, timeout=timeout, banner_timeout=timeout, auth_timeout=timeout)
     try:
         if pkey is not None:
@@ -83,7 +98,7 @@ def run(host, port, user, password, command, known=None, timeout=15, pkey=None, 
                     raise
                 c.close()
                 c = paramiko.SSHClient()
-                c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                c.set_missing_host_key_policy(_policy(paramiko, known))
                 # ältere Firmware: RSA-Signatur nur als ssh-rsa (SHA-1)
                 c.connect(host, pkey=pkey, disabled_algorithms={"pubkeys": ["rsa-sha2-512", "rsa-sha2-256"]}, **kw)
         else:
@@ -92,11 +107,13 @@ def run(host, port, user, password, command, known=None, timeout=15, pkey=None, 
         raise SSHError("SSH-Anmeldung abgelehnt (" + ("ist der öffentliche Schlüssel auf dem Gerät hinterlegt und passt der Benutzer?" if pkey is not None
                                                        else "Benutzer oder Passwort prüfen") + ")")
     except (paramiko.SSHException, OSError) as ex:
+        if str(ex).startswith("hostkey-changed:"):
+            raise SSHError(f"Host-Schlüssel des Geräts hat sich geändert ({str(ex).split(':', 1)[1]}); Backup aus Sicherheitsgründen abgebrochen. "
+                           f"Wurde das Gerät ausgetauscht, die Integration einmal neu speichern.")
         raise SSHError(f"SSH-Verbindung fehlgeschlagen: {ex}")
     try:
-        key = c.get_transport().get_remote_server_key()
-        fp = f"{key.get_name()} {key.fingerprint}" if hasattr(key, "fingerprint") else f"{key.get_name()} {key.get_base64()[:32]}"
-        if known and known != fp:
+        fp = fingerprint(c.get_transport().get_remote_server_key())
+        if known and known != fp:  # doppelt gesichert; die eigentliche Prüfung geschieht vor der Anmeldung (_policy)
             raise SSHError(f"Host-Schlüssel des Geräts hat sich geändert ({fp}); Backup aus Sicherheitsgründen abgebrochen. "
                            f"Wurde das Gerät ausgetauscht, die Integration einmal neu speichern.")
         out = ""

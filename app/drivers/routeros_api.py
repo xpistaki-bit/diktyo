@@ -42,6 +42,7 @@ class Client:
             raise APIError(f"connect:{ex}")
         if use_ssl:
             ctx = ssl.create_default_context()
+            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE  # RouterOS nutzt meist ein selbst signiertes Zertifikat
             try:

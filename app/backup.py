@@ -180,8 +180,13 @@ def run(c, targets):
                 results.append(dict(target=f"rclone {t['remote']}", ok=True, detail=fname))
             else:
                 raise RuntimeError("unbekannter Zieltyp")
-        except Exception as ex:
-            results.append(dict(target=f"{kind} {t.get('path') or t.get('url') or t.get('remote') or ''}", ok=False, detail=str(ex)))
+        except (OSError, httpx.HTTPError, RuntimeError, ValueError, subprocess.SubprocessError) as ex:  # Ursache hilft bei der Einrichtung
+            results.append(dict(target=f"{kind} {t.get('path') or t.get('url') or t.get('remote') or ''}", ok=False, detail=str(ex)[:300]))
+        except Exception:  # Unerwartetes nicht im Wortlaut an die Oberfläche
+            import traceback
+            print(f"Sicherung an {kind}: unerwarteter Fehler\n{traceback.format_exc()}", flush=True)
+            results.append(dict(target=f"{kind} {t.get('path') or t.get('url') or t.get('remote') or ''}", ok=False,
+                                detail="Unerwarteter Fehler – Details im Protokoll des Dienstes"))
     return results, len(data)
 
 
@@ -421,9 +426,10 @@ def rclone_drive(name, token_text):
         raise BackupError("rclone ist nicht installiert")
     if not re.fullmatch(r"[A-Za-z0-9_\-]{1,32}", name or ""):
         raise BackupError("Name nur aus Buchstaben, Ziffern, - und _")
-    m = re.search(r"\{.*\}", token_text or "", re.S)
+    raw = token_text or ""
+    a, b = raw.find("{"), raw.rfind("}")
     try:
-        tok = _json.loads(m.group(0)) if m else None
+        tok = _json.loads(raw[a:b + 1]) if 0 <= a < b else None
     except ValueError:
         tok = None
     if not tok or not tok.get("access_token"):

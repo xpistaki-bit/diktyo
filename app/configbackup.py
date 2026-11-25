@@ -2,6 +2,7 @@
 import difflib
 import hashlib
 import json
+import os
 import time
 
 from . import security
@@ -14,7 +15,12 @@ PERIOD = {"daily": 86400, "weekly": 7 * 86400}
 
 
 def path(cid):
-    return DIR / f"{cid}.bin"
+    """Datei eines Konfigurationsstands – nur aus der Nummer, und immer innerhalb von DIR."""
+    root = os.path.normpath(str(DIR))
+    full = os.path.normpath(os.path.join(root, f"{int(cid)}.bin"))
+    if not full.startswith(root + os.sep):
+        raise ValueError("invalid config backup path")
+    return DIR / os.path.basename(full)
 
 
 def can_backup(row):
@@ -62,8 +68,10 @@ def run(iid, interactive=False, totp=None):
                 res = dict(status="error", second_factor=True,
                            message="Die FRITZ!Box verlangt für den Export eine Bestätigung (zweiter Faktor). "
                                    "Automatisch geht das nur mit hinterlegtem Authenticator-Schlüssel – sonst „Konfiguration sichern“ von Hand auslösen.")
-    except Exception as ex:
-        res = dict(status="error", message=f"{type(ex).__name__}: {ex}")
+    except Exception:
+        import traceback
+        print(f"Konfigurations-Backup Integration {iid}: unerwarteter Fehler\n{traceback.format_exc()}", flush=True)
+        res = dict(status="error", message="Unerwarteter Fehler beim Konfigurations-Backup – Details im Protokoll des Dienstes")
     else:
         sha = hashlib.sha256(data).hexdigest()
         with db() as c:

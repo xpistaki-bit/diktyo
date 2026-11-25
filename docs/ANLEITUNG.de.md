@@ -192,6 +192,9 @@ Angaben, bevor gespeichert wird.
   *Abruf* „automatisch“ versucht zuerst den Einzelbefehl und wechselt sonst in eine interaktive Sitzung, die bei
   „-- More --“ weiterblättert. Ältere Switches, die RSA-Schlüssel nur mit `ssh-rsa` annehmen, bedient díktyo mit
   einem zweiten Versuch.
+  Den Host-Schlüssel des Switches merkt sich díktyo bei der ersten Verbindung. Ändert er sich später, bricht díktyo
+  **vor** der Anmeldung ab – Passwort oder Schlüssel werden dann nicht gesendet. Nach einem gewollten Wechsel
+  (neue Firmware, Gerätetausch) die Integration einmal *Speichern* – dann lernt díktyo den Schlüssel neu.
 - **Ports:** Manche Switches melden neben den Frontports logische Schnittstellen (Trunk, VLAN, CPU). díktyo
   übernimmt nur echte Ports und höchstens so viele, wie das Katalogmodell hat; die *Diagnose* nennt die
   ausgelassenen. Ports mit Link unter 1 Gbit/s sind **orange**, ab 2,5 Gbit/s **blau**.

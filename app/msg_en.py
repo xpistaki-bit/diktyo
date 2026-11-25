@@ -270,7 +270,8 @@ ERR_EN.update({
     "Der Update-Dienst hat die Anfrage nicht übernommen (diktyo-update.path aktiv?)": "The update service did not pick up the request (is diktyo-update.path active?)",
     "Sichere die Datenbank": "Backing up the database", "Lade den neuen Stand von GitHub": "Downloading the new version from GitHub",
     "Datenbank-Sicherung fehlgeschlagen": "Database backup failed", "Download von GitHub fehlgeschlagen": "Download from GitHub failed",
-    "Archiv unvollständig": "Archive incomplete", "Installation fehlgeschlagen - Protokoll ansehen": "Installation failed – see the log", "SNMP (v2c oder v3, nur lesen)": "SNMP (v2c or v3, read only)", "SNMP-Benutzer": "SNMP user",
+    "Archiv unvollständig": "Archive incomplete", "Unerwarteter Fehler – Details im Protokoll des Dienstes": "Unexpected error – details in the service log",
+    "Unerwarteter Fehler beim Konfigurations-Backup – Details im Protokoll des Dienstes": "Unexpected error during the configuration backup – details in the service log", "Installation fehlgeschlagen - Protokoll ansehen": "Installation failed – see the log", "SNMP (v2c oder v3, nur lesen)": "SNMP (v2c or v3, read only)", "SNMP-Benutzer": "SNMP user",
     "SNMP-Version": "SNMP version", "v2c (Community)": "v2c (community)", "v3 (Benutzer)": "v3 (user)", "Authentifizierung": "Authentication", "keine": "none",
     "Mit SNMP kann díktyo bei MikroTik nur lesen – für Aktionen den Zugang „RouterOS-API“ wählen": "With SNMP díktyo can only read from the MikroTik – choose the “RouterOS API” access for actions", "z. B. 192.168.50.20": "e.g. 192.168.50.20", "z. B. 192.168.1.53": "e.g. 192.168.1.53",
 })
