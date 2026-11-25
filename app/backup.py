@@ -18,7 +18,7 @@ import zipfile
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
 
-from . import export, security
+from . import export, locplan, security
 from .db import DATA, get_setting, now, set_setting
 from .version import VERSION
 
@@ -95,6 +95,7 @@ def export_data(c):
         port_vlans=q("SELECT * FROM port_vlans"), port_vlans_plan=q("SELECT * FROM port_vlans_plan"), topo_positions=q("SELECT * FROM topo_positions"),
         changes=q("SELECT * FROM changes"),
         patch_panels=q("SELECT * FROM patch_panels"), cable_runs=q("SELECT * FROM cable_runs"), watch=q("SELECT * FROM watch"),
+        **locplan.export_rows(c),
         device_models=[m for m in models if m["custom"]],
         ident_rules=q("SELECT * FROM ident_rules WHERE custom=1"),
         integrations=[dict(r, secret=_move_secret(r["secret"], f), state="{}") for r in q("SELECT * FROM integrations")],
@@ -319,6 +320,7 @@ def _import_profiles(c, exp, umap, rename, fernet=None):
                                           panel_id=panmap.get(x["panel_id"]), outlet_id=panmap.get(x["outlet_id"]),
                                           panel_port=x["panel_port"] if x["panel_id"] in panmap else None,
                                           outlet_port=x["outlet_port"] if x["outlet_id"] in panmap else None))
+    locplan.import_rows(c, exp, pmap, lmap, dmap, panmap)  # Grundrisse und Racks
     for x in exp.get("watch", []):  # Wachliste (beim Import gilt alles bis jetzt als gesehen)
         if x["device_id"] in dmap and x["profile_id"] in pmap:
             c.execute("INSERT OR IGNORE INTO watch(device_id, profile_id, created, ack, ack_change, ack_status, note) VALUES(?,?,?,?,"

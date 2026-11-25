@@ -78,7 +78,11 @@ def device_ports(pid: int, did: int, user=Depends(require_user)):
 def _locations(c, pid):
     paths = inventory.location_paths(c, pid)
     n = {r["location_id"]: r["n"] for r in c.execute("SELECT location_id, COUNT(*) AS n FROM devices WHERE profile_id=? GROUP BY location_id", (pid,))}
-    rows = [dict(id=r["id"], name=r["name"], parent_id=r["parent_id"], path=paths.get(r["id"], r["name"]), devices=n.get(r["id"], 0))
+    plan = {r["location_id"] for r in c.execute("SELECT DISTINCT location_id FROM plan_items WHERE profile_id=?", (pid,))} | \
+        {r["location_id"] for r in c.execute("SELECT location_id FROM location_images WHERE location_id IN (SELECT id FROM locations WHERE profile_id=?)", (pid,))}
+    rack = {r["location_id"]: r["n"] for r in c.execute("SELECT location_id, SUM(height) AS n FROM rack_items WHERE profile_id=? GROUP BY location_id", (pid,))}
+    rows = [dict(id=r["id"], name=r["name"], parent_id=r["parent_id"], path=paths.get(r["id"], r["name"]), devices=n.get(r["id"], 0),
+                 kind=r["kind"], rack_units=r["rack_units"], has_plan=r["id"] in plan, rack_used=rack.get(r["id"], 0))
             for r in c.execute("SELECT * FROM locations WHERE profile_id=?", (pid,))]
     return sorted(rows, key=lambda x: x["path"].lower())
 
@@ -96,7 +100,12 @@ def _location_body(c, pid, body, lid=None):
             seen.add(cur)
             r = c.execute("SELECT parent_id FROM locations WHERE id=?", (cur,)).fetchone()
             cur = r["parent_id"] if r else None
-    return name, parent
+    from . import locplan
+    try:
+        kind, units = locplan.check_kind(c, lid, body.get("kind"), body.get("rack_units"))
+    except locplan.PlanError as ex:
+        raise HTTPException(400, str(ex))
+    return name, parent, kind, units
 
 
 @router.get("/locations")
@@ -110,8 +119,8 @@ def locations(pid: int, user=Depends(require_user)):
 def location_create(pid: int, body: dict = Body(...), user=Depends(require_user)):
     with db() as c:
         profile_access(c, user, pid, "edit")
-        name, parent = _location_body(c, pid, body)
-        c.execute("INSERT INTO locations(profile_id, parent_id, name) VALUES(?,?,?)", (pid, parent, name))
+        name, parent, kind, units = _location_body(c, pid, body)
+        c.execute("INSERT INTO locations(profile_id, parent_id, name, kind, rack_units) VALUES(?,?,?,?,?)", (pid, parent, name, kind, units))
         touch(c, pid, user)
         return dict(locations=_locations(c, pid))
 
@@ -120,8 +129,9 @@ def location_create(pid: int, body: dict = Body(...), user=Depends(require_user)
 def location_update(pid: int, lid: int, body: dict = Body(...), user=Depends(require_user)):
     with db() as c:
         profile_access(c, user, pid, "edit")
-        name, parent = _location_body(c, pid, body, lid)
-        if not c.execute("UPDATE locations SET name=?, parent_id=? WHERE id=? AND profile_id=?", (name, parent, lid, pid)).rowcount:
+        name, parent, kind, units = _location_body(c, pid, body, lid)
+        if not c.execute("UPDATE locations SET name=?, parent_id=?, kind=?, rack_units=? WHERE id=? AND profile_id=?",
+                         (name, parent, kind, units, lid, pid)).rowcount:
             raise HTTPException(404, "Standort nicht gefunden")
         touch(c, pid, user)
         return dict(locations=_locations(c, pid))
@@ -137,6 +147,8 @@ def location_delete(pid: int, lid: int, user=Depends(require_user)):
         # Unterstandorte und Geräte rücken eine Ebene nach oben
         c.execute("UPDATE locations SET parent_id=? WHERE parent_id=?", (r["parent_id"], lid))
         c.execute("UPDATE devices SET location_id=? WHERE location_id=?", (r["parent_id"], lid))
+        c.execute("UPDATE patch_panels SET location_id=? WHERE location_id=?", (r["parent_id"], lid))
+        c.execute("DELETE FROM plan_items WHERE kind='room' AND ref_id=?", (lid,))
         c.execute("DELETE FROM locations WHERE id=?", (lid,))
         touch(c, pid, user)
         return dict(locations=_locations(c, pid))

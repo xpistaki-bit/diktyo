@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.35 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.36 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -125,7 +125,11 @@ Each profile has the tabs **Devices**, **IPAM**, **Locations**, **Output** and *
 - **IPAM:** subnets with gateway, DNS, DHCP range and VLAN; usage per subnet; assigned and free addresses (free for
   static use vs. inside the DHCP pool). Notes point out duplicate IPs or MACs, static IPs inside the DHCP range,
   addresses outside every subnet and overlapping subnets.
-- **Locations:** a tree such as house › ground floor › office.
+- **Locations:** a tree such as house › ground floor › office. Each location opens a **floor plan**: upload a picture
+  (PNG, JPEG, WebP, GIF) or use a grid, then drag devices, patch panels/outlets and sub-locations (as rectangles)
+  onto it; dots show the online status and a click opens the device or room. A location of kind **rack** (with its
+  number of rack units) shows a front view: mount devices, patch panels and other items (UPS, blank panel, shelf)
+  by dragging, with port usage per device. Both appear in the PDF section *Floor plans and racks* and in the backup.
 
 ## Topology
 

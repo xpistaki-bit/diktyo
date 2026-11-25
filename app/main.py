@@ -8,7 +8,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import catalog, mailer, msg_en, oidc, selfupdate, twofa, routes_actions, routes_backup, routes_catalog, routes_integrations, routes_inventory, routes_scan, routes_speed, routes_cabling, routes_vlans, routes_prometheus, routes_oidc, security, users
+from . import catalog, mailer, msg_en, oidc, selfupdate, twofa, routes_actions, routes_backup, routes_catalog, routes_integrations, routes_inventory, routes_scan, routes_speed, routes_cabling, routes_locplan, routes_vlans, routes_prometheus, routes_oidc, security, users
 from .scan import ident
 from .auth import (COOKIE, ROLES, client_ip, current_user, lang_of, profile_access, rate_limit, require_admin, require_user,
                    start_session, text, touch)
@@ -32,6 +32,7 @@ app.include_router(routes_integrations.router)
 app.include_router(routes_actions.router)
 app.include_router(routes_speed.router)
 app.include_router(routes_cabling.router)
+app.include_router(routes_locplan.router)
 app.include_router(routes_vlans.router)
 app.include_router(routes_prometheus.router)
 app.include_router(routes_oidc.router)

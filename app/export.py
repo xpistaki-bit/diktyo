@@ -6,7 +6,7 @@ import io
 from . import catalog, inventory, ipam
 from .pdf import Doc
 
-SECTIONS = ("topology", "devices", "ipplan", "vlans", "ports", "cabling", "wlan", "notes")
+SECTIONS = ("topology", "devices", "ipplan", "vlans", "ports", "cabling", "plans", "wlan", "notes")
 MEDIUM = {"de": {"lan": "LAN", "wlan": "WLAN", "mesh": "Mesh-Backhaul", "virtual": "virtuell"},
           "en": {"lan": "LAN", "wlan": "Wi-Fi", "mesh": "Mesh backhaul", "virtual": "virtual"}}
 KIND = {"de": {"static": "statisch", "dhcp": "DHCP", "reserved": "reserviert"}, "en": {"static": "static", "dhcp": "DHCP", "reserved": "reserved"}}
@@ -33,6 +33,7 @@ S = {
     "outlet": ("Dose", "Outlet"), "cable_a": ("Patchkabel", "Patch cable"), "cable_b": ("Verlegekabel", "Installed cable"),
     "cable_c": ("Anschlusskabel", "Device cable"), "panels": ("Patchfelder und Dosen", "Patch panels and outlets"),
     "ports_n": ("{n} Ports", "{n} ports"), "devices_n": ("{n} Geräte", "{n} devices"),
+    "plans": ("Grundrisse und Racks", "Floor plans and racks"), "rack_he": ("Rack · {n} HE", "Rack · {n} U"),
 }
 
 
@@ -241,6 +242,28 @@ def profile_pdf(c, pid, sections=SECTIONS, lang="de"):
                     doc.table([(tr("name", lang), 50, False), (tr("kind", lang), 30, False), (tr("location", lang), 50, False), (tr("port", lang), 52, False)],
                               [[x["name"], tr("panel" if x["kind"] == "panel" else "outlet", lang).split(" ·")[0],
                                 x["location"], f'{len(x["used"])} / {tr("ports_n", lang, n=x["ports"])}'] for x in pans], size=2.7)
+        elif s == "plans":
+            from . import locplan
+            doc.heading(tr("plans", lang))
+            n = 0
+            views = [locplan.view(c, pid, lo["id"]) for lo in c.execute("SELECT id FROM locations WHERE profile_id=?", (pid,)).fetchall()]
+            for v in sorted(views, key=lambda x: x["location"]["path"].lower()):
+                L = v["location"]
+                if L["kind"] == "rack":
+                    if not v["rack"]:
+                        continue
+                    doc.heading(f'{L["path"]} · {tr("rack_he", lang, n=L["rack_units"])}', size=4)
+                    inner, w, h = locplan.rack_svg(v, lang)
+                else:
+                    fig = locplan.plan_svg(c, v, lang)
+                    if not fig:
+                        continue
+                    doc.heading(L["path"], size=4)
+                    inner, w, h = fig
+                doc.figure(inner, w, h, max_scale=1)
+                n += 1
+            if not n:
+                doc.para(tr("none", lang))
         elif s == "wlan":
             doc.heading(tr("wlan", lang))
             by_ap = {}

@@ -449,6 +449,35 @@ MIGRATIONS = [
         bind_hash TEXT NOT NULL,
         created REAL NOT NULL);
     """,
+    # Grundriss/Raumplan und Rack-Ansicht: Art des Standorts (Bereich oder Rack), Grundriss-Bild, Platzierungen, Rack-Belegung
+    """
+    ALTER TABLE locations ADD COLUMN kind TEXT NOT NULL DEFAULT 'area';
+    ALTER TABLE locations ADD COLUMN rack_units INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE locations ADD COLUMN plan TEXT NOT NULL DEFAULT '{}';
+    CREATE TABLE location_images(
+        location_id INTEGER PRIMARY KEY REFERENCES locations(id) ON DELETE CASCADE,
+        mime TEXT NOT NULL,
+        data BLOB NOT NULL,
+        updated TEXT NOT NULL);
+    CREATE TABLE plan_items(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        location_id INTEGER NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL CHECK(kind IN ('device', 'panel', 'room')),
+        ref_id INTEGER NOT NULL,
+        x REAL NOT NULL, y REAL NOT NULL, w REAL NOT NULL DEFAULT 0, h REAL NOT NULL DEFAULT 0,
+        UNIQUE(location_id, kind, ref_id));
+    CREATE TABLE rack_items(
+        id INTEGER PRIMARY KEY,
+        profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        location_id INTEGER NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL CHECK(kind IN ('device', 'panel', 'other')),
+        ref_id INTEGER,
+        u INTEGER NOT NULL,
+        height INTEGER NOT NULL DEFAULT 1,
+        label TEXT NOT NULL DEFAULT '');
+    CREATE INDEX rack_items_loc ON rack_items(location_id);
+    """,
 ]
 
 

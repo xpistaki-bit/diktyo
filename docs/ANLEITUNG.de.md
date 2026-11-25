@@ -144,7 +144,8 @@ Spalten ein, einfache eine.
   zusätzlich den Namen, der im Shelly selbst eingetragen ist („im Gerät: …“), falls er abweicht.
 - **IPAM:** Subnetze mit Gateway, DHCP-Bereich und VLAN, Belegung und freie Adressen. Hinweise (z. B. doppelte IP,
   statische IP im DHCP-Bereich) lassen sich als gelesen markieren.
-- **Standorte:** Baum aus Haus › Etage › Raum. Home Assistant kann seine Bereiche als Standorte liefern.
+- **Standorte:** Baum aus Haus › Etage › Raum. Home Assistant kann seine Bereiche als Standorte liefern. Ein Klick auf
+  einen Standort öffnet seinen **Grundriss** bzw. – bei der Art *Rack* – die **Rack-Ansicht** (siehe unten).
 - **Katalog:** ca. 80 gängige Geräte, eigene Einträge und CSV-Import; dort auch die *Erkennungsregeln* des Netzscans.
   **Aus Systeminfo:** Ausgabe von `dmidecode -t system` (gern zusammen mit `lspci` für die Netzwerkkarten), `hostnamectl`
   oder Windows `Get-CimInstance Win32_ComputerSystem | fl` einfügen – díktyo erkennt Hersteller, Modell, Typ und Ports,
@@ -161,6 +162,31 @@ Spalten ein, einfache eine.
 Im Gerätedialog unter *Dienste (nmap)*: Tiefe wählen (Schnell 100 Ports, Standard 1000 Ports, alle 65535 Ports) und
 *Dienste prüfen*. Der Hintergrunddienst zeigt den Fortschritt und listet danach offene Ports mit Dienst, Produkt und
 Version, Titel von Webseiten (mit Link) und TLS-Zertifikate mit Ablaufdatum.
+
+### Grundriss und Rack-Ansicht
+
+**Grundriss:** Unter *Standorte* auf einen Standort (z. B. „Erdgeschoss“) klicken, dann *Bearbeiten*.
+- *Grundriss-Bild hochladen*: ein Foto, Scan oder Export des Grundrisses als PNG, JPEG, WebP oder GIF (höchstens
+  8 MB). Ohne Bild gibt es ein Raster mit wählbarem Seitenverhältnis.
+- Rechts stehen Unterstandorte, Geräte und Patchfelder/Dosen, die noch nicht eingezeichnet sind – zuerst die dieses
+  Standorts, darunter *Weitere Geräte*. Auf den Plan ziehen oder antippen und dann auf die Stelle tippen (geht auch
+  am Handy). Unterstandorte werden als Rechteck eingezeichnet; die Größe ändert der Griff unten rechts. Geräte
+  ohne Standort bekommen beim Platzieren diesen Standort.
+- Verschieben durch Ziehen, entfernen mit dem roten ×. *Fertig* beendet das Bearbeiten.
+- In der Ansicht zeigen die Punkte den Status (grün online, rot offline, grau nicht geprüft); ein Klick öffnet das
+  Gerät, ein Rechteck den Unterstandort mit seinem eigenen Grundriss.
+
+**Rack-Ansicht:** Einen Standort mit der Art *Rack / Netzwerkschrank* und der Zahl der Höheneinheiten (HE) anlegen,
+z. B. „Rack 1“ unter „Technik“. Gezählt wird wie am Rack von unten (HE 1).
+- *Bearbeiten*, dann Geräte oder Patchfelder aus der Liste ins Rack ziehen bzw. antippen und auf eine freie HE
+  tippen. Die Höhe kommt aus dem Gerätetyp (Server, NAS, Hypervisor 2 HE, sonst 1 HE; Patchfelder über 24 Ports 2 HE).
+- *+ Sonstiges* für USV, Blende, Kabelführung oder Ablage mit Bezeichnung und Höhe.
+- Blöcke nach oben oder unten ziehen; ein Klick öffnet Höhe, Position und *Ausbauen*. Belegte HE werden abgelehnt.
+- Ein eingebautes Gerät oder Patchfeld bekommt das Rack als Standort und steckt immer nur in einem Rack.
+- Die kleinen Kästchen zeigen die Ports: grün verbunden (Geräte), orange belegt (Patchfelder, aus den Kabelwegen).
+
+Im PDF (*Ausgabe*) gibt es dafür den Abschnitt *Grundrisse und Racks*; die Sicherung enthält Bilder, Platzierungen
+und Rack-Belegung.
 
 ## 4. Integrationen
 

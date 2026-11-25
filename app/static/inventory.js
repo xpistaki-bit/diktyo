@@ -4,7 +4,7 @@ const MEDIUM = { lan: 'LAN', wlan: 'WLAN', mesh: 'Mesh-Backhaul', virtual: 'Virt
 const MEDIUM_SHORT = { lan: 'LAN', wlan: 'WLAN', mesh: 'Mesh', virtual: 'virtuell' };
 const PORT_KINDS = ['rj45', 'sfp', 'sfp+', 'sfp28', 'coax', 'dsl', 'fiber', 'usb'];
 const IP_KIND = { static: 'statisch', dhcp: 'DHCP', reserved: 'reserviert' };
-const SECTIONS = [['topology', 'Topologie-Grafik'], ['devices', 'Geräteliste'], ['ipplan', 'IP-Plan pro Subnetz'], ['vlans', 'VLANs (Übersicht, Ports, geplante Umstellung)'], ['ports', 'Portbelegung pro Switch'], ['cabling', 'Verkabelung (Patchfelder, Dosen, Kabelwege)'],
+const SECTIONS = [['topology', 'Topologie-Grafik'], ['devices', 'Geräteliste'], ['ipplan', 'IP-Plan pro Subnetz'], ['vlans', 'VLANs (Übersicht, Ports, geplante Umstellung)'], ['ports', 'Portbelegung pro Switch'], ['cabling', 'Verkabelung (Patchfelder, Dosen, Kabelwege)'], ['plans', 'Grundrisse und Racks'],
   ['wlan', 'WLAN-Übersicht'], ['notes', 'Notizen']];
 let META = null, META_LANG = null;
 async function meta(pid) {
@@ -472,19 +472,26 @@ async function vlanDialog(ctx, v, vlans) {
 
 /* ---------------------------------------------------------------- Standorte */
 async function tabLocations(ctx) {
+  if (ctx.sub && /^\d+$/.test(ctx.sub)) return locView(ctx, +ctx.sub);
   const P = `/api/profiles/${ctx.pid}`;
   const { locations } = await api('GET', `${P}/locations`);
   const depth = l => (l.path.match(/ › /g) || []).length;
   ctx.el.innerHTML = `<div class="row between"><p class="muted" style="margin:0">${t('Standorte bilden einen Baum, zum Beispiel Haus › Erdgeschoss › Büro.')}</p>
       ${ctx.canEdit ? `<button class="pri sm" id="addloc">${t('+ Standort')}</button>` : ''}</div>
-    <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>${t('Standort')}</th><th>${t('Geräte')}</th><th></th></tr></thead><tbody>
-    ${locations.length ? locations.map(l => `<tr data-id="${l.id}"><td><span style="padding-left:${depth(l) * 22}px">${depth(l) ? '<span class="muted">└ </span>' : ''}${h(l.name)}</span></td><td class="mono">${l.devices}</td>
-      <td class="act">${ctx.canEdit ? `<button class="sm" data-sub>${t('+ Unterstandort')}</button><button class="sm" data-edit>${t('Bearbeiten')}</button><button class="sm danger" data-del>${t('Löschen')}</button>` : ''}</td></tr>`).join('')
-      : `<tr><td colspan="3" class="empty">${t('Noch keine Standorte.')}</td></tr>`}</tbody></table></div>`;
+    <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>${t('Standort')}</th><th>${t('Art')}</th><th>${t('Geräte')}</th><th></th></tr></thead><tbody>
+    ${locations.length ? locations.map(l => `<tr data-id="${l.id}"><td><span style="padding-left:${depth(l) * 22}px">${depth(l) ? '<span class="muted">└ </span>' : ''}<a href="#/p/${ctx.pid}/standorte/${l.id}">${h(l.name)}</a></span></td>
+      <td>${l.kind === 'rack' ? `${t('Rack')} <span class="muted small">${t('{u} / {n} HE', { u: l.rack_used, n: l.rack_units })}</span>` : `<span class="muted">${t('Bereich')}</span>`}</td><td class="mono">${l.devices}</td>
+      <td class="act"><a class="btn sm" href="#/p/${ctx.pid}/standorte/${l.id}">${l.kind === 'rack' ? t('Rack-Ansicht') : l.has_plan ? t('Grundriss') : t('+ Grundriss')}</a>${ctx.canEdit ? `<button class="sm" data-sub>${t('+ Unterstandort')}</button><button class="sm" data-edit>${t('Bearbeiten')}</button><button class="sm danger" data-del>${t('Löschen')}</button>` : ''}</td></tr>`).join('')
+      : `<tr><td colspan="4" class="empty">${t('Noch keine Standorte.')}</td></tr>`}</tbody></table></div>`;
   const form = async (l, parent) => {
     const r = await dialog(l ? t('Standort bearbeiten') : t('Neuer Standort'), `<label>${t('Name')}</label><input name="name" required maxlength="80" value="${h(l?.name || '')}" placeholder="${t('z. B. Keller')}">
-      <label>${t('Liegt in')}</label><select name="parent_id"><option value="">${t('– oberste Ebene –')}</option>${locations.filter(x => !l || (x.id !== l.id && !x.path.startsWith(l.path + ' › '))).map(x => `<option value="${x.id}" ${x.id === (l ? l.parent_id : parent) ? 'selected' : ''}>${h(x.path)}</option>`).join('')}</select>`,
-      { onOk: f => { const v = fd(f); v.parent_id = v.parent_id ? +v.parent_id : null; return l ? api('PUT', `${P}/locations/${l.id}`, v) : api('POST', `${P}/locations`, v); } });
+      <label>${t('Liegt in')}</label><select name="parent_id"><option value="">${t('– oberste Ebene –')}</option>${locations.filter(x => !l || (x.id !== l.id && !x.path.startsWith(l.path + ' › '))).map(x => `<option value="${x.id}" ${x.id === (l ? l.parent_id : parent) ? 'selected' : ''}>${h(x.path)}</option>`).join('')}</select>
+      <div class="grid2"><div><label>${t('Art')}</label><select name="kind"><option value="area">${t('Bereich (Haus, Etage, Raum) – mit Grundriss')}</option><option value="rack" ${l?.kind === 'rack' ? 'selected' : ''}>${t('Rack / Netzwerkschrank')}</option></select></div>
+        <div data-units><label>${t('Höheneinheiten (HE)')}</label><input name="rack_units" type="number" min="1" max="60" value="${l?.rack_units || 12}"></div></div>`,
+      {
+        onOpen: f => { const k = $('[name=kind]', f), u = $('[data-units]', f), sync = () => { u.hidden = k.value !== 'rack'; }; k.onchange = sync; sync(); },
+        onOk: f => { const v = fd(f); v.parent_id = v.parent_id ? +v.parent_id : null; v.rack_units = +v.rack_units || 0; return l ? api('PUT', `${P}/locations/${l.id}`, v) : api('POST', `${P}/locations`, v); },
+      });
     if (r) ctx.reload();
   };
   const byId = id => locations.find(x => x.id === +id);
