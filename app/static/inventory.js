@@ -181,6 +181,7 @@ async function deviceDialog(ctx, did) {
       const pc = () => { const n = portCount(readPorts($('#pe', f))); $('#pcount', f).textContent = n ? `(${n})` : ''; };
       bindPortEditor($('#pe', f), pc); pc();
       $$('[data-dl]', f).forEach(a => { a.href = `${P}/configs/${a.dataset.dl}/download`; a.setAttribute('download', ''); });
+      $$('[data-dltxt]', f).forEach(a => { a.href = `${P}/configs/${a.dataset.dltxt}/download?text=1`; a.setAttribute('download', ''); });
       $$('[data-diff]', f).forEach(b => b.onclick = () => showDiff(ctx.pid, b.dataset.diff, b.dataset.prev));
       if (d && $('#svcbox', f)) bindServices(ctx, d, $('#svcbox', f));
       const di = $('[data-dismiss-ident]', f);
@@ -314,6 +315,7 @@ function configTable(d) {
     ${d.configs.map(x => `<tr data-cfg="${x.id}"><td class="mono small">${h(fmtDate(x.created))}</td><td class="mono small">${h(x.filename)}</td>
       <td class="mono small">${Math.max(1, Math.round(x.size / 1024))} KB</td>
       <td class="act"><a class="btn sm" href="/api/profiles/${d.profile_id || ''}" data-dl="${x.id}">${t('Herunterladen')}</a>
+        ${x.readable && !x.is_text ? `<a class="btn sm" href="#" data-dltxt="${x.id}" title="${h(t('Entschlüsselt als Text, Passwörter und Schlüssel maskiert'))}">${t('als Text')}</a>` : ''}
         ${x.prev_id ? `<button type="button" class="sm" data-diff="${x.id}" data-prev="${x.prev_id}">${t('Änderungen')}</button>` : ''}</td></tr>`).join('')}
   </tbody></table></div>
   <p class="muted small">${t('Gesichert werden die Konfigurationen der Geräte, die über eine Integration angebunden sind (FRITZ!Box, ASUS, Switch per SSH). Die Dateien liegen verschlüsselt in díktyo; „Änderungen“ vergleicht Text-Konfigurationen mit dem vorherigen Stand.')}</p>`;

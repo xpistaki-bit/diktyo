@@ -159,7 +159,8 @@ def _slim_view(driver, res):
         return dict(info=res.get("info"), traffic=res.get("traffic"), wan=res.get("wan"), analyzer=res.get("analyzer"),
                     nodes=[{k: n[k] for k in ("name", "model", "ip", "online", "wired_backhaul")} for n in res.get("nodes", [])],
                     clients=len(res.get("clients", [])), online=sum(1 for x in res.get("clients", []) if x["online"]),
-                    wlan=sum(1 for x in res.get("clients", []) if x["online"] and x["medium"] == "wlan"))
+                    wlan=sum(1 for x in res.get("clients", []) if x["online"] and x["medium"] == "wlan"),
+                    guest=res.get("guest") or [], sdn=bool(res.get("sdn")))
     if driver == "proxmox":
         return dict(info=res.get("info"), nodes=res.get("nodes"), guests=len(res.get("guests", [])),
                     running=sum(1 for g in res.get("guests", []) if g["running"]))

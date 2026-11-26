@@ -266,6 +266,18 @@ Angaben, bevor gespeichert wird.
   (Link-Speed), nicht der Datenverkehr.
 - **Diagnose** (Knopf an der Karte) prüft Schritt für Schritt Anmeldung, Client-Liste, Traffic Monitor, Traffic Analyzer
   und Firmware-Status und zeigt, was die Firmware tatsächlich liefert.
+- **Gastnetze:** Die Karte zeigt die eingerichteten Gastnetze je Band mit Status. Im Gerätedialog unter *Aktionen* lassen
+  sie sich ein- und ausschalten (mit Zurückschalten und als Zeitplan, z. B. Gastnetz nur Fr–So). Das WLAN des Routers
+  startet dafür kurz neu. Bei Firmware mit **Gastnetz Pro** (SDN, z. B. ExpertWiFi-Modelle mit mehreren Netzprofilen)
+  verwaltet der Router Gastnetze anders – dort zeigt díktyo nur einen Hinweis und bietet das Schalten (noch) nicht an.
+- **Neustart** des Hauptrouters unter *Aktionen* (Internet und WLAN sind etwa zwei Minuten weg).
+- **Konfigurations-Backup:** Die Einstellungsdatei (`Settings_<Modell>.CFG`) ist verschlüsselt. díktyo entschlüsselt sie
+  zum Vergleichen: *Änderungen* zeigt, welche Einstellungen sich geändert haben (sortiert als `name=wert`), *als Text*
+  lädt die lesbare Fassung herunter. Passwörter und Schlüssel (Admin-Passwort, WLAN-Schlüssel, VPN-Schlüssel …) erscheinen
+  dabei nur als `••••••` mit einer kurzen Prüfsumme – so sieht man, *dass* sich ein Schlüssel geändert hat, aber nicht
+  welcher. Wiederherstellen geht weiter mit der Originaldatei (*Herunterladen*) in der Weboberfläche des Routers. Weil die
+  Datei bei jedem Export andere Zufallsbytes enthält, vergleicht díktyo den entschlüsselten Inhalt – eine unveränderte
+  Konfiguration wird nicht erneut abgelegt.
 
 ### Proxmox VE
 
@@ -661,7 +673,8 @@ Der Reiter **Verlauf** zeigt, was sich wann geändert hat – und wodurch:
   (Einstellung in der Integration) oder per *Konfiguration sichern*.
 - Unveränderte Konfigurationen werden nicht doppelt abgelegt; pro Gerät bleiben die letzten 30 Stände.
 - Die Dateien liegen verschlüsselt in díktyo. Im Gerätedialog unter *Konfigurations-Backups*: herunterladen und bei
-  Text-Konfigurationen (FRITZ!Box, Switch) die **Änderungen** zum vorherigen Stand ansehen.
+  Text-Konfigurationen (FRITZ!Box, Switch, OPNsense) und der entschlüsselten ASUS-Einstellungsdatei die **Änderungen** zum
+  vorherigen Stand ansehen (ASUS zusätzlich *als Text*, Passwörter maskiert).
 - Die FRITZ!Box-Datei ist mit dem „Passwort für die Konfigurationsdatei“ (sonst dem Anmeldepasswort) geschützt – du
   brauchst es zum Wiederherstellen in der FRITZ!Box.
 - **Bestätigung (zweiter Faktor):** Neuere FRITZ!OS-Versionen verlangen für den Export eine Bestätigung. díktyo zeigt
@@ -690,6 +703,7 @@ Topologie-Seitenleiste und in der Frontplatte beim angeklickten Port:
 | MikroTik | Port ab-/einschalten, PoE neu starten, WLAN ein/aus, Wake-on-LAN, Neustart | Benutzergruppe mit write, reboot, test (und api bzw. rest-api) |
 | OPNsense | Internetzugang je Gerät (über den Alias), Neustart | Alias + Block-Regel, Recht *Firewall: Alias: Edit* |
 | OpenWrt | WLAN ein/aus (mit Zurückschalten), Neustart | Benutzer root oder rpcd-Benutzer mit dem `write`-Teil der ACL (siehe Kapitel 4) |
+| ASUS | Gastnetz ein/aus (mit Zurückschalten, nicht bei „Gastnetz Pro“/SDN), Neustart | Admin-Konto des Routers (wie für das Lesen) |
 | Docker | Container starten, stoppen, neu starten | Socket-Proxy mit POST und ALLOW_* |
 | UniFi | verwaltetes Gerät (Gateway, Switch, AP) neu starten; PoE an einem Switch-Port neu starten | API-Schlüssel mit Schreibrecht |
 | Omada | verwaltetes Gerät neu starten; PoE an einem Switch-Port ein/aus (mit Zurückschalten) und neu starten | Open-API-App mit Schreibrecht (Rolle Administrator) |

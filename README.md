@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.41 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.42 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -322,7 +322,11 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
   session open, and the default interval is 5 minutes. The Traffic Monitor (WAN, LAN and each Wi-Fi band, with WAN
   history) and, when enabled on the router, the Traffic Analyzer (data volume per client over the last 24 hours) are
   shown on the card, the overview, the device dialog and the topology. ASUS exposes no live rate per Wi-Fi client.
-  "Diagnose" on the card checks step by step what the firmware returns.
+  "Diagnose" on the card checks step by step what the firmware returns. Actions: guest networks on/off (with
+  switch-back and schedules; not on firmware with "Guest Network Pro"/SDN) and restart. The settings backup (`.CFG`) is
+  decrypted for comparing: changes are shown as sorted `name=value` lines and can be downloaded as text, with passwords
+  and keys masked (a short checksum shows that a key changed); unchanged settings are detected despite the random bytes
+  in each export.
 - **Proxmox VE** (API token, read-only): nodes, VMs and containers with status, MAC, bridge, VLAN tag and IP
   addresses (via the QEMU guest agent for VMs and the interface list for containers); they are attached to their host
   as "virtual". The token setup is shown in the dialog and in [docs/architecture.md](docs/architecture.md).
@@ -405,7 +409,8 @@ Integrations that can read a device's configuration back it up weekly or daily (
 demand ("Back up configuration"): the FRITZ!Box export (needs the FRITZ!Box user), the settings file of ASUS routers,
 and the running configuration of switches via SSH (`show running-config`; sign-in with user and password, with
 díktyo's own key – its public key is shown in the dialog to upload to the switch – or with your own private key). Unchanged configurations are not stored twice; the last 30 versions per device are kept, encrypted on
-disk. The device dialog lists them for download and shows the changes between two text configurations. With a backup
+disk. The device dialog lists them for download and shows the changes between two text configurations (and between
+two decrypted ASUS settings files). With a backup
 passphrase, the newest configuration of each device is included in díktyo backups (encrypted with the passphrase).
 
 ## Catalog

@@ -350,11 +350,17 @@ def _cfg(c, pid, cid):
 
 
 @router.get("/api/profiles/{pid}/configs/{cid}/download")
-def config_download(pid: int, cid: int, user=Depends(require_user)):
+def config_download(pid: int, cid: int, text: int = 0, user=Depends(require_user)):
     with db() as c:
         profile_access(c, user, pid)
         r = _cfg(c, pid, cid)
-        audit(c, "config.download", user["id"], pid, dict(id=cid))
+        audit(c, "config.download", user["id"], pid, dict(id=cid, text=bool(text)))
+    if text and not r["is_text"]:  # lesbare Fassung (z. B. entschlüsselte ASUS-CFG, Geheimnisse maskiert)
+        body = configbackup.text_of(r)
+        if body is None:
+            raise HTTPException(400, "Diese Datei lässt sich nicht lesbar machen")
+        stem = r["filename"].rsplit(".", 1)[0]
+        return Response(body, media_type="text/plain; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="{stem}.txt"'})
     data = configbackup.read(cid)
     return Response(data, media_type="text/plain; charset=utf-8" if r["is_text"] else "application/octet-stream",
                     headers={"Content-Disposition": f'attachment; filename="{r["filename"]}"'})
@@ -366,7 +372,7 @@ def config_diff(pid: int, cid: int, other: int, user=Depends(require_user)):
         profile_access(c, user, pid)
         d = configbackup.diff(c, pid, cid, other)
     if d is None:
-        raise HTTPException(400, "Nur Text-Konfigurationen lassen sich vergleichen")
+        raise HTTPException(400, "Diese Konfigurationen lassen sich nicht vergleichen")
     return d
 
 

@@ -489,3 +489,22 @@ _PATTERNS = sorted(((de, _compile(de), en_) for de, en_ in PATTERNS), key=lambda
 
 # ------------------------------------------------------------ 0.41: Verlauf löschen
 ERR_EN.update({"Nichts zum Löschen gewählt": "Nothing selected to delete", "Ungültiger Zeitraum": "Invalid period"})
+
+
+# ------------------------------------------------------------ 0.42: ASUS-Aktionen und lesbare Konfiguration
+ERR_EN.update({
+    "Diese Konfigurationen lassen sich nicht vergleichen": "These configurations cannot be compared",
+    "Diese Datei lässt sich nicht lesbar machen": "This file cannot be made readable",
+    "ASUS-Router neu starten": "Restart ASUS router",
+    "Internet und WLAN sind etwa zwei Minuten weg; AiMesh-Knoten verbinden sich danach neu.": "Internet and Wi-Fi are gone for about two minutes; AiMesh nodes reconnect afterwards.",
+    "Router nimmt die Einstellung nicht an (Sitzung abgelaufen)": "Router does not accept the setting (session expired)",
+    "Gastnetz nicht gefunden – Integration einmal abfragen": "Guest network not found – poll the integration once",
+    "Geräte im Gastnetz verlieren die Verbindung.": "Devices in the guest network lose their connection.",
+    "Das WLAN des Routers startet dafür kurz neu.": "The router's Wi-Fi restarts briefly for this.",
+    "ASUS-Router startet neu (dauert etwa zwei Minuten)": "ASUS router is restarting (takes about two minutes)",
+})
+PATTERNS += [
+    ("Gastnetz „{}“ ({}) einschalten", "Switch on guest network “{}” ({})"), ("Gastnetz „{}“ ({}) ausschalten", "Switch off guest network “{}” ({})"),
+    ("Gastnetz „{}“ eingeschaltet", "Guest network “{}” switched on"), ("Gastnetz „{}“ ausgeschaltet", "Guest network “{}” switched off"),
+]
+_PATTERNS = sorted(((de, _compile(de), en_) for de, en_ in PATTERNS), key=lambda x: _rank(x[0]))

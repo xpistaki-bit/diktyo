@@ -18,7 +18,7 @@ from .db import audit, db, now, parse_ts
 from .drivers import DRIVERS, ERRORS
 
 INFRA = ("router", "modem", "firewall", "switch", "ap", "mesh", "repeater", "powerline", "hypervisor")
-CONFIG_CHANGING = {"wlan", "internet", "port", "reboot"}
+CONFIG_CHANGING = {"wlan", "internet", "port", "reboot", "guest"}
 BACKUP_MAX_AGE = 3600
 
 
@@ -82,7 +82,7 @@ def _same_lan(ip, host, c, pid):
 
 
 def _undo_options(kind):
-    return kind in ("wlan", "internet", "port", "poe", "relay", "dns_blocking")
+    return kind in ("wlan", "guest", "internet", "port", "poe", "relay", "dns_blocking")
 
 
 def _act(kind, iid, params, label, detail="", danger=False, blocked=""):
@@ -277,6 +277,19 @@ def available(c, pid, did, port_no=None):
             out.append(_act("reboot", row["id"], {}, "MikroTik neu starten", "Alle Verbindungen über dieses Gerät sind etwa eine Minute weg.", danger=True))
         elif mac and _uplink(c, did)[0] == row["device_id"]:
             out.append(_act("wol", row["id"], dict(mac=mac), "Aufwecken (Wake-on-LAN)", f"Weckruf an {mac} über den MikroTik"))
+    # ASUS: klassische Gastnetze ein/aus (nicht bei „Gastnetz Pro“/SDN), Neustart
+    for row in _integrations(c, pid, "asuswrt"):
+        if row["device_id"] != did:
+            continue
+        st = _state(row).get("result") or {}
+        if not st.get("sdn"):
+            for g in st.get("guest") or []:
+                out.append(_act("guest", row["id"], dict(unit=g["unit"], idx=g["idx"], on=not g["enabled"], ssid=g["ssid"]),
+                                f"Gastnetz „{g['ssid']}“ ({g['band']}) {'ausschalten' if g['enabled'] else 'einschalten'}",
+                                "Geräte im Gastnetz verlieren die Verbindung." if g["enabled"] else "Das WLAN des Routers startet dafür kurz neu.",
+                                danger=g["enabled"]))
+        out.append(_act("reboot", row["id"], {}, "ASUS-Router neu starten",
+                        "Internet und WLAN sind etwa zwei Minuten weg; AiMesh-Knoten verbinden sich danach neu.", danger=True))
     # OpenWrt: WLAN ein/aus, Neustart
     for row in _integrations(c, pid, "openwrt"):
         st = _state(row).get("result") or {}
@@ -429,7 +442,7 @@ def _undo_at(choice):
 
 
 def inverse(kind, params):
-    if kind == "wlan":
+    if kind in ("wlan", "guest"):
         return dict(params, on=not params["on"])
     if kind == "internet":
         return dict(params, block=not params["block"])

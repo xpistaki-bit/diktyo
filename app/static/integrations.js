@@ -5,7 +5,7 @@ const DRIVER_HELP = {
   snmp: 'díktyo liest nur: Port-Status, Traffic, gelernte MAC-Adressen und LLDP-Nachbarn.',
 };
 Object.assign(DRIVER_HELP, {
-  asuswrt: 'díktyo liest nur: Clients mit Mesh-Knoten und WLAN-Band sowie die AiMesh-Knoten.',
+  asuswrt: 'díktyo liest Clients mit Mesh-Knoten und WLAN-Band, die AiMesh-Knoten und die Gastnetze; schalten (Gastnetz, Neustart) nur über „Aktionen“ mit Bestätigung.',
   proxmox: 'Liest Knoten, VMs und LXCs mit MAC, Bridge, VLAN-Tag und IP (über den QEMU Guest Agent bzw. die LXC-Schnittstellen) und hängt sie virtuell an ihren Host.',
   homeassistant: 'Namen und Bereiche kommen per MAC-Adresse aus HA; Status und Ereignisse gehen per MQTT an HA. Für Benachrichtigungen die Blueprint aus docs/home-assistant importieren.',
 });
@@ -357,6 +357,8 @@ function asusCard(i) {
   return `<div class="kv">${info.model ? `<span>${t('Modell')}: <b>${h(info.model)}</b></span>` : ''}${info.firmware ? `<span>Firmware: <b>${h(info.firmware)}</b></span>` : ''}
       ${r.clients != null ? `<span>${t('Clients')}: <b>${r.online} ${t('online')} / ${r.clients}</b> (${t('{n} per WLAN', { n: r.wlan })})</span>` : ''}</div>
     ${r.nodes?.length ? `<div class="kv">${r.nodes.map(n => `<span><span class="dot ${n.online ? 'on' : 'off'}"></span> <b>${h(n.name)}</b> <span class="mono small">${h(n.ip)}</span> <small class="muted">${n.wired_backhaul ? t('LAN-Backhaul') : n.ip === info.ip ? t('Hauptrouter') : t('Mesh')}</small></span>`).join('')}</div>` : ''}
+    ${r.guest?.length ? `<div class="kv">${r.guest.map(g => `<span><span class="dot ${g.enabled ? 'on' : 'off'}"></span> ${t('Gastnetz')} <b>${h(g.ssid)}</b> <small class="muted">${h(g.band)}</small></span>`).join('')}</div>` : ''}
+    ${r.sdn ? `<p class="muted small">${t('Gastnetze laufen über „Gastnetz Pro“ (SDN) – Schalten aus díktyo wird dafür noch nicht unterstützt.')}</p>` : ''}
     ${trafficHtml}
     ${tr.wan ? `<div class="row between" style="margin-top:8px"><b class="small">${t('WAN-Traffic')}</b>${rangeButtons(tabIntegrations.since || 7200)}</div><div class="chartbox"></div>` : ''}
     ${topHtml}

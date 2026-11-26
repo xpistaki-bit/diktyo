@@ -59,6 +59,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | VLANs aus MikroTik, OPNsense, UniFi und Omada | Produktiver VLAN-Stand je Port jetzt auch aus MikroTik (Bridge-VLAN-Tabelle, PVID, VLAN-Schnittstellen), OPNsense (VLAN-Geräte), UniFi (Port-Profile und Port-Einstellungen über die klassische API) und Omada (Netze je Switch); Kennzeichen nennt die Quelle, SNMP hat Vorrang, Umstellungsliste hakt sich auch dort von selbst ab | 0.39 |
 | OpenWrt (ubus/rpcd) | Integration über die JSON-RPC-Schnittstelle von LuCI (root oder eigener rpcd-Benutzer mit ACL): Modell, Version, Ports mit Link/Tempo/Traffic, WAN-Traffic, Clients aus DHCP-Leases und WLAN-Zuordnungen (Band, Signal), WLANs, Bridge-VLANs (DSA) für den VLAN-Plan, Konfigurations-Backup wie in LuCI (deterministisch neu gepackt, damit „unverändert“ erkannt wird); Aktionen WLAN ein/aus und Neustart; WAN in der Übersicht | 0.40 |
 | Aufgeräumte Navigation | Klick auf die E-Mail oben öffnet *Mein Konto* (Passwort, zweiter Faktor, Sitzungen, OIDC, Profile und Freigaben – ersetzt den Reiter *Freigabe*); *Einstellungen* mit *Profil-Einstellungen* (Benachrichtigungen und Quarantäne, vorher unter Integrationen) und *System*, jede Kachel mit gleichem Kopf; neuer Reiter *Aktionen* mit Zeitplänen und letzten Aktionen; Verlauf speichern (CSV mit Filter) und löschen (Besitzer, nach Art und Alter) | 0.41 |
+| ASUS: Aktionen und lesbarer Konfig-Vergleich | Gastnetze (klassisch, wlX.Y) ein/aus mit Zurückschalten und Zeitplan, Neustart über applyapp.cgi; bei „Gastnetz Pro“ (SDN) nur Anzeige; Einstellungsdatei (CFG, HDR1/HDR2) entschlüsselt: Änderungen als sortierte `name=wert`-Zeilen, Download als Text, Passwörter/Schlüssel maskiert mit Prüfsumme, „unverändert“ trotz Zufallsbytes erkannt | 0.42 |
 | MikroTik und Sprache | MikroTik über die RouterOS-API (Port 8728/8729, RouterOS 6 und 7) als Standard, REST weiter wählbar, kein SSH-Backup mehr (RouterOS hat eigene Backups); alle Server-Meldungen, Aktionen, Diagnosen und gespeicherten Fehler auf Englisch, wenn Englisch gewählt ist (auch in Benachrichtigungen), Test gegen fehlende Übersetzungen; automatisch erzeugte Gerätenamen auf Englisch | 0.33.1 |
 | Netzplan-Export | Topologie als SVG, PNG (doppelte Auflösung), draw.io (Geräte mit IP/MAC/Typ/Modell/Standort als Eigenschaften) und Poster-PDF A4–A0 mit Schriftfeld, wahlweise auf A4 gekachelt mit Überlappung und Blattnummern; Gruppen aufklappbar; in Topologie und Ausgabe | 0.33 |
 
@@ -84,6 +85,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | devolo Powerline | Protokoll nach der devolo-Geräte-API (mDNS, Protobuf, Digest) gegen nachgebildete Antworten getestet, noch nicht an echten Adaptern | Nutzer mit devolo |
 | VLANs aus UniFi/Omada/OPNsense/MikroTik | nach API-Beschreibungen gegen nachgebildete Antworten getestet; UniFi-Port-VLANs kommen aus der klassischen API (ob der API-Schlüssel dort reicht, ist ungeprüft), Omada-Endpunkt networks-detail aus der Open-API-Spezifikation | Tester mit UniFi/Omada/MikroTik |
 | OpenWrt | gegen nachgebildete ubus-Antworten (OpenWrt 24.10, DSA) getestet, noch nicht an einem echten Router; ACL-Beispiel ungeprüft | Nutzer mit OpenWrt |
+| ASUS: Gastnetz/Neustart, CFG-Entschlüsselung | Schaltbefehle wie die ASUS-App bzw. bekannte Bibliotheken, gegen nachgebildeten Router getestet (bewusst nicht am echten EBM68); CFG-Format nach dem nvram-Code der Firmware, mit selbst erzeugten Dateien getestet; Gastnetz Pro (SDN) noch nicht schaltbar | Nutzer (EBM68) |
 | OPNsense (inkl. Top Talkers), Docker | gegen nachgebildete APIs getestet | Tester |
 | Proxmox: Live-Raten je VM, VLAN-Tags der Gäste im VLAN-Plan | gegen nachgebildete API getestet | Nutzer (Proxmox vorhanden) |
 | iperf3 zu einem Gerät | gegen nachgebildete iperf3-Ausgabe getestet | Nutzer |
@@ -112,8 +114,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 |---|---|---|
 | pfSense: wartet auf Netgates offizielle REST-API (das Community-Paket „pfrest“ ist im Wartungsmodus und endet nach pfSense 26.10) | ★★ | M |
 | Synology / QNAP / TrueNAS / Unraid: Status, Laufwerke, Dienste | ★★ | M |
-| ASUS: Aktionen (Gastnetz, Neustart) und lesbarer Konfig-Vergleich (CFG entschlüsseln) | ★★ | M |
-| Erledigt: ~~OPNsense~~ (0.16), ~~Docker~~ (0.16), ~~Shelly/Tasmota~~ (0.22), ~~Aktionen UniFi/Omada~~ (0.22), ~~Pi-hole/AdGuard~~ (0.23), ~~Netgear (SNMP-Profile), devolo Powerline~~ (0.38), ~~VLANs aus MikroTik/OPNsense/UniFi/Omada~~ (0.39), ~~OpenWrt~~ (0.40) | | |
+| Erledigt: ~~OPNsense~~ (0.16), ~~Docker~~ (0.16), ~~Shelly/Tasmota~~ (0.22), ~~Aktionen UniFi/Omada~~ (0.22), ~~Pi-hole/AdGuard~~ (0.23), ~~Netgear (SNMP-Profile), devolo Powerline~~ (0.38), ~~VLANs aus MikroTik/OPNsense/UniFi/Omada~~ (0.39), ~~OpenWrt~~ (0.40), ~~ASUS: Aktionen und lesbarer Konfig-Vergleich~~ (0.42) | | |
 
 ### Wünsche aus dem Test
 

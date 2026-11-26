@@ -1,10 +1,16 @@
-"""Treiber ASUS-Router mit AiMesh (ASUSWRT, z. B. ExpertWiFi EBM68, ZenWiFi, RT-AX…), nur lesen.
+"""Treiber ASUS-Router mit AiMesh (ASUSWRT, z. B. ExpertWiFi EBM68, ZenWiFi, RT-AX…).
 
 Nutzt die Schnittstelle der Weboberfläche (login.cgi, appGet.cgi) wie die ASUS-App. Liefert die Clients mit Name, IP, MAC,
 Verbindung (LAN, WLAN 2,4/5/6 GHz) und dem Mesh-Knoten, an dem sie hängen, sowie die AiMesh-Knoten selbst.
 Hinweis: ASUS-Router erlauben nur eine Admin-Sitzung; díktyo hält seine Sitzung offen, statt sich jedes Mal neu anzumelden.
+
+Aktionen (applyapp.cgi wie die ASUS-App): klassische Gastnetze (wlX.Y_bss_enabled) ein/aus, Neustart. Bei Firmware mit
+„Gastnetz Pro“ (SDN, z. B. ExpertWiFi) verwaltet der Router die Gastnetze anders – dort bietet díktyo das Schalten nicht an.
+Konfigurations-Backup: Settings_<Modell>.CFG; die Datei wird zum Vergleichen entschlüsselt (HDR1 Klartext, HDR2 mit
+Zufallswert verschleiert) und als sortierte Liste „schlüssel=wert“ gezeigt, Passwörter und Schlüssel maskiert.
 """
 import base64
+import hashlib
 import json
 import re
 
@@ -25,6 +31,8 @@ CAN_BACKUP = True
 UA = "asusrouter--DUTUtil-"
 HOOK = ("get_clientlist();get_cfg_clientlist();nvram_get(productid);nvram_get(firmver);nvram_get(buildno);nvram_get(extendno);"
         "nvram_get(lan_ipaddr);nvram_get(label_mac);nvram_get(webs_state_flag);nvram_get(webs_state_info)")
+GUEST_BAND = {0: "2,4 GHz", 1: "5 GHz", 2: "5 GHz-2 / 6 GHz", 3: "6 GHz"}
+GUEST_HOOK = "".join(f";nvram_get(wl{u}.{i}_bss_enabled);nvram_get(wl{u}.{i}_ssid)" for u in range(4) for i in (1, 2, 3)) + ";nvram_get(sdn_rl)"
 BANDS = {"0": ("lan", ""), "1": ("wlan", "2,4 GHz"), "2": ("wlan", "5 GHz"), "3": ("wlan", "5 GHz (2)"), "4": ("wlan", "6 GHz")}
 
 
@@ -89,6 +97,120 @@ def backup(conf, state):
         raise DriverError("Router hat keine Einstellungsdatei geliefert")
     state["token"] = token
     return f"Settings_{product}.CFG", r.content, False
+
+
+# ------------------------------------------------------------ Einstellungsdatei (CFG) lesbar machen
+CFG_MAGIC_NEW = (b"HDR2", b"N55U", b"AC55U")
+SECRET = re.compile(r"(passw|psk|secret|token|_key\d*$|^key$|_pin$|wps_device_pin|_crt|cert|private|_hash$|_passphrase)", re.I)
+
+
+def decode_cfg(data):
+    """Settings_*.CFG -> {nvram-Schlüssel: Wert} oder None, wenn das Format unbekannt ist.
+    HDR1: 4 Byte Kennung, 4 Byte Länge, dann Klartext „k=v\0k=v\0…“. HDR2 (und N55U/AC55U): 4 Byte Kennung, 3 Byte Länge,
+    1 Byte Zufallswert r; jedes Byte b steht für (0xFF + r − b) & 0xFF, Bytes über 0xFC sind Trennzeichen (ehemals 0)."""
+    if not isinstance(data, (bytes, bytearray)) or len(data) < 8:
+        return None
+    if data[:4] == b"HDR1":
+        n = int.from_bytes(data[4:8], "little")
+        body = bytes(data[8:8 + n])
+    elif data[:4] in CFG_MAGIC_NEW or data[:5] in CFG_MAGIC_NEW:
+        off = 5 if data[:5] == b"AC55U" else 4
+        n = int.from_bytes(data[off:off + 3], "little")
+        rnd = data[off + 3]
+        raw = data[off + 4:off + 4 + n]
+        out = bytearray(len(raw))
+        for i, b in enumerate(raw):
+            if b > 0xFC:
+                out[i] = 0  # Trenner (mehrere hintereinander sind Füllung)
+            else:
+                out[i] = (0xFF + rnd - b) & 0xFF
+        body = bytes(out)
+    else:
+        return None
+    entries = [x for x in body.split(b"\0") if x]
+    if not entries:
+        return None
+    pairs = {}
+    good = 0
+    for e in entries:
+        k, sep, v = e.decode("utf-8", "replace").partition("=")
+        if sep and k and re.fullmatch(r"[\w.:\-]{1,80}", k):
+            pairs[k] = v
+            good += 1
+    return pairs if good >= max(1, int(len(entries) * 0.8)) else None
+
+
+def _mask(k, v):
+    if not v or not SECRET.search(k):
+        return v
+    return f"•••••• (#{hashlib.sha256(v.encode()).hexdigest()[:4]})"
+
+
+def config_text(data):
+    """Lesbare, sortierte Fassung der Einstellungsdatei (Geheimnisse maskiert) oder None."""
+    d = decode_cfg(data)
+    if d is None:
+        return None
+    return "\n".join(f"{k}={_mask(k, v)}" for k, v in sorted(d.items())) + "\n"
+
+
+def canonical(data):
+    """Für „unverändert?“: entschlüsselter Inhalt (die Datei selbst enthält jedes Mal andere Zufallsbytes)."""
+    d = decode_cfg(data)
+    return data if d is None else json.dumps(d, sort_keys=True, ensure_ascii=False).encode()
+
+
+# ------------------------------------------------------------ Gastnetze und Aktionen
+def guests(data):
+    """Klassische Gastnetze aus appGet -> [dict(unit, idx, band, ssid, enabled)] und ob „Gastnetz Pro“ (SDN) aktiv ist."""
+    out = []
+    for u in range(4):
+        for i in (1, 2, 3):
+            ssid = str(data.get(f"wl{u}.{i}_ssid") or "")
+            en = str(data.get(f"wl{u}.{i}_bss_enabled") or "")
+            if ssid and en in ("0", "1"):
+                out.append(dict(unit=u, idx=i, band=GUEST_BAND[u], ssid=ssid, enabled=en == "1"))
+    sdn = str(data.get("sdn_rl") or "").strip()
+    # sdn_rl gibt es bei Firmware mit SDN; mehr als der Standardeintrag (Hauptnetz) heißt: Gastnetze laufen über SDN
+    return out, sdn.count("<") > 1
+
+
+def _apply(conf, state, values):
+    """Einstellung setzen bzw. Dienst auslösen über applyapp.cgi (mit der gemerkten Sitzung, bei Bedarf neu anmelden)."""
+    with _client(conf) as cl:
+        for attempt in (0, 1):
+            token = state.get("token") if attempt == 0 else None
+            if not token:
+                token = _login(cl, conf)
+                state["token"] = token
+            try:
+                r = cl.post("/applyapp.cgi", data=values, cookies={"asus_token": token}, headers={"Referer": f"{_base(conf)}/index.asp"})
+            except (httpx.ReadTimeout, httpx.RemoteProtocolError):
+                return {}  # z. B. Neustart: der Router antwortet nicht mehr
+            if r.status_code in (301, 302) or "Main_Login" in r.text[:2000]:
+                state.pop("token", None)
+                continue
+            if r.status_code >= 400:
+                raise DriverError(f"Router meldet HTTP {r.status_code}")
+            try:
+                return parse_json(r.text) if r.text.strip().startswith("{") else {}
+            except ValueError:
+                return {}
+        raise DriverError("Router nimmt die Einstellung nicht an (Sitzung abgelaufen)")
+
+
+def action(conf, state, kind, params):
+    """kind: guest (unit, idx, on) | reboot"""
+    if kind == "guest":
+        u, i = int(params["unit"]), int(params["idx"])
+        if not (0 <= u <= 3 and 1 <= i <= 3):
+            raise DriverError("Gastnetz nicht gefunden – Integration einmal abfragen")
+        _apply(conf, state, {f"wl{u}.{i}_bss_enabled": "1" if params["on"] else "0", "action_mode": "apply", "rc_service": "restart_wireless"})
+        return f"Gastnetz „{params.get('ssid') or f'wl{u}.{i}'}“ {'eingeschaltet' if params['on'] else 'ausgeschaltet'}"
+    if kind == "reboot":
+        _apply(conf, state, {"action_mode": "apply", "rc_service": "reboot"})
+        return "ASUS-Router startet neu (dauert etwa zwei Minuten)"
+    raise DriverError(f"Unbekannte Aktion {kind}")
 
 
 def test(conf):
@@ -221,9 +343,10 @@ def traffic_analyzer(conf, token, now=None):
 
 def poll(conf, state):
     import time as _t
-    data, token = _fetch(conf, state, HOOK + ";netdev(appobj)")
+    data, token = _fetch(conf, state, HOOK + ";netdev(appobj)" + GUEST_HOOK)
     info, nodes, clients = normalize(data)
     res = dict(info=info, nodes=nodes, clients=clients, keys=sorted(data.keys())[:30])
+    res["guest"], res["sdn"] = guests(data)
     now = _t.time()
     traffic, counters = parse_netdev(data.get("netdev") or {}, state.get("counters", {}), now)
     metrics = {}

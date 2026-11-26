@@ -73,7 +73,8 @@ def run(iid, interactive=False, totp=None):
         print(f"Konfigurations-Backup Integration {iid}: unerwarteter Fehler\n{traceback.format_exc()}", flush=True)
         res = dict(status="error", message="Unerwarteter Fehler beim Konfigurations-Backup – Details im Protokoll des Dienstes")
     else:
-        sha = hashlib.sha256(data).hexdigest()
+        canon = getattr(drv, "canonical", None)  # z. B. ASUS: Datei mit Zufallsbytes, verglichen wird der Inhalt
+        sha = hashlib.sha256(canon(data) if canon else data).hexdigest()
         with db() as c:
             last = c.execute("SELECT * FROM config_backups WHERE integration_id=? ORDER BY id DESC LIMIT 1", (iid,)).fetchone()
             if last and last["sha256"] == sha:
@@ -119,6 +120,20 @@ def read(cid):
     return security.decrypt_bytes(path(cid).read_bytes())
 
 
+def readable(row):
+    """Text-Konfiguration oder eine, die der Treiber lesbar machen kann (ASUS-CFG)."""
+    return bool(row["is_text"]) or hasattr(DRIVERS.get(row["kind"]), "config_text")
+
+
+def text_of(row):
+    """Inhalt zum Ansehen/Vergleichen oder None."""
+    data = read(row["id"])
+    if row["is_text"]:
+        return data.decode("utf-8", "replace")
+    fn = getattr(DRIVERS.get(row["kind"]), "config_text", None)
+    return fn(data) if fn else None
+
+
 def listing(c, pid, device_id=None):
     q = "SELECT * FROM config_backups WHERE profile_id=?" + (" AND device_id=?" if device_id else "") + " ORDER BY id DESC LIMIT 200"
     rows = c.execute(q, (pid, device_id) if device_id else (pid,)).fetchall()
@@ -126,17 +141,19 @@ def listing(c, pid, device_id=None):
     for i, r in enumerate(rows):
         prev = next((x for x in rows[i + 1:] if x["integration_id"] == r["integration_id"]), None)
         out.append(dict(id=r["id"], device_id=r["device_id"], created=r["created"], kind=r["kind"], filename=r["filename"], size=r["size"],
-                        is_text=bool(r["is_text"]), prev_id=prev["id"] if prev and r["is_text"] else None))
+                        is_text=bool(r["is_text"]), readable=readable(r), prev_id=prev["id"] if prev and readable(r) and readable(prev) else None))
     return out
 
 
 def diff(c, pid, cid, other):
     a = c.execute("SELECT * FROM config_backups WHERE id=? AND profile_id=?", (other, pid)).fetchone()
     b = c.execute("SELECT * FROM config_backups WHERE id=? AND profile_id=?", (cid, pid)).fetchone()
-    if not a or not b or not (a["is_text"] and b["is_text"]):
+    if not a or not b or not (readable(a) and readable(b)):
         return None
-    old = read(a["id"]).decode("utf-8", "replace").splitlines()
-    new = read(b["id"]).decode("utf-8", "replace").splitlines()
+    ta, tb = text_of(a), text_of(b)
+    if ta is None or tb is None:
+        return None
+    old, new = ta.splitlines(), tb.splitlines()
     lines = list(difflib.unified_diff(old, new, a["filename"], b["filename"], n=2, lineterm=""))
     return dict(old=a["filename"], new=b["filename"], lines=lines[:4000], changed=sum(1 for x in lines if x[:1] in "+-" and x[:3] not in ("+++", "---")))
 

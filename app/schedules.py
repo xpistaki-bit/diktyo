@@ -15,7 +15,7 @@ from . import actions
 from .db import db, now, parse_ts
 
 DAYS = ("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")
-DIRECTION = {"wlan": "on", "internet": "block", "port": "up"}
+DIRECTION = {"wlan": "on", "guest": "on", "internet": "block", "port": "up"}
 CATCH_UP = dt.timedelta(hours=6)
 
 
