@@ -88,6 +88,7 @@ const fd = f => Object.fromEntries(new FormData(f).entries());
 function crumbs(parts) { $('#crumbs').innerHTML = parts.map(([txt, href]) => href ? `<a href="${href}">${h(txt)}</a>` : h(txt)).join(' › '); }
 
 const ghIcon = '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="currentColor"><path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.22 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0z"/></svg>';
+const userIcon = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>';
 const homeIcon = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>';
 function homeHref() {
   let last = null;
@@ -99,7 +100,7 @@ function drawHeader() {
   const u = STATE.user, sect = location.hash.replace(/^#\/?/, '').split('/')[0];
   $('#nav').innerHTML = `<a class="gh" href="${h(STATE.repo)}" target="_blank" rel="noopener" title="${t('Projekt auf GitHub')}">${ghIcon}<span>${STATE.version ? 'v' + h(STATE.version) : 'GitHub'}</span></a>`
     + (u?.is_admin && STATE.update?.available ? `<a href="#/einstellungen" class="upd-badge" title="${h(t('Neue Version {v} verfügbar', { v: STATE.update.latest }))}">↑ ${t('Update')} v${h(STATE.update.latest)}</a>` : '')
-    + (u ? `<a href="${homeHref()}" class="home" title="${t('Zum zuletzt geöffneten Profil')}">${homeIcon}<span>${t('Home')}</span></a><a href="#/" class="${sect === '' ? 'on' : ''}">${t('Profile')}</a><a href="#/katalog" class="${sect === 'katalog' ? 'on' : ''}">${t('Katalog')}</a><a href="#/einstellungen" class="${sect === 'einstellungen' ? 'on' : ''}">${t('Einstellungen')}</a><span class="who" title="${h(u.email)}">${h(u.email)}</span><button class="sm" data-logout>${t('Abmelden')}</button>` : '')
+    + (u ? `<a href="${homeHref()}" class="home" title="${t('Zum zuletzt geöffneten Profil')}">${homeIcon}<span>${t('Home')}</span></a><a href="#/" class="${sect === '' ? 'on' : ''}">${t('Profile')}</a><a href="#/katalog" class="${sect === 'katalog' ? 'on' : ''}">${t('Katalog')}</a><a href="#/einstellungen" class="${sect === 'einstellungen' ? 'on' : ''}">${t('Einstellungen')}</a><a href="#/konto" class="who ${sect === 'konto' ? 'on' : ''}" title="${h(t('Mein Konto'))} · ${h(u.email)}">${userIcon}<span>${h(u.email)}</span></a><button class="sm" data-logout>${t('Abmelden')}</button>` : '')
     + `<span class="lang" role="group" aria-label="Sprache / Language"><button data-l="de" class="${LANG === 'de' ? 'on' : ''}">DE</button><button data-l="en" class="${LANG === 'en' ? 'on' : ''}">EN</button></span>`;
   $$('#nav [data-l]').forEach(b => b.onclick = () => {
     LANG = b.dataset.l; try { localStorage.setItem('dk_lang', LANG); } catch { }
@@ -121,7 +122,8 @@ async function route() {
     if (!STATE.user) { crumbs([]); return STATE.first_run ? (p[0] === 'wiederherstellen' ? viewRestore() : viewSetup()) : viewLogin(p[0] === 'registrieren' ? 'register' : p[0] === 'vergessen' ? 'forgot' : 'login'); }
     if (p[0] === 'p' && p[1]) await viewProfile(+p[1], p[2] || 'uebersicht', p[3]);
     else if (p[0] === 'katalog') await (p[1] === 'regeln' ? viewRules() : viewCatalog());
-    else if (p[0] === 'einstellungen') await viewSettings();
+    else if (p[0] === 'einstellungen') await viewSettings(+p[1] || 0);
+    else if (p[0] === 'konto') await viewAccount(+p[1] || 0);
     else await viewProfiles();
   } catch (e) {
     if (e.status === 401) return;
@@ -265,8 +267,9 @@ function profileDialog(title, p, ok, save) {
     { ok, onOk: f => save(fd(f)) });
 }
 
-const TABS = [['uebersicht', 'Übersicht'], ['geraete', 'Geräte'], ['topologie', 'Topologie'], ['verlauf', 'Verlauf'], ['posteingang', 'Posteingang'], ['netzscan', 'Netzscan'], ['integrationen', 'Integrationen'], ['ipam', 'IPAM'], ['vlanplan', 'VLAN-Plan'], ['standorte', 'Standorte'], ['verkabelung', 'Verkabelung'], ['ausgabe', 'Ausgabe'], ['freigabe', 'Freigabe']];
+const TABS = [['uebersicht', 'Übersicht'], ['geraete', 'Geräte'], ['topologie', 'Topologie'], ['verlauf', 'Verlauf'], ['posteingang', 'Posteingang'], ['netzscan', 'Netzscan'], ['integrationen', 'Integrationen'], ['ipam', 'IPAM'], ['vlanplan', 'VLAN-Plan'], ['standorte', 'Standorte'], ['verkabelung', 'Verkabelung'], ['ausgabe', 'Ausgabe'], ['aktionen', 'Aktionen']];
 async function viewProfile(pid, tab, sub, keep = null) {
+  if (tab === 'freigabe') { location.replace(`#/konto/${pid}`); return; }  // Freigabe liegt jetzt unter „Mein Konto“
   if (!TABS.some(x => x[0] === tab)) tab = 'uebersicht';
   let r;
   try { r = await api('GET', `/api/profiles/${pid}`); } catch (e) {
@@ -281,6 +284,8 @@ async function viewProfile(pid, tab, sub, keep = null) {
     <div class="row between top">
       <div><h1>${h(p.name)}</h1>${p.description ? `<p class="sub">${h(p.description)}</p>` : ''}</div>
       <div class="row"><span class="badge ${p.role}">${t(ROLE[p.role])}</span>
+        <a class="btn sm" href="#/konto/${pid}" title="${h(t('Mitglieder und Rollen unter „Mein Konto“'))}">${t(isOwner ? 'Teilen' : 'Mitglieder')}</a>
+        <a class="btn sm" href="#/einstellungen/${pid}" title="${h(t('Benachrichtigungen und Quarantäne dieses Profils'))}">${t('Profil-Einstellungen')}</a>
         ${canEdit ? `<button class="sm" data-edit>${t('Bearbeiten')}</button>` : ''}
         ${isOwner ? `<button class="sm danger" data-del>${t('Löschen')}</button>` : ''}</div>
     </div>
@@ -298,8 +303,7 @@ async function viewProfile(pid, tab, sub, keep = null) {
   const reload = () => viewProfile(pid, tab, sub, { y: scroller().scrollTop, h: ($('#tab') || {}).offsetHeight || 0 });
   const ctx = { pid, p, members: r.members, canEdit, isOwner, sub, el: $('#tab'), reload };
   if (keep) { ctx.el.style.minHeight = keep.h + 'px'; scroller().scrollTop = keep.y; }
-  if (tab === 'freigabe') renderSharing(ctx);
-  else if (Object.hasOwn(window.INV, tab) && TABS.some(x => x[0] === tab)) await window.INV[tab](ctx);
+  if (Object.hasOwn(window.INV, tab) && TABS.some(x => x[0] === tab)) await window.INV[tab](ctx);
   if (keep) {
     scroller().scrollTop = keep.y;
     setTimeout(() => { if (document.body.contains(ctx.el)) ctx.el.style.minHeight = ''; }, 2500);
@@ -307,7 +311,7 @@ async function viewProfile(pid, tab, sub, keep = null) {
 }
 
 function renderSharing(ctx) {
-  const { pid, p, isOwner } = ctx;
+  const { pid, p, isOwner } = ctx;  // ctx = { pid, p, members, isOwner, el, reload }
   const owners = ctx.members.filter(m => m.role === 'owner').length;
   ctx.el.innerHTML = `
     <div class="table-wrap"><table><thead><tr><th>${t('E-Mail-Adresse')}</th><th>${t('Rolle')}</th><th></th></tr></thead><tbody>
@@ -329,7 +333,7 @@ function renderSharing(ctx) {
   const lv = $('[data-leave]', ctx.el);
   if (lv) lv.onclick = async () => {
     if (!await confirmDlg(t('Profil verlassen'), t('Du verlierst den Zugriff auf „{n}“, bis dich ein Besitzer wieder einlädt.', { n: h(p.name) }), t('Verlassen'))) return;
-    try { await api('DELETE', `/api/profiles/${pid}/members/${STATE.user.id}`); location.hash = '#/'; } catch (e) { toast(e.message, true); }
+    try { await api('DELETE', `/api/profiles/${pid}/members/${STATE.user.id}`); location.hash = '#/konto'; } catch (e) { toast(e.message, true); }
   };
   const sh = $('#share', ctx.el);
   if (sh) sh.onsubmit = async ev => {
@@ -339,23 +343,22 @@ function renderSharing(ctx) {
 }
 
 /* ---------------------------------------------------------------- Einstellungen */
-async function viewSettings() {
+async function viewSettings(pidWant = 0) {
   crumbs([[t('Einstellungen')]]);
   const u = STATE.user;
-  const [ul, st] = u.is_admin ? await Promise.all([api('GET', '/api/users'), api('GET', '/api/settings')]) : [null, null];
+  const [ul, st, pl] = await Promise.all([u.is_admin ? api('GET', '/api/users') : null, u.is_admin ? api('GET', '/api/settings') : null, api('GET', '/api/profiles')]);
   const smtp = st?.smtp || {};
-  app.innerHTML = `<div class="page"><h1>${t('Einstellungen')}</h1><p class="sub">${h(u.email)}${u.is_admin ? ` · <span class="badge admin">${t('Administrator')}</span>` : ''}</p>
-    <h2>${t('Mein Konto')}</h2>
-    <form class="panel" id="pw"><div class="grid2">
-      <div><label>${t('Aktuelles Passwort')}</label><input name="current" type="password" autocomplete="current-password" required></div>
-      <div><label>${t('Neues Passwort')}</label><input name="password" type="password" autocomplete="new-password" minlength="${STATE.min_pw}" required placeholder="${h(pwHint())}"></div>
-      <div><label>${t('Passwort wiederholen')}</label><input name="password2" type="password" autocomplete="new-password" required></div>
-    </div><div class="row" style="margin-top:14px"><button class="pri">${t('Passwort ändern')}</button><span class="muted">${t('Andere Sitzungen werden dabei abgemeldet.')}</span></div></form>
-    <div id="acctsec" style="margin-top:14px"></div>
-    <div id="acctoidc"></div>
+  const profiles = pl.profiles || [];
+  let last = 0; try { last = +localStorage.getItem('dk_last_profile') || 0; } catch { }
+  const pid = [pidWant, last].find(x => x && profiles.some(p => p.id === x)) || (profiles[0] || {}).id || 0;
+  app.innerHTML = `<div class="page settings"><h1>${t('Einstellungen')}</h1><p class="sub">${t('Persönliches (Passwort, zweiter Faktor, Sitzungen, Freigaben) steht unter')} <a href="#/konto">${t('Mein Konto')}</a>.</p>
+    <div class="row between set-group"><h2>${t('Profil-Einstellungen')}</h2>
+      ${profiles.length ? `<label class="row" style="margin:0;gap:8px">${t('Profil')} <select id="setprof" style="width:auto">${profiles.map(p => `<option value="${p.id}" ${p.id === pid ? 'selected' : ''}>${h(p.name)}</option>`).join('')}</select></label>` : ''}</div>
+    ${profiles.length ? `<div class="set-grid"><div id="notifybox"></div><div id="quarbox"></div></div>` : `<p class="muted">${t('Noch kein Profil.')}</p>`}
     ${u.is_admin ? `
-    <h2>${t('Updates')}</h2><div id="updbox"></div>
-    <h2>${t('Konten')}</h2>
+    <h2 class="set-group">${t('System')}</h2>
+    <div id="updbox"></div>
+    <div class="panel"><h3>${t('Konten')}</h3>
     <div class="table-wrap"><table><thead><tr><th>${t('E-Mail-Adresse')}</th><th>${t('Rolle')}</th><th>${t('Profile')}</th><th>${t('Letzte Anmeldung')}</th><th></th></tr></thead><tbody>
       ${ul.users.map(x => `<tr data-uid="${x.id}"><td>${h(x.email)}${x.id === u.id ? ` <span class="muted">(${t('du')})</span>` : ''}</td>
         <td>${x.is_admin ? `<span class="badge admin">${t('Administrator')}</span>` : `<span class="badge">${t('Benutzer')}</span>`}${x.totp ? ` <span class="badge ok" title="${h(t('Zweiter Faktor eingeschaltet'))}">2FA</span>` : ''}</td>
@@ -363,10 +366,9 @@ async function viewSettings() {
         <td class="act">${x.id !== u.id ? `<button class="sm" data-admin="${x.is_admin ? 0 : 1}">${x.is_admin ? t('Admin entziehen') : t('Zum Admin machen')}</button><button class="sm" data-newpw>${t('Neues Passwort')}</button>${x.totp ? `<button class="sm" data-reset2fa>${t('2FA zurücksetzen')}</button>` : ''}<button class="sm danger" data-deluser>${t('Löschen')}</button>` : ''}</td></tr>`).join('')}
     </tbody></table></div>
     <div class="row" style="margin-top:12px"><button class="pri" data-adduser>${t('+ Konto anlegen')}</button>
-      <label class="chk" style="margin:0"><input type="checkbox" id="regopen" ${st.registration_open ? 'checked' : ''}> ${t('Selbstregistrierung erlauben')}</label></div>
+      <label class="chk" style="margin:0"><input type="checkbox" id="regopen" ${st.registration_open ? 'checked' : ''}> ${t('Selbstregistrierung erlauben')}</label></div></div>
 
-    <h2>${t('E-Mail-Versand')}</h2>
-    <form class="panel" id="smtp"><p class="muted" style="margin-top:0">${t('Für „Passwort vergessen“. Ohne E-Mail-Versand setzt ein Administrator Passwörter in der Benutzerliste oder auf dem Server.')}</p>
+    <form class="panel" id="smtp"><h3>${t('E-Mail-Versand')}</h3><p class="muted" style="margin-top:0">${t('Für „Passwort vergessen“. Ohne E-Mail-Versand setzt ein Administrator Passwörter in der Benutzerliste oder auf dem Server.')}</p>
       <div class="grid2">
         <div><label>${t('SMTP-Server')}</label><input name="host" value="${h(smtp.host || '')}" placeholder="smtp.example.com"></div>
         <div><label>${t('Port')}</label><input name="port" inputmode="numeric" value="${h(smtp.port || '587')}"></div>
@@ -378,19 +380,15 @@ async function viewSettings() {
       <label>${t('Adresse der Weboberfläche (für Links in E-Mails, optional)')}</label><input name="app_url" value="${h(smtp.app_url || '')}" placeholder="http://192.168.178.50:8090">
       <div class="row" style="margin-top:14px"><button class="pri">${t('Speichern')}</button><button type="button" data-test ${smtp.host ? '' : 'disabled'}>${t('Testmail an mich senden')}</button></div>
     </form>
-    <h2>${t('Anmeldung über OIDC (SSO)')}</h2><div id="oidcbox"></div>
-    <h2>${t('Erkennung')}</h2><div id="detection"></div>
-    <h2>${t('Sicherung')}</h2><div id="backup"></div>` : ''}
+    <div id="oidcbox"></div>
+    <div id="detection"></div>
+    <div id="backup"></div>` : ''}
   </div>`;
 
-  accountSecurity($('#acctsec', app));
-  oidcAccount($('#acctoidc', app));
+  const sp = $('#setprof', app);
+  if (sp) sp.onchange = () => { location.hash = `#/einstellungen/${sp.value}`; };
+  if (pid) profileSettings(pid, profiles.find(p => p.id === pid));
   if (u.is_admin) { oidcSettings($('#oidcbox', app)); updatePanel($('#updbox', app)); }
-  $('#pw').onsubmit = async ev => {
-    ev.preventDefault(); const v = fd(ev.target);
-    if (v.password !== v.password2) return toast(t('Die Passwörter stimmen nicht überein'), true);
-    try { await api('POST', '/api/auth/password', { current: v.current, password: v.password }); ev.target.reset(); toast(t('Passwort geändert')); } catch (e) { toast(e.message, true); }
-  };
   if (!u.is_admin) return;
   const reload = () => viewSettings();
   const uidOf = el => +el.closest('tr').dataset.uid;
@@ -428,6 +426,7 @@ async function viewSettings() {
     try { const r = await api('POST', '/api/settings/smtp/test'); toast(t('Testmail an {e} gesendet', { e: r.to })); } catch (e) { toast(e.message, true); }
   };
   await renderDetection($('#detection'));
+  $('#detection').classList.add('set-tile');
   const aiBox = document.createElement('div'); aiBox.id = 'aibox'; $('#detection').after(aiBox);
   await renderAI(aiBox);
   await renderBackup($('#backup'));
@@ -435,7 +434,7 @@ async function viewSettings() {
 
 async function renderDetection(el) {
   const r = await api('GET', '/api/settings/detection');
-  el.innerHTML = `<form class="panel stack" id="det">
+  el.innerHTML = `<form class="panel stack" id="det"><h3>${t('Erkennung')}</h3>
     <div class="grid2">
       <div><label>${t('Fingerbank-API-Schlüssel (optional)')}</label><input name="fingerbank_key" type="password" autocomplete="off" value="${h(r.fingerbank_key)}">
         <small class="muted">${t('Kostenlos auf fingerbank.org. Wird nur genutzt, wenn er in einem Profil unter Netzscan eingeschaltet ist; dann gehen MAC-Adresse und Hostname an fingerbank.org.')}</small></div>
@@ -459,7 +458,7 @@ async function renderDetection(el) {
 /* KI (Claude API) für die Katalog-Recherche */
 async function renderAI(el) {
   const r = await api('GET', '/api/settings/ai');
-  el.innerHTML = `<h2>${t('KI-Recherche (Claude API)')}</h2><form class="panel stack" id="aif">
+  el.innerHTML = `<form class="panel stack" id="aif"><h3>${t('KI-Recherche (Claude API)')}</h3>
     <p class="muted small" style="margin:0">${t('Optional. Im Katalog recherchiert Claude mit der Websuche Datenblätter (Ports, WLAN, Eckdaten) und schlägt einen Eintrag mit Quellen vor. Gesendet werden nur Hersteller, Modell und erkannte Eckdaten – nie Seriennummern, IP-Adressen oder Daten aus deinem Netz. Die Kosten trägt dein Anthropic-Konto (meist wenige Cent je Recherche).')}</p>
     <div class="grid2">
       <div><label>${t('API-Schlüssel')}</label><input name="key" type="password" autocomplete="off" value="${h(r.key)}" placeholder="sk-ant-…">
@@ -489,7 +488,7 @@ async function renderBackup(el) {
       : `<label>${t('rclone-Ziel')}</label><input data-f="remote" value="${h(tg.remote || '')}" placeholder="gdrive:diktyo">
         <small class="muted">${t('Form „Name:Ordner“, z. B. gdrive:diktyo. Der Name ist eine in rclone eingerichtete Verbindung.')} <span data-remotes></span></small>
         <div class="row" style="margin-top:6px"><button type="button" class="sm" data-gdrive>${t('Google Drive verbinden')}</button></div>`}</div>`);
-  el.innerHTML = `<form class="panel stack" id="bk">
+  el.innerHTML = `<form class="panel stack" id="bk"><h3>${t('Sicherung')}</h3>
     <p class="muted" style="margin:0">${t('Jede Sicherung ist eine ZIP-Datei mit allen Konten, Profilen, Geräten und Einstellungen sowie einem PDF und CSV je Profil.')}</p>
     <div id="targets" class="stack">${s.targets.map(row).join('') || `<p class="muted" id="notargets">${t('Noch kein Sicherungsziel.')}</p>`}</div>
     <div class="row"><select id="newt" style="width:auto">${Object.keys(TARGET).map(k => `<option value="${k}">${t(TARGET[k])}</option>`).join('')}</select><button type="button" class="sm" id="addt">${t('+ Ziel hinzufügen')}</button></div>
@@ -588,3 +587,47 @@ async function renderBackup(el) {
     .observe(document.body, { childList: true, subtree: true });
   enhance(document);
 })();
+
+
+/* Einstellungen je Profil: Benachrichtigungen und Quarantäne (früher im Reiter Integrationen) */
+async function profileSettings(pid, p) {
+  const ctx = { pid, p, canEdit: p.role !== 'view', isOwner: p.role === 'owner', el: app, reload: () => viewSettings(pid) };
+  await Promise.allSettled([notifySettings(ctx, $('#notifybox', app)), quarantinePanel(ctx, $('#quarbox', app))]);
+}
+
+/* ---------------------------------------------------------------- Mein Konto */
+async function viewAccount(pidWant = 0) {
+  crumbs([[t('Mein Konto')]]);
+  const u = STATE.user;
+  const profiles = (await api('GET', '/api/profiles')).profiles || [];
+  const pid = profiles.some(p => p.id === pidWant) ? pidWant : 0;
+  app.innerHTML = `<div class="page settings"><h1>${t('Mein Konto')}</h1><p class="sub">${h(u.email)}${u.is_admin ? ` · <span class="badge admin">${t('Administrator')}</span>` : ''}</p>
+    <form class="panel" id="pw"><h3>${t('Passwort')}</h3><div class="grid2">
+      <div><label>${t('Aktuelles Passwort')}</label><input name="current" type="password" autocomplete="current-password" required></div>
+      <div><label>${t('Neues Passwort')}</label><input name="password" type="password" autocomplete="new-password" minlength="${STATE.min_pw}" required placeholder="${h(pwHint())}"></div>
+      <div><label>${t('Passwort wiederholen')}</label><input name="password2" type="password" autocomplete="new-password" required></div>
+    </div><div class="row" style="margin-top:14px"><button class="pri">${t('Passwort ändern')}</button><span class="muted">${t('Andere Sitzungen werden dabei abgemeldet.')}</span></div></form>
+    <div id="acctsec" class="set-tile"></div>
+    <div id="acctoidc"></div>
+    <div class="panel set-tile" id="shares"><h3>${t('Profile und Freigaben')}</h3>
+      ${profiles.length ? `<div class="table-wrap"><table class="compact"><thead><tr><th>${t('Profil')}</th><th>${t('Deine Rolle')}</th><th></th></tr></thead><tbody>
+        ${profiles.map(p => `<tr class="${p.id === pid ? 'sel' : ''}"><td><a href="#/p/${p.id}">${h(p.name)}</a></td><td><span class="badge ${p.role}">${t(ROLE[p.role])}</span></td>
+          <td class="act"><a class="btn sm" href="#/konto/${p.id}">${t(p.role === 'owner' ? 'Teilen' : 'Mitglieder')}</a></td></tr>`).join('')}</tbody></table></div>`
+      : `<p class="muted">${t('Noch kein Profil.')}</p>`}
+      <div id="sharebox"></div></div>
+  </div>`;
+  accountSecurity($('#acctsec', app));
+  oidcAccount($('#acctoidc', app));
+  $('#pw').onsubmit = async ev => {
+    ev.preventDefault(); const v = fd(ev.target);
+    if (v.password !== v.password2) return toast(t('Die Passwörter stimmen nicht überein'), true);
+    try { await api('POST', '/api/auth/password', { current: v.current, password: v.password }); ev.target.reset(); toast(t('Passwort geändert')); } catch (e) { toast(e.message, true); }
+  };
+  if (pid) {
+    const r = await api('GET', `/api/profiles/${pid}`);
+    const box = $('#sharebox', app);
+    box.innerHTML = `<h4 style="margin:18px 0 8px">${t('Mitglieder von „{n}“', { n: h(r.profile.name) })}</h4><div></div>`;
+    renderSharing({ pid, p: r.profile, members: r.members, isOwner: r.profile.role === 'owner', el: box.lastElementChild, reload: () => viewAccount(pid) });
+    $('#shares', app).scrollIntoView({ block: 'start' });
+  }
+}

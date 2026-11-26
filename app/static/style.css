@@ -131,7 +131,7 @@ dialog .f{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border
 
 @media (max-width:720px){
   .bar{gap:10px;padding:0 12px}
-  #crumbs,.who,.gh span{display:none}
+  #crumbs,.who span,.gh span{display:none}
   #nav{gap:10px}
   .page{padding:20px 16px 48px}
 }
@@ -861,3 +861,14 @@ input[type=color]{height:38px;padding:3px 4px;cursor:pointer}
 label.chk.tg-dev{margin:0;padding:6px 0;border-bottom:1px solid rgba(0,229,255,.05);cursor:pointer}
 .tg-dev input{width:auto;margin:0}
 .tg-dev[hidden]{display:none}
+
+/* Einstellungen und Mein Konto: jede Kachel mit Kopfband, gleiche Abstände, Profil-Einstellungen nebeneinander */
+.settings>.panel,.settings>div>.panel,.settings>div>form.panel,.settings .set-grid>div>.panel,.settings .set-grid>div>form.panel{margin-top:16px}
+.settings .set-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:0 16px;align-items:start}
+.settings .set-grid>div>.panel,.settings .set-grid>div>form.panel{height:100%}
+.settings .set-group{margin-top:30px;align-items:flex-end}
+.settings .set-group h2{margin:0}
+.settings tr.sel td{background:rgba(0,229,255,.06)}
+.who{display:inline-flex;align-items:center;gap:6px;color:var(--dim)!important}
+.who.on,.who:hover{color:var(--cyan)!important}
+@media (max-width:720px){.settings .set-grid{grid-template-columns:1fr}}

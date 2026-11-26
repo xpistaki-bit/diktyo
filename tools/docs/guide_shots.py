@@ -145,7 +145,7 @@ with sync_playwright() as p:
     # 9. Übersicht
     pg.set_viewport_size({"width": 1280, "height": 1560})
     pg.goto(URL + "/#/p/1")
-    pg.wait_for_selector(".ov-tiles")
+    pg.wait_for_selector(".kpis")
     pg.wait_for_timeout(1500)
     shot(pg, "10-overview")
     b.close()

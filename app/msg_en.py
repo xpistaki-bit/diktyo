@@ -485,3 +485,7 @@ PATTERNS += [
     ("OpenWrt nicht erreichbar: {}", "OpenWrt not reachable: {}"), ("OpenWrt unter {} nicht erreichbar ({})", "OpenWrt at {} not reachable ({})"),
 ]
 _PATTERNS = sorted(((de, _compile(de), en_) for de, en_ in PATTERNS), key=lambda x: _rank(x[0]))
+
+
+# ------------------------------------------------------------ 0.41: Verlauf löschen
+ERR_EN.update({"Nichts zum Löschen gewählt": "Nothing selected to delete", "Ungültiger Zeitraum": "Invalid period"})

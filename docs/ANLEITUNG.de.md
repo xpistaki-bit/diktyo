@@ -45,8 +45,8 @@ Der Container nutzt das Host-Netzwerk (für den Netzscan), Port und Zeitzone ste
 ## 2. Erste Schritte
 
 1. **Konto anlegen:** Das erste Konto wird Administrator. Weitere Konten legst du unter *Einstellungen → Konten* an.
-2. **Profil anlegen:** Ein Profil ist ein Netz bzw. Standort (z. B. „Home“). Profile lassen sich unter *Freigabe* mit
-   anderen Konten teilen (Lesen, Bearbeiten, Besitzer).
+2. **Profil anlegen:** Ein Profil ist ein Netz bzw. Standort (z. B. „Home“). Profile teilst du mit anderen Konten
+   (Lesen, Bearbeiten, Besitzer) über *Teilen* oben im Profil oder unter *Mein Konto → Profile und Freigaben*.
 3. **Netz scannen:** Reiter *Netzscan* → Netz auswählen → *Jetzt scannen*. Der volle Scan dauert für ein /24-Netz etwa
    1–2 Minuten. Nicht vorhandene Netze werden im IPAM angelegt.
 4. **Posteingang:** Gefundene Geräte erscheinen mit einer Vermutung („Amazon Echo (Alexa) · 78 %“) und den Gründen.
@@ -58,10 +58,20 @@ Der Container nutzt das Host-Netzwerk (für den Netzscan), Port und Zeitzone ste
 (z. B. ASUS im Router-Modus hinter der FRITZ!Box), sieht der Scan das FRITZ!Box-Netz nur per Ping/TCP. Die Namen fragt
 díktyo dann beim DNS des Subnetzes ab (Gateway bzw. DNS-Angabe im IPAM), die MAC-Adressen liefert die FRITZ!Box-Integration.
 
+### Mein Konto und Einstellungen
+
+- **Mein Konto** öffnet ein Klick auf deine **E-Mail-Adresse** oben rechts (auf dem Handy das Personen-Symbol): Passwort,
+  zweiter Faktor, angemeldete Sitzungen, Verknüpfung mit dem OIDC-Anbieter und **Profile und Freigaben** – je Profil
+  deine Rolle und, als Besitzer, Mitglieder einladen, Rollen ändern, entfernen (früher Reiter *Freigabe*).
+- **Einstellungen** gliedert sich in **Profil-Einstellungen** (oben das Profil wählen: *Benachrichtigungen* und
+  *Quarantäne für neue Geräte*, früher im Reiter *Integrationen*) und **System** (nur Administratoren: Updates, Konten,
+  E-Mail-Versand, OIDC, Erkennung, KI-Recherche, Sicherung). Jede Kachel hat oben einen Kopf mit ihrem Namen.
+- Im Profil führen die Knöpfe *Teilen* (bzw. *Mitglieder*) und *Profil-Einstellungen* direkt dorthin.
+
 ### Konto absichern: zweiter Faktor und Sitzungen
 
 díktyo speichert Zugangsdaten für Router, Switches und Server und kann Ports abschalten – deshalb lohnt sich der
-**zweite Faktor**: *Einstellungen → Mein Konto → Zweiter Faktor → Einrichten*, Passwort eingeben, QR-Code mit einer
+**zweite Faktor**: *Mein Konto* (Klick auf die E-Mail-Adresse oben) *→ Zweiter Faktor → Einrichten*, Passwort eingeben, QR-Code mit einer
 Authenticator-App scannen (Aegis, 2FAS, Google Authenticator, Bitwarden …) und den Code bestätigen. Danach zeigt díktyo
 einmalig **10 Wiederherstellungscodes** – sicher aufbewahren, jeder ersetzt einmal den Code aus der App.
 
@@ -514,7 +524,7 @@ anbinden. Auf der Anmeldeseite erscheint dann **Anmelden mit …**; die Anmeldun
    *Eingeschaltet* ankreuzen und speichern. Am besten in einem privaten Fenster *Anmelden mit …* ausprobieren.
 3. **Konten:** Beim ersten Anmelden wird ein bestehendes díktyo-Konto mit gleicher E-Mail-Adresse verknüpft – nur wenn
    der Anbieter die Adresse als bestätigt meldet (sonst ließe sich mit einer fremden, unbestätigten Adresse ein Konto
-   übernehmen). Weicht die Adresse ab, verknüpft man unter *Einstellungen → Mein Konto* mit **Mit … verknüpfen**.
+   übernehmen). Weicht die Adresse ab, verknüpft man unter *Mein Konto* mit **Mit … verknüpfen**.
    *Konten automatisch anlegen* gibt jedem, der sich beim Anbieter anmelden darf, ein díktyo-Konto (ohne Profile, bis
    jemand sie teilt). Optional: nur Mitglieder einer Gruppe zulassen, und Mitglieder einer Admin-Gruppe werden
    Administratoren (díktyo entzieht die Rolle nie automatisch).
@@ -545,7 +555,7 @@ den aktuellen Stand – den Verlauf speichert Prometheus.
 
 ### Benachrichtigungen (E-Mail, ntfy)
 
-*Integrationen → Benachrichtigungen* meldet Ereignisse des Profils per **E-Mail** (über den E-Mail-Versand unter
+*Einstellungen → Profil-Einstellungen → Benachrichtigungen* meldet Ereignisse des Profils per **E-Mail** (über den E-Mail-Versand unter
 *Einstellungen*) und/oder **ntfy** (Push aufs Handy) – unabhängig von Home Assistant.
 
 1. ntfy: die App installieren (Android/iOS) und ein **Thema** abonnieren, z. B. `diktyo-k7x2q9` – bei ntfy.sh kann jeder
@@ -633,7 +643,14 @@ Der Reiter **Verlauf** zeigt, was sich wann geändert hat – und wodurch:
 - **Dazu:** online/offline, Schaltaktionen, neue Konfigurationsstände, Quarantäne und neu geöffnete oder geschlossene
   Ports aus dem Dienste-Scan.
 - Oben die **Kurzfassung seit gestern** (neu, gelöscht, geändert, IP-Wechsel, Anschlusswechsel, Ausfälle,
-  Konfigurationsstände, Port-Änderungen); darunter Zeitraum, Art und Suche; **CSV** zum Weiterverarbeiten.
+  Konfigurationsstände, Port-Änderungen); darunter Zeitraum, Art und Suche.
+- **Verlauf speichern** lädt die gerade gefilterten Einträge (Zeitraum, Art, Suche) als CSV-Datei herunter (Excel,
+  LibreOffice).
+- **Verlauf löschen** (nur Besitzer): wählen, was (Änderungen, Online/Offline, Aktionen, Quarantäne) und welche Einträge
+  (alle oder älter als 30/90 Tage/ein Jahr). Erhalten bleiben der letzte Online/Offline-Stand je Gerät, Aktionen mit noch
+  offenem Zurückschalten, Geräte in aktiver Quarantäne und die Konfigurationsstände (die löschst du im Gerätedialog).
+  Achtung: Online/Offline-Einträge sind die Grundlage der Verfügbarkeit – vorher am besten speichern. Das Löschen steht
+  im Protokoll.
 - Im **Gerätedialog** steht der Verlauf der letzten 30 Tage.
 - Wechselt ein Handy nur zwischen WLAN- bzw. Mesh-Zugangspunkten (Roaming), wird das nicht eingetragen.
 - Der Verlauf wird ein Jahr aufbewahrt und ist Teil der díktyo-Sicherung.
@@ -688,7 +705,7 @@ Topologie-Seitenleiste und in der Frontplatte beim angeklickten Port:
 - Verlangt die FRITZ!Box eine **Bestätigung** (zweiter Faktor), erscheint der bekannte Dialog (Taste oder Telefon-Code).
   Gelingt das automatische Zurückschalten deshalb nicht, meldet díktyo das unter *Letzte Aktionen* und – falls
   eingerichtet – per Home Assistant.
-- Alle Aktionen stehen unter *Integrationen → Letzte Aktionen*; geplantes Zurückschalten lässt sich dort abbrechen.
+- Alle Aktionen stehen im Reiter **Aktionen** unter *Letzte Aktionen*; geplantes Zurückschalten lässt sich dort abbrechen.
 - Am **Switch** selbst: im Gerätedialog unter *Aktionen* den Port wählen (oder in der Frontplatte auf den Port klicken).
 - Am **Proxmox-Host**: Liste seiner VMs und Container zum Starten bzw. Herunterfahren.
 
@@ -697,9 +714,9 @@ Switch-Port gilt ein Zeitfenster (z. B. Mo–Fr 22:00–06:30 Internet gesperrt)
 zurück. Geschaltet wird nur an diesen Zeitpunkten – gibst du zwischendurch von Hand frei, bleibt das bis zum nächsten
 Übergang so. Andere Aktionen (Neustart, PoE, Wake-on-LAN, VM) laufen einmal zur gewählten Uhrzeit. Vor jedem Lauf
 prüft díktyo den Aussperr-Schutz erneut; die Internetsperre nutzt immer die aktuelle IP des Geräts. Übersicht,
-Pausieren und Löschen unter *Integrationen → Zeitpläne* und im Gerätedialog.
+Pausieren und Löschen im Reiter **Aktionen** unter *Zeitpläne* und im Gerätedialog.
 
-**Quarantäne für neue Geräte:** *Integrationen → Quarantäne für neue Geräte* einschalten (braucht die
+**Quarantäne für neue Geräte:** *Einstellungen → Profil-Einstellungen → Quarantäne für neue Geräte* einschalten (braucht die
 FRITZ!Box-Integration mit Benutzer). Jedes Gerät, das danach neu im Posteingang landet, bekommt über die FRITZ!Box keinen
 Internetzugang; das Heimnetz bleibt erreichbar. **Übernehmen** im Posteingang gibt es automatisch frei, *Freigeben*
 geht auch ohne Übernehmen. Ausgenommen: Infrastruktur, díktyo selbst, Geräte außerhalb des FRITZ!Box-Netzes (Gastnetz);

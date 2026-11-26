@@ -121,7 +121,7 @@ async function oidcSettings(el) {
   let s;
   try { s = await api('GET', '/api/settings/oidc'); } catch (e) { el.innerHTML = `<p class="errtxt">${h(e.message)}</p>`; return; }
   const chk = (k, label, hint = '') => `<label class="chk"><input type="checkbox" name="${k}" ${s[k] ? 'checked' : ''}> ${label}</label>${hint ? `<p class="muted small" style="margin:0 0 6px 26px">${hint}</p>` : ''}`;
-  el.innerHTML = `<form class="panel" id="oidcf">
+  el.innerHTML = `<form class="panel" id="oidcf"><h3>${t('Anmeldung über OIDC (SSO)')}</h3>
     <p class="muted" style="margin-top:0">${t('Anmeldung über einen eigenen Identity Provider per OpenID Connect – z. B. Authentik, Keycloak, Logto, Zitadel oder Authelia. Die Anmeldung mit Passwort bleibt daneben möglich. Den zweiten Faktor übernimmt dann der Anbieter.')}</p>
     ${chk('enabled', `<b>${t('Eingeschaltet')}</b>`)}
     <label>${t('Redirect-URI – beim Anbieter eintragen')}</label>
@@ -180,7 +180,7 @@ async function updatePanel(el) {
   const draw = () => {
     const c = r.check || {}, st = r.status || {}, busy = ['queued', 'running'].includes(st.state) && Date.now() / 1000 - (st.ts || 0) < 1800;
     const notes = (c.notes || []).map(n => `<li><b class="mono">v${h(n.version)}</b> ${h(n.title)}</li>`).join('');
-    el.innerHTML = `<div class="panel upd">
+    el.innerHTML = `<div class="panel upd"><h3>${t('Updates')}</h3>
       <div class="upd-head"><div><span class="muted small">${t('Installiert')}</span><b class="mono">v${h(r.installed)}</b></div>
         <div><span class="muted small">${t('Auf GitHub')}</span><b class="mono">${c.latest ? 'v' + h(c.latest) : '–'}</b></div>
         <div class="grow">${c.error ? `<span class="warnc small">${h(ts(c.error))}</span>` : c.available ? `<span class="badge warn">${t('Update verfügbar')}</span>`

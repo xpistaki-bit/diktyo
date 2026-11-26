@@ -48,7 +48,8 @@ async function tabHistory(ctx) {
     <div class="toolbar"><select id="hdays" style="width:auto">${[[1, 'letzte 24 Stunden'], [7, 'letzte 7 Tage'], [30, 'letzte 30 Tage'], [90, 'letzte 90 Tage'], [365, 'letztes Jahr']].map(([v, n]) => `<option value="${v}" ${v === f.days ? 'selected' : ''}>${t(n)}</option>`).join('')}</select>
       <span class="chips">${HIST_KINDS.map(([k, n]) => `<label class="chk"><input type="checkbox" data-hk="${k}" ${f.kinds.includes(k) ? 'checked' : ''}> ${t(n)}</label>`).join('')}</span>
       <input type="search" id="hq" placeholder="${t('Gerät, IP, Wert …')}" value="${h(f.q)}" style="max-width:220px">
-      <span class="grow"></span><a class="btn sm" id="hcsv" href="${P}/history.csv?days=${f.days}">${t('CSV')}</a></div>
+      <span class="grow"></span><a class="btn sm" id="hcsv" href="#" title="${h(t('Gefilterte Einträge als CSV-Datei (Excel, LibreOffice)'))}">${t('Verlauf speichern')}</a>
+      ${ctx.isOwner ? `<button type="button" class="sm danger" id="hclear">${t('Verlauf löschen')}</button>` : ''}</div>
     <div id="hlist" class="panel"><p class="muted">${t('lade …')}</p></div>`;
   const load = async () => {
     const r = await api('GET', `${P}/history?days=${f.days}&kinds=${f.kinds.join(',')}&q=${encodeURIComponent(f.q)}`);
@@ -61,7 +62,24 @@ async function tabHistory(ctx) {
     }
     $('#hlist', ctx.el).innerHTML = histList(r.items);
     $$('[data-hdev]', ctx.el).forEach(a => a.onclick = ev => { ev.preventDefault(); deviceDialog(ctx, +a.dataset.hdev); });
-    $('#hcsv', ctx.el).href = `${P}/history.csv?days=${Math.max(f.days, 30)}`;
+    $('#hcsv', ctx.el).href = `${P}/history.csv?days=${f.days}&kinds=${f.kinds.join(',')}&q=${encodeURIComponent(f.q)}`;
+  };
+  const clr = $('#hclear', ctx.el);
+  if (clr) clr.onclick = async () => {
+    const KIND = [['change', 'Änderungen'], ['status', 'Online/Offline'], ['action', 'Aktionen'], ['quarantine', 'Quarantäne']];
+    const r = await dialog(t('Verlauf löschen'), `
+      <p class="muted small">${t('Gelöscht wird nur der Verlauf dieses Profils, nicht die Geräte. Erhalten bleiben der letzte Online/Offline-Stand je Gerät, Aktionen mit noch offenem Zurückschalten, Geräte in aktiver Quarantäne und die Konfigurationsstände (die löschst du im Gerätedialog).')}</p>
+      <label>${t('Was')}</label><div class="chips">${KIND.map(([k, n]) => `<label class="chk"><input type="checkbox" name="k_${k}" checked> ${t(n)}</label>`).join('')}</div>
+      <label>${t('Welche Einträge')}</label><select name="older">${[[0, 'alle'], [30, 'älter als 30 Tage'], [90, 'älter als 90 Tage'], [365, 'älter als ein Jahr']].map(([v, n]) => `<option value="${v}">${t(n)}</option>`).join('')}</select>
+      <p class="warnc small">${t('Online/Offline-Einträge sind die Grundlage für die Verfügbarkeit (Erreichbarkeit & Firmware) – ohne sie beginnt die Messung neu. Vorher am besten „Verlauf speichern“.')}</p>`, {
+      ok: t('Löschen'), danger: true,
+      onOk: f => {
+        const kinds = KIND.map(([k]) => k).filter(k => f.querySelector(`[name=k_${k}]`).checked);
+        if (!kinds.length) throw new Error(t('Nichts zum Löschen gewählt'));
+        return api('DELETE', `${P}/history?kinds=${kinds.join(',')}&older_than_days=${+fd(f).older}`);
+      },
+    });
+    if (r) { toast(t('{n} Einträge gelöscht', { n: r.total })); load(); }
   };
   $('#hdays', ctx.el).onchange = e => { f.days = +e.target.value; load(); };
   $$('[data-hk]', ctx.el).forEach(cb => cb.onchange = () => { f.kinds = $$('[data-hk]', ctx.el).filter(x => x.checked).map(x => x.dataset.hk); load(); });

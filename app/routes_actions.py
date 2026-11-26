@@ -133,8 +133,26 @@ def history(pid: int, device_id: int = 0, days: int = 7, kinds: str = "", q: str
         return dict(items=items, summary=changes.summary(c, pid) if not device_id else None)
 
 
+@router.delete("/history")
+def history_clear(pid: int, kinds: str = "", older_than_days: int = 0, user=Depends(require_user)):
+    """Verlauf löschen (nur Besitzer): kinds = change,status,action,quarantine; older_than_days = 0 für alles."""
+    import datetime as dt
+    from . import changes
+    want = [k for k in kinds.split(",") if k in changes.CLEARABLE]
+    if not want:
+        raise HTTPException(400, "Nichts zum Löschen gewählt")
+    if older_than_days < 0 or older_than_days > 3650:
+        raise HTTPException(400, "Ungültiger Zeitraum")
+    before = (dt.datetime.now().astimezone() - dt.timedelta(days=older_than_days)).isoformat(timespec="seconds") if older_than_days else None
+    with db() as c:
+        profile_access(c, user, pid, "owner")
+        res = changes.clear(c, pid, want, before)
+        audit(c, "history.clear", user["id"], pid, dict(res, older_than_days=older_than_days))
+        return dict(deleted=res, total=sum(res.values()))
+
+
 @router.get("/history.csv")
-def history_csv(pid: int, days: int = 30, user=Depends(require_user)):
+def history_csv(pid: int, days: int = 30, kinds: str = "", q: str = "", user=Depends(require_user)):
     import csv
     import datetime as dt
     import io
@@ -143,7 +161,7 @@ def history_csv(pid: int, days: int = 30, user=Depends(require_user)):
     since = (dt.datetime.now().astimezone() - dt.timedelta(days=max(1, min(365, days)))).isoformat(timespec="seconds")
     with db() as c:
         profile_access(c, user, pid)
-        items = changes.timeline(c, pid, None, since, limit=20000)
+        items = changes.timeline(c, pid, None, since, [k for k in kinds.split(",") if k] or None, q[:80], limit=20000)
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")
     w.writerow(["Zeit", "Art", "Gerät", "Feld", "Vorher", "Nachher", "Quelle", "Benutzer"])
@@ -151,7 +169,7 @@ def history_csv(pid: int, days: int = 30, user=Depends(require_user)):
         w.writerow([x["ts"], f'{x["cat"]}:{x["kind"]}', x.get("device") or "", x.get("field") or "", x.get("old") or "", x.get("new") or "",
                     x.get("source") or "", x.get("user") or ""])
     return Response("\ufeff" + buf.getvalue(), media_type="text/csv; charset=utf-8",
-                    headers={"Content-Disposition": f'attachment; filename="diktyo-verlauf-{pid}.csv"'})
+                    headers={"Content-Disposition": f'attachment; filename="diktyo-verlauf-{pid}-{dt.date.today().isoformat()}.csv"'})
 
 
 # ------------------------------------------------------------ Erreichbarkeit und Firmware

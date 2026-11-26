@@ -166,7 +166,7 @@ aktualisiert sich alle 30 Sekunden von selbst.
 | sehen willst, was sich geändert hat | Reiter **Verlauf**: wer, was, wann, mit Vorher/Nachher |
 | Subnetze, VLANs, feste IPs planst | Reiter **IPAM** |
 | wissen willst, wo ein Gerät steht | Reiter **Standorte** (Keller, Büro, Rack …) |
-| das Netz mit jemandem teilen willst | Reiter **Freigabe** |
+| das Netz mit jemandem teilen willst | **Teilen** oben im Profil (bzw. *Mein Konto* → Profile und Freigaben) |
 | Konfigurationen sichern willst | Integration bearbeiten, *Konfiguration sichern* (FRITZ!Box, ASUS, MikroTik, OPNsense, Switch per SSH) |
 | díktyo selbst sichern willst | **Einstellungen**, *Backup*: ZIP mit allem, auch automatisch auf NAS oder Cloud |
 

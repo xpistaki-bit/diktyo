@@ -108,6 +108,28 @@ def prune(c):
     c.execute("DELETE FROM changes WHERE ts<?", (cut,))
 
 
+CLEARABLE = ("change", "status", "action", "quarantine")
+
+
+def clear(c, pid, kinds, before=None):
+    """Verlauf eines Profils löschen. kinds ⊆ CLEARABLE, before = ISO-Zeit (nur ältere Einträge) oder None (alles).
+    Bleibt erhalten: der jeweils letzte Online/Offline-Stand je Gerät (für die Verfügbarkeit), Aktionen mit noch offenem
+    Zurückschalten, Geräte in aktiver Quarantäne, Konfigurationsstände (die löscht man im Gerätedialog). -> {kind: Anzahl}"""
+    cut = before or "9999"
+    out = {}
+    if "change" in kinds:
+        out["change"] = c.execute("DELETE FROM changes WHERE profile_id=? AND ts<?", (pid, cut)).rowcount
+    if "status" in kinds:
+        out["status"] = c.execute("""DELETE FROM status_events WHERE ts<? AND device_id IN (SELECT id FROM devices WHERE profile_id=?)
+                                     AND id NOT IN (SELECT MAX(id) FROM status_events GROUP BY device_id)""", (cut, pid)).rowcount
+    if "action" in kinds:
+        out["action"] = c.execute("""DELETE FROM actions WHERE profile_id=? AND created<? AND NOT (undo_at IS NOT NULL AND undone IS NULL)""",
+                                  (pid, cut)).rowcount
+    if "quarantine" in kinds:
+        out["quarantine"] = c.execute("DELETE FROM quarantine WHERE profile_id=? AND since<? AND status<>'active'", (pid, cut)).rowcount
+    return out
+
+
 def timeline(c, pid, did=None, since=None, kinds=None, q="", limit=300):
     """Gemischte Zeitleiste, neueste zuerst. kinds: Teilmenge von change, status, action, config, quarantine."""
     since = since or (dt.datetime.now().astimezone() - dt.timedelta(days=7)).isoformat(timespec="seconds")

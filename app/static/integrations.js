@@ -204,7 +204,8 @@ async function tabIntegrations(ctx) {
           <button class="pri" data-add="mikrotik">${t('+ MikroTik')}</button><button class="pri" data-add="opnsense">${t('+ OPNsense')}</button><button class="pri" data-add="openwrt">${t('+ OpenWrt')}</button>
           <button class="pri" data-add="docker">${t('+ Docker')}</button><button class="pri" data-add="shelly">${t('+ Shelly / Tasmota')}</button><button class="pri" data-add="dnsfilter">${t('+ Pi-hole / AdGuard')}</button><button class="pri" data-add="devolo">${t('+ devolo Powerline')}</button></div>` : ''}</div>
     </div>
-    <div class="grid-out" style="margin-top:16px"><div id="speedbox"></div><div id="notifybox"></div><div id="prombox"></div></div>
+    <div class="grid-out" style="margin-top:16px"><div id="speedbox"></div><div id="prombox"></div></div>
+    <p class="muted small">${t('Benachrichtigungen und Quarantäne stehen jetzt unter')} <a href="#/einstellungen/${ctx.pid}">${t('Einstellungen → Profil-Einstellungen')}</a>, ${t('Zeitpläne und letzte Aktionen im Reiter')} <a href="#/p/${ctx.pid}/aktionen">${t('Aktionen')}</a>.</p>
     <div id="ints" class="ints-grid" style="margin-top:16px">${r.integrations.map(i => `<div class="panel integ ${BIG_CARDS.includes(i.driver) ? 'big' : ''}" data-id="${i.id}">
         <div class="row between int-h"><div class="row"><span class="dot ${st(i)}"></span><b>${h(i.name)}</b><span class="muted mono small">${h(i.host)}</span>
           ${i.name !== drv[i.driver]?.name ? `<span class="badge">${h(drv[i.driver]?.name || i.driver)}</span>` : ''}${i.enabled ? '' : `<span class="badge">${t('pausiert')}</span>`}</div>
@@ -285,11 +286,8 @@ async function tabIntegrations(ctx) {
   }
   // Ansicht aktuell halten, solange der Reiter offen ist
   { const hb = document.createElement('div'); hb.style.marginTop = '16px'; ctx.el.appendChild(hb); waits.push(healthPanel(ctx, hb)); }
-  { const qb = document.createElement('div'); qb.style.marginTop = '16px'; ctx.el.appendChild(qb); waits.push(quarantinePanel(ctx, qb)); }
-  { const sb = document.createElement('div'); sb.className = 'panel'; sb.style.marginTop = '16px'; sb.innerHTML = `<h3>${t('Zeitpläne')}</h3><div></div>`; ctx.el.appendChild(sb); waits.push(scheduleList(ctx, sb.lastElementChild)); }
-  { const box = document.createElement('div'); box.id = 'recentact'; box.style.marginTop = '16px'; ctx.el.appendChild(box); waits.push(recentActions(ctx, box)); }
   clearTimeout(tabIntegrations.timer);
-  waits.push(speedSettings(ctx, $('#speedbox', ctx.el)), notifySettings(ctx, $('#notifybox', ctx.el)), promPanel(ctx, $('#prombox', ctx.el)));
+  waits.push(speedSettings(ctx, $('#speedbox', ctx.el)), promPanel(ctx, $('#prombox', ctx.el)));
   await Promise.allSettled(waits);
   // jede Minute aktualisieren: neue Ansicht unsichtbar fertig bauen und dann in einem Schritt tauschen
   tabIntegrations.timer = setTimeout(async () => {
@@ -575,7 +573,7 @@ async function runAction(ctx, did, a, port = 0) {
 async function recentActions(ctx, el) {
   let r;
   try { r = await api('GET', `/api/profiles/${ctx.pid}/actions`); } catch { return; }
-  if (!r.actions.length) { el.innerHTML = ''; return; }
+  if (!r.actions.length) { el.innerHTML = `<div class="panel"><h3>${t('Letzte Aktionen')}</h3><p class="muted small">${t('Noch keine Aktionen. Schalten geht im Gerätedialog unter „Aktionen“.')}</p></div>`; return; }
   el.innerHTML = `<div class="panel"><h3>${t('Letzte Aktionen')}</h3><div class="table-wrap"><table class="compact"><tbody>
     ${r.actions.map(x => `<tr><td class="mono small">${h(fmtDate(x.created))}</td><td>${h(t(x.label))}${x.device ? ` · <b>${h(x.device)}</b>` : ''}</td>
       <td class="small ${x.status === 'done' ? 'okc' : 'errtxt'}">${h(x.status === 'done' ? (x.message || t('erledigt')) : x.message)}</td>
@@ -585,6 +583,13 @@ async function recentActions(ctx, el) {
   </tbody></table></div></div>`;
   $$('[data-cu]', el).forEach(b => b.onclick = async () => { await api('DELETE', `/api/profiles/${ctx.pid}/actions/${b.dataset.cu}/undo`); recentActions(ctx, el); });
 }
+
+/* Reiter „Aktionen“: Zeitpläne und letzte Aktionen (früher unten im Reiter Integrationen) */
+async function tabActions(ctx) {
+  ctx.el.innerHTML = `<div class="stack"><div class="panel"><h3>${t('Zeitpläne')}</h3><div id="schedbox"></div></div><div id="recentact"></div></div>`;
+  await Promise.allSettled([scheduleList(ctx, $('#schedbox', ctx.el)), recentActions(ctx, $('#recentact', ctx.el))]);
+}
+window.INV.aktionen = tabActions;
 
 const fmtInt = v => v == null ? '–' : (+v).toLocaleString(LANG === 'en' ? 'en-GB' : 'de-DE');
 

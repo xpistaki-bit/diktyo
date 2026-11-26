@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.40 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.41 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -100,7 +100,12 @@ Do not install Docker directly on a Proxmox host; use the LXC instead, or a VM.
 - **Sign-in** with e-mail address and password. The first account becomes administrator; further accounts are
   created by an administrator (Settings → Accounts), or by the people themselves if self-registration is allowed.
 - **Profiles** are networks or sites, for example home, parents or holiday house. The owner can share a profile
-  with other accounts as *View*, *Edit* or *Owner*. Administrators can open every profile.
+  with other accounts as *View*, *Edit* or *Owner* ("Share" in the profile header or My account → Profiles and sharing).
+  Administrators can open every profile.
+- **My account** (click your e-mail address in the header, on phones the person icon): password, second factor,
+  signed-in sessions, OIDC link and profiles with sharing. **Settings** has *Profile settings* (notifications and
+  quarantine of the selected profile) and *System* (administrators: updates, accounts, e-mail, OIDC, detection, AI
+  research, backup); every tile has the same header.
 - **Forgot password:** with SMTP configured (Settings → Sending e-mail) a reset link is sent. Without it, an
   administrator generates a new password in the account list, or on the server:
 
@@ -113,7 +118,7 @@ Do not install Docker directly on a Proxmox host; use the LXC instead, or a VM.
 
 ## Devices and network
 
-Each profile has the tabs **Devices**, **IPAM**, **Locations**, **Output** and **Sharing**.
+Each profile has tabs such as **Devices**, **History**, **Integrations**, **IPAM**, **Locations**, **Output** and **Actions** (schedules and recent actions).
 
 - **Devices:** name, type, catalog model, manufacturer/model, location, hostname, MAC, one or more IP addresses
   (static, DHCP, reserved), notes and tags. The table can be searched, filtered by type and location, and sorted
@@ -226,7 +231,7 @@ history.
 
 ## Notifications
 
-Integrations → Notifications sends the events of a profile by **e-mail** (via the SMTP settings) and/or **ntfy**
+Settings → Profile settings → Notifications sends the events of a profile by **e-mail** (via the SMTP settings) and/or **ntfy**
 (push to the phone; ntfy.sh or your own server, optional access token) – independently of Home Assistant. Choose the
 events: device offline/online (optionally infrastructure only), new device, quarantine, firmware update, failed undo
 or schedule, internet slow (speed test below half the line rate), configuration backup failed, integration failing
@@ -249,7 +254,9 @@ events. "Send test message" checks each channel. The ntfy token is stored encryp
 The **History** tab shows what changed when and why: devices added or removed, name, type, status, model, location, IP
 addresses, MAC and connection (e.g. switch port 3 → 5), each with its source (by hand with the account, network scan,
 FRITZ!Box, SNMP, MikroTik, service scan …), plus online/offline, actions, new configuration versions, quarantine and
-open ports appearing or disappearing. A "since yesterday" summary, filters, search and CSV export; the device dialog
+open ports appearing or disappearing. A "since yesterday" summary, filters and search; **Save history** downloads the
+filtered entries as CSV, **Clear history** (owners) deletes chosen kinds, all or older than 30/90/365 days (the latest
+online state per device, pending switch-backs and active quarantine stay); the device dialog
 shows the last 30 days. Roaming between Wi-Fi/mesh access points is not recorded. Kept for a year and included in backups.
 
 ## Network scan and identification
@@ -370,7 +377,7 @@ network, switch port off/on and PoE restart (SNMP with write access), start/shut
 (Proxmox token with `VM.PowerMgmt`), restart managed devices and PoE restart on switch ports via UniFi and Omada
 (Omada also PoE on/off), Shelly/Tasmota outputs on/off and firmware update. Every action shows a preview and asks for confirmation; Wi-Fi, internet block and
 switch ports can switch back automatically (15 min, 1 h, 2 h, tomorrow 6:00). The configuration is backed up first if
-the last backup is older than an hour. **Schedules** run actions on weekdays and times (with a time window for
+the last backup is older than an hour. The **Actions** tab lists recent actions and schedules. **Schedules** run actions on weekdays and times (with a time window for
 reversible actions, e.g. internet blocked Mon–Fri 22:00–06:30, switching only at the transitions). **Quarantine** blocks
 internet access (FRITZ!Box) for every new device until it is accepted in the inbox. díktyo refuses to disable the switch port it or the router uses to reach the
 switch, does not block infrastructure from the internet and does not shut down its own VM. All actions are logged.
@@ -516,7 +523,7 @@ become the owner, and members whose e-mail address exists keep their role.
 
 - Passwords are stored as scrypt hashes. Stored secrets (SMTP, backup targets, device credentials, SSH key) are
   encrypted with a key in `/var/lib/diktyo/secret.key`. The key is never included in backups.
-- **Second factor (TOTP):** Settings → My account → Second factor. Scan the QR code with an authenticator app, confirm
+- **Second factor (TOTP):** My account (click your e-mail address) → Second factor. Scan the QR code with an authenticator app, confirm
   a code and keep the 10 recovery codes. Sign-in then asks for the code after the password (each code works once,
   5 attempts per sign-in). The QR code is generated locally. Lost phone: an administrator resets it in the account
   list, or on the server `diktyo reset-2fa <email>`.
