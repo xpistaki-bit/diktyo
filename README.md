@@ -526,6 +526,8 @@ become the owner, and members whose e-mail address exists keep their role.
 
 ## Security
 
+Found a vulnerability? Please report it privately as described in [SECURITY.md](SECURITY.md), not as a public issue.
+
 - Passwords are stored as scrypt hashes. Stored secrets (SMTP, backup targets, device credentials, SSH key) are
   encrypted with a key in `/var/lib/diktyo/secret.key`. The key is never included in backups.
 - **Second factor (TOTP):** My account (click your e-mail address) → Second factor. Scan the QR code with an authenticator app, confirm
