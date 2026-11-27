@@ -778,6 +778,14 @@ und zeigt die Gäste im VLAN-Plan unter ihrem Host – mit VLAN-Nummer und -Farb
 Der Plan prüft, ob der Switch-Port zum Host alle VLANs seiner Gäste **tagged** führt, und meldet VLANs, die Gäste nutzen,
 die es in díktyo aber noch nicht gibt. Damit das klappt, muss die Linux-Bridge in Proxmox *VLAN aware* sein.
 
+**VLAN-Wechsel von VMs und Containern planen:** Im Modus *Plan* auf einen Gast klicken und das künftige VLAN wählen
+(auch ein nur geplantes VLAN oder „ohne Tag“). Der Gast zeigt dann den Wechsel (z. B. „ohne → 30“) und ist markiert;
+die **Umstellungsliste** führt ihn unter *VMs und Container – in Proxmox umstellen*. Der Plan prüft mit den geplanten
+Tags, ob der Switch-Port zum Host die VLANs tagged führt. díktyo ändert nichts in Proxmox: Du stellst das Tag dort um,
+und sobald die Proxmox-Integration das neue Tag meldet, verschwindet der Eintrag von selbst. *Aus dem Plan nehmen* setzt
+den Gast auf den Ist-Stand zurück. Beim *Plan abschließen* fallen noch nicht umgestellte Gäste aus dem Plan heraus (der
+Hinweis nennt ihre Zahl); die PDF-Ausgabe enthält sie in der Umstellungsliste.
+
 **Produktiv** ist der Ist-Stand. Bei Geräten mit passender Integration liest díktyo ihn bei jeder Abfrage (nur
 lesend) – dort lässt er sich nicht von Hand ändern. Das Kennzeichen am Gerät nennt die Quelle:
 

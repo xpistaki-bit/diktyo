@@ -872,3 +872,7 @@ label.chk.tg-dev{margin:0;padding:6px 0;border-bottom:1px solid rgba(0,229,255,.
 .who{display:inline-flex;align-items:center;gap:6px;color:var(--dim)!important}
 .who.on,.who:hover{color:var(--cyan)!important}
 @media (max-width:720px){.settings .set-grid{grid-template-columns:1fr}}
+
+/* VLAN-Plan: VM/Container mit geplantem VLAN-Wechsel */
+.vp-guest.chg{outline:1px dashed var(--warn);outline-offset:1px}
+.vp-guest .vp-old{margin-right:3px;font-weight:400;font-size:.8em;color:var(--mute)}

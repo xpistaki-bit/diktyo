@@ -53,6 +53,12 @@ def plan_finish(pid: int, user=Depends(require_user)):
     return _edit(pid, user, lambda c: vlanplan.plan_finish(c, pid), "vlanplan.finish")
 
 
+@router.put("/plan/guests")
+def plan_guests(pid: int, body: dict = Body(...), user=Depends(require_user)):
+    vid = body.get("vid")
+    return _edit(pid, user, lambda c: vlanplan.set_guest_plan(c, pid, body.get("guests") or [], None if vid in (None, "", 0) else vid))
+
+
 @router.post("/plan/adopt/{iid}")
 def plan_adopt(pid: int, iid: int, user=Depends(require_user)):
     return _edit(pid, user, lambda c: vlanplan.adopt_port(c, pid, iid))

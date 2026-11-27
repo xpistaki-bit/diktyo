@@ -508,3 +508,10 @@ PATTERNS += [
     ("Gastnetz „{}“ eingeschaltet", "Guest network “{}” switched on"), ("Gastnetz „{}“ ausgeschaltet", "Guest network “{}” switched off"),
 ]
 _PATTERNS = sorted(((de, _compile(de), en_) for de, en_ in PATTERNS), key=lambda x: _rank(x[0]))
+
+
+# ------------------------------------------------------------ 0.43: geplante VLAN-Wechsel von VMs/Containern
+ERR_EN.update({
+    "Keine VM bzw. kein Container aus Proxmox gewählt": "No VM or container from Proxmox selected",
+    "Dieses VLAN gibt es nicht – zuerst anlegen (auch als geplantes VLAN möglich)": "This VLAN does not exist – create it first (a planned VLAN works too)",
+})

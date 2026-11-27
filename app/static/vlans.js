@@ -16,6 +16,8 @@ async function tabVlans(ctx) {
   const vlabel = v => `${v.vid}${v.name ? ' · ' + v.name : ''}`;
   const memb = (m, vm) => m ? `${m.u && vm[m.u] ? 'U ' + vm[m.u].vid : 'U –'}${m.t.length ? ' · T ' + m.t.map(x => vm[x]?.vid).join(',') : ''}` : '–';
   const differs = p => p.plan && (p.plan.u !== p.prod.u || p.plan.t.join() !== p.prod.t.join());
+  const nChanges = () => st.diff.length + (st.guest_diff || []).length;
+  const tagText = vid => vid ? `${t('Tag')} ${vid}` : t('ohne Tag');
 
   const save = async (method, url, body, msg) => {
     try { st = await api(method, `${P}${url}`, body); if (msg) toast(msg); draw(); return st; } catch (e) { toast(e.message, true); return null; }
@@ -52,9 +54,22 @@ async function tabVlans(ctx) {
       <span class="grow"></span><button type="button" class="pri sm" data-apply>${t('Zuweisen')}</button><button type="button" class="sm" data-clear>${t('Auswahl aufheben')}</button></div>`;
   }
 
+  function guestList() {
+    const gd = st.guest_diff || [];
+    if (!gd.length) return '';
+    return `<h4 style="margin:16px 0 6px">${t('VMs und Container – in Proxmox umstellen')}</h4>
+      <p class="muted small">${t('Das VLAN-Tag stellst du in Proxmox an der Netzwerkkarte des Gasts um (Hardware → Netzwerkgerät → VLAN-Tag, bei LXC Netzwerk). Sobald die Proxmox-Integration das neue Tag meldet, hakt sich der Eintrag von selbst ab.')}</p>
+      <div class="table-wrap"><table class="compact"><thead><tr><th>${t('VM / Container')}</th><th>${t('Host')}</th><th>${t('Produktiv')}</th><th></th><th>${t('Plan')}</th><th></th></tr></thead><tbody>
+      ${gd.map(g => `<tr><td>${h(g.name)} <span class="muted small">${g.kind === 'lxc' ? 'CT' : 'VM'} ${h(String(g.vmid || ''))}</span></td><td>${h(g.host)}</td>
+        <td class="mono">${tagText(g.prod_vid)}</td><td>→</td><td class="mono"><b>${tagText(g.plan_vid)}</b></td>
+        <td><span class="muted small">${t('wartet auf Proxmox')}</span>${ctx.canEdit ? ` <button type="button" class="sm link" data-greset="${g.device_id}" data-gvid="${g.prod_vid || ''}">${t('aus dem Plan nehmen')}</button>` : ''}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+
   function changeList(vm) {
     if (ui.mode !== 'plan') return '';
-    if (!st.diff.length) return `<div class="panel"><div class="hud-h"><h3>${t('Umstellungsliste')}</h3></div><p class="muted">${t('Plan und produktiver Stand sind gleich – noch nichts umzustellen.')}</p></div>`;
+    if (!st.diff.length && !(st.guest_diff || []).length) return `<div class="panel"><div class="hud-h"><h3>${t('Umstellungsliste')}</h3></div><p class="muted">${t('Plan und produktiver Stand sind gleich – noch nichts umzustellen.')}</p></div>`;
+    if (!st.diff.length) return `<div class="panel"><div class="hud-h"><h3>${t('Umstellungsliste')}</h3><span class="hint">${t('{n} VMs/Container', { n: st.guest_diff.length })}</span></div>${guestList()}</div>`;
     const snmp = new Set(st.switches.filter(s => s.snmp).map(s => s.id));
     const peers = Object.fromEntries(st.switches.flatMap(s => s.ports.map(p => [p.id, p.peers.map(x => x.name).join(', ')])));
     return `<div class="panel"><div class="hud-h"><h3>${t('Umstellungsliste')}</h3><span class="hint">${t('{n} Ports', { n: st.diff.length })}</span></div>
@@ -63,7 +78,7 @@ async function tabVlans(ctx) {
       ${st.diff.map(d => `<tr><td>${h(d.device)}</td><td class="mono">${h(d.port)}</td><td>${h(peers[d.interface_id] || '')}</td>
         <td class="mono">${memb(d.prod, vm)}</td><td>→</td><td class="mono"><b>${memb(d.plan, vm)}</b></td>
         <td>${snmp.has(d.device_id) ? `<span class="muted small">${t('wartet auf das Gerät')}</span>` : ctx.canEdit ? `<button type="button" class="sm" data-adopt="${d.interface_id}">✓ ${t('umgesetzt')}</button>` : ''}</td></tr>`).join('')}
-      </tbody></table></div></div>`;
+      </tbody></table></div>${guestList()}</div>`;
   }
 
   function warnings() {
@@ -90,21 +105,25 @@ async function tabVlans(ctx) {
       ${editable(s) && s.ports.length ? `<button type="button" class="sm" data-selall="${s.id}">${t('alle wählen')}</button>` : ''}</span></div>
       ${s.ports.length ? `<div class="vp-ports">${s.ports.map(p => portTile(s, p, vm)).join('')}</div>` : ''}
       ${s.guests?.length ? `<div class="vp-guests"><span class="vp-gh">${t('VMs und Container (Proxmox)')}</span>
-        ${s.guests.map(g => { const v = vm[g.vlan_id]; return `<a href="#" class="vp-guest" data-gdev="${g.id}" style="${v ? `--vc:${v.color}` : ''}" title="${h(g.bridge ? 'Bridge ' + g.bridge : '')}">
-          <b class="mono">${g.vid ? g.vid : '–'}</b><span>${h(g.name)}</span><small>${g.vid ? (v ? h(v.name || '') : t('VLAN fehlt in díktyo')) : t('ohne Tag (VLAN des Host-Ports)')}</small></a>`; }).join('')}</div>` : ''}</div>`;
+        ${s.guests.map(g => {
+          const plan = ui.mode === 'plan' && st.plan, vid = plan ? g.plan_vid : g.vid, v = vm[plan ? g.plan_vlan_id : g.vlan_id];
+          const tip = [g.bridge ? 'Bridge ' + g.bridge : '', plan && g.changed ? `${t('Produktiv')}: ${tagText(g.vid)}` : '', plan && ctx.canEdit ? t('Klick: geplantes VLAN wählen') : ''].filter(Boolean).join('\n');
+          return `<a href="#" class="vp-guest ${plan && g.changed ? 'chg' : ''}" data-gdev="${g.id}" style="${v ? `--vc:${v.color}` : ''}" title="${h(tip)}">
+          <b class="mono">${plan && g.changed ? `<span class="vp-old">${g.vid || t('ohne')}→</span>` : ''}${vid ? vid : '–'}</b><span>${h(g.name)}</span>
+          <small>${vid ? (v ? h(v.name || '') : t('VLAN fehlt in díktyo')) : t('ohne Tag (VLAN des Host-Ports)')}</small></a>`; }).join('')}</div>` : ''}</div>`;
   }
 
   function draw() {
     const vm = vmap();
     const planBar = ui.mode === 'plan' ? (st.plan
       ? `<div class="vp-planbar"><b>${t('PLAN-MODUS')}</b><span>${t('Änderungen betreffen nur den Plan – nicht das Netz.')} ${st.plan.note ? '· ' + h(st.plan.note) : ''}
-          · ${st.diff.length ? t('{n} Ports weichen vom produktiven Stand ab', { n: st.diff.length }) : t('keine Abweichung')}</span><span class="grow"></span>
+          · ${st.diff.length ? t('{n} Ports weichen vom produktiven Stand ab', { n: st.diff.length }) : !(st.guest_diff || []).length ? t('keine Abweichung') : ''}${(st.guest_diff || []).length ? `${st.diff.length ? ' · ' : ''}${t('{n} VMs/Container mit neuem VLAN', { n: st.guest_diff.length })}` : ''}</span><span class="grow"></span>
           ${ctx.canEdit ? `<button type="button" class="sm" data-finish>${t('Plan abschließen')}</button><button type="button" class="sm danger" data-discard>${t('Plan verwerfen')}</button>` : ''}</div>` : '') : '';
     const noPlan = ui.mode === 'plan' && !st.plan;
     const anyData = st.switches.some(s => s.ports.some(p => p.prod.u || p.prod.t.length));
     ctx.el.innerHTML = `<div class="vp-top">
         <div class="seg vp-mode"><button type="button" data-mode="prod" class="${ui.mode === 'prod' ? 'on' : ''}">● ${t('Produktiv')}</button>
-          <button type="button" data-mode="plan" class="${ui.mode === 'plan' ? 'on plan' : ''}">✎ ${t('Plan')}${st.diff.length ? ` <span class="count">${st.diff.length}</span>` : ''}</button></div>
+          <button type="button" data-mode="plan" class="${ui.mode === 'plan' ? 'on plan' : ''}">✎ ${t('Plan')}${nChanges() ? ` <span class="count">${nChanges()}</span>` : ''}</button></div>
         <div class="seg"><button type="button" data-view="ports" class="${ui.view === 'ports' ? 'on' : ''}">${t('Ports')}</button><button type="button" data-view="matrix" class="${ui.view === 'matrix' ? 'on' : ''}">${t('Matrix')}</button></div>
         <span class="grow"></span><span class="muted small">${ui.mode === 'prod' ? t('Ist-Stand: bei Geräten mit Integration vom Gerät gelesen, sonst von Hand gepflegt.') : ''}</span></div>
       ${planBar}
@@ -126,16 +145,21 @@ async function tabVlans(ctx) {
     const el = ctx.el;
     $$('[data-mode]', el).forEach(b => b.onclick = () => { ui.mode = b.dataset.mode; ui.sel.clear(); draw(); });
     $$('[data-view]', el).forEach(b => b.onclick = () => { ui.view = b.dataset.view; draw(); });
-    $$('[data-gdev]', el).forEach(a => a.onclick = ev => { ev.preventDefault(); deviceDialog(ctx, +a.dataset.gdev); });
+    $$('[data-gdev]', el).forEach(a => a.onclick = ev => {
+      ev.preventDefault();
+      if (ui.mode === 'plan' && st.plan && ctx.canEdit) guestPlan(+a.dataset.gdev); else deviceDialog(ctx, +a.dataset.gdev);
+    });
+    $$('[data-greset]', el).forEach(b => b.onclick = () => save('PUT', '/vlanplan/plan/guests', { guests: [+b.dataset.greset], vid: b.dataset.gvid ? +b.dataset.gvid : null }, t('aus dem Plan genommen')));
     const more = $('.vp-more', el);
     if (more) more.ontoggle = () => { ui.more = more.open; };
     const sb = $('[data-start]', el);
     if (sb) sb.onclick = async () => { if (await save('POST', '/vlanplan/plan', { note: $('#vpnote', el).value }, t('Plan angelegt'))) { ui.mode = 'plan'; draw(); } };
     const fin = $('[data-finish]', el);
     if (fin) fin.onclick = async () => {
-      const snmpOpen = st.diff.filter(d => st.switches.find(s => s.id === d.device_id)?.snmp).length;
+      const snmpOpen = st.diff.filter(d => st.switches.find(s => s.id === d.device_id)?.snmp).length, gOpen = (st.guest_diff || []).length;
       const txt = t('Plan abschließen: Bei von Hand gepflegten Geräten wird der Plan zum produktiven Stand, geplante VLANs werden normale VLANs.')
-        + (snmpOpen ? ' ' + t('{n} Ports an Geräten mit Integration sind laut Gerät noch nicht umgestellt – sie fallen aus dem Plan heraus.', { n: snmpOpen }) : '');
+        + (snmpOpen ? ' ' + t('{n} Ports an Geräten mit Integration sind laut Gerät noch nicht umgestellt – sie fallen aus dem Plan heraus.', { n: snmpOpen }) : '')
+        + (gOpen ? ' ' + t('{n} VMs/Container haben laut Proxmox noch das alte VLAN – ihr geplanter Wechsel fällt aus dem Plan heraus.', { n: gOpen }) : '');
       if (!await confirmDlg(t('Plan abschließen'), h(txt), t('Abschließen'))) return;
       if (await save('POST', '/vlanplan/plan/finish', null, t('Plan abgeschlossen'))) { ui.mode = 'prod'; draw(); }
     };
@@ -178,6 +202,22 @@ async function tabVlans(ctx) {
     $$('[data-vl]', el).forEach(b => b.onclick = () => ctx.canEdit && vlanEdit(st.vlans.find(v => v.id === +b.dataset.vl)));
     const av = $('[data-addvl]', el);
     if (av) av.onclick = () => vlanEdit({ planned: ui.mode === 'plan' });
+  }
+
+  async function guestPlan(gid) {
+    const g = st.switches.flatMap(s => (s.guests || []).map(x => ({ ...x, host: s.name }))).find(x => x.id === gid);
+    if (!g) return;
+    const vl = st.vlans;
+    const ok = await dialog(t('Geplantes VLAN: {n}', { n: g.name }), `
+      <p class="muted small">${g.kind === 'lxc' ? 'CT' : 'VM'} ${h(String(g.vmid || ''))} · ${h(g.host)}${g.bridge ? ' · Bridge ' + h(g.bridge) : ''} · ${t('Produktiv')}: <b>${tagText(g.vid)}</b></p>
+      <label>${t('VLAN-Tag im Plan')}</label><select name="vid"><option value="">${t('ohne Tag (VLAN des Host-Ports)')}</option>
+        ${vl.map(v => `<option value="${v.vid}" ${v.vid === g.plan_vid ? 'selected' : ''}>${h(vlabel(v))}${v.planned ? ' · ' + t('geplant') : ''}</option>`).join('')}</select>
+      <p class="muted small">${t('díktyo ändert nichts in Proxmox. Der Wechsel steht danach in der Umstellungsliste; der Plan prüft, ob der Switch-Port zum Host das VLAN tagged führt.')}</p>
+      <p class="small"><a href="#" data-gopen>${t('Gerät öffnen')}</a></p>`, {
+      onOpen: (f, close) => { $('[data-gopen]', f).onclick = ev => { ev.preventDefault(); close(null); deviceDialog(ctx, gid); }; },
+      onOk: f => { const v = fd(f).vid; return api('PUT', `${P}/vlanplan/plan/guests`, { guests: [gid], vid: v ? +v : null }); },
+    });
+    if (ok) { st = ok; toast(t('Plan geändert')); draw(); }
   }
 
   async function vlanEdit(v) {

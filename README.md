@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.42 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.43 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -453,7 +453,9 @@ untagged/tagged VLANs. díktyo lists every port to change (productive → plan),
 doesn't fit the new VLAN's subnet or an uplink doesn't carry a VLAN used on the other switch, and ticks ports off
 automatically once a device with an integration reports the new state. VMs and containers from the Proxmox integration appear under
 their host with the VLAN tag of their network card, and the plan checks that the switch port to the host carries
-those VLANs tagged. díktyo never writes to the switches.
+those VLANs tagged. In plan mode a VM or container can get a planned VLAN tag; it then appears in the change list
+("change in Proxmox") and is ticked off once Proxmox reports the new tag. díktyo never writes to the switches or to
+Proxmox.
 
 ## Cabling (cables and patch panels)
 

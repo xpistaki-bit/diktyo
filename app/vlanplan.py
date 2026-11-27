@@ -174,11 +174,65 @@ def _copy_port(c, iid):
     c.execute("INSERT INTO port_vlans(interface_id, vlan_id, tagged, source) SELECT interface_id, vlan_id, tagged, 'manual' FROM port_vlans_plan WHERE interface_id=?", (iid,))
 
 
+# ------------------------------------------------------------ VMs und Container (Proxmox) im Plan
+def _guest_rows(c, pid):
+    """Bestätigte Proxmox-Gäste mit Host -> [dict(id, name, host, data)]"""
+    return c.execute("""SELECT gd.id, gd.name, gd.type, gd.data, bi.device_id AS host FROM links l JOIN interfaces ai ON ai.id=l.a_if
+                        JOIN interfaces bi ON bi.id=l.b_if JOIN devices gd ON gd.id=ai.device_id
+                        WHERE l.profile_id=? AND l.medium='virtual' AND gd.status='confirmed' ORDER BY gd.name COLLATE NOCASE""", (pid,)).fetchall()
+
+
+def _tag(px):
+    tag = str((px or {}).get("tag") or "").strip()
+    return int(tag) if tag.isdigit() else None
+
+
+def plan_guests(c, pid):
+    """Geplante VLAN-Tags der Gäste: {device_id: vid oder None (= ohne Tag)}; nur Abweichungen vom Ist-Stand."""
+    return {int(k): v for k, v in ((plan_info(c, pid) or {}).get("guests") or {}).items()}
+
+
+def set_guest_plan(c, pid, guest_ids, vid):
+    """Geplantes VLAN-Tag für VMs/Container setzen (vid = VLAN-ID oder None für „ohne Tag“). Gleich dem Ist-Stand = kein Eintrag."""
+    st = _settings(c, pid)
+    plan = st.get("vlan_plan")
+    if not plan:
+        raise VlanError("Es gibt noch keinen Plan")
+    if vid is not None:
+        vid = int(vid)
+        if not c.execute("SELECT 1 FROM vlans WHERE profile_id=? AND vid=?", (pid, vid)).fetchone():
+            raise VlanError("Dieses VLAN gibt es nicht – zuerst anlegen (auch als geplantes VLAN möglich)")
+    cur = {r["id"]: _tag(json.loads(r["data"] or "{}").get("proxmox")) for r in _guest_rows(c, pid) if json.loads(r["data"] or "{}").get("proxmox")}
+    ids = [int(x) for x in guest_ids or []]
+    if not ids or any(i not in cur for i in ids):
+        raise VlanError("Keine VM bzw. kein Container aus Proxmox gewählt")
+    g = {str(k): v for k, v in (plan.get("guests") or {}).items()}
+    for i in ids:
+        if vid == cur[i]:
+            g.pop(str(i), None)
+        else:
+            g[str(i)] = vid
+    plan["guests"] = g
+    _save_settings(c, pid, st)
+    return len(ids)
+
+
+def guest_diff(st):
+    """Gäste, deren geplantes Tag vom Ist-Stand (laut Proxmox) abweicht."""
+    out = []
+    for s in st["switches"]:
+        for g in s.get("guests") or []:
+            if g.get("changed"):
+                out.append(dict(device_id=g["id"], name=g["name"], kind=g["kind"], vmid=g["vmid"], host_id=s["id"], host=s["name"],
+                                prod_vid=g["vid"], plan_vid=g["plan_vid"]))
+    return out
+
+
 def plan_finish(c, pid):
     """Plan abschließen: bei Geräten ohne SNMP-VLANs wird der Plan produktiv, geplante VLANs werden normale VLANs.
-    -> Anzahl offener Ports an SNMP-Switches (die am Switch noch nicht umgesetzt sind)."""
+    -> Anzahl offener Ports an Geräten mit Integration und offener VM/Container-Wechsel (in Proxmox noch nicht umgestellt)."""
     snmp = snmp_devices(c, pid)
-    open_snmp = 0
+    open_snmp = len(guest_diff(state(c, pid)))
     for d in diff(c, pid):
         if d["device_id"] in snmp:
             open_snmp += 1
@@ -258,19 +312,19 @@ def state(c, pid):
                               prod=prod.get(p["id"]) or dict(u=None, t=[]), plan=(planm.get(p["id"]) or dict(u=None, t=[])) if plan else None))
         switches.append(dict(id=d["id"], name=d["name"], type=d["type"], snmp=d["id"] in snmp, source=SOURCES.get(snmp.get(d["id"]), ""),
                              ports=ports, infra=d["type"] in VLAN_TYPES))
-    # VMs und Container (Proxmox): VLAN-Tag aus der Netzwerkkarte des Gasts, angezeigt beim Host
+    # VMs und Container (Proxmox): VLAN-Tag aus der Netzwerkkarte des Gasts, angezeigt beim Host; im Plan das geplante Tag
     by_vid = {v["vid"]: v["id"] for v in vlans}
+    gplan = plan_guests(c, pid) if plan else {}
     guests = {}
-    for r in c.execute("""SELECT gd.id, gd.name, gd.type, gd.data, bi.device_id AS host FROM links l JOIN interfaces ai ON ai.id=l.a_if
-                          JOIN interfaces bi ON bi.id=l.b_if JOIN devices gd ON gd.id=ai.device_id
-                          WHERE l.profile_id=? AND l.medium='virtual' AND gd.status='confirmed' ORDER BY gd.name COLLATE NOCASE""", (pid,)):
+    for r in _guest_rows(c, pid):
         px = json.loads(r["data"] or "{}").get("proxmox")
         if not px:
             continue
-        tag = str(px.get("tag") or "").strip()
-        vid = int(tag) if tag.isdigit() else None
+        vid = _tag(px)
+        pv = gplan.get(r["id"], vid) if r["id"] in gplan else vid
         guests.setdefault(r["host"], []).append(dict(id=r["id"], name=r["name"], kind=px.get("kind") or "", vmid=px.get("vmid"), vid=vid,
-                                                     vlan_id=by_vid.get(vid), bridge=px.get("bridge") or ""))
+                                                     vlan_id=by_vid.get(vid), bridge=px.get("bridge") or "",
+                                                     plan_vid=pv, plan_vlan_id=by_vid.get(pv), changed=bool(plan) and pv != vid))
     have = {s["id"] for s in switches}
     for hid in guests:
         if hid not in have and hid in devs and devs[hid]["status"] == "confirmed":
@@ -278,6 +332,7 @@ def state(c, pid):
     for s in switches:
         s["guests"] = guests.get(s["id"], [])
     out = dict(vlans=vlans, switches=switches, plan=plan, diff=diff(c, pid) if plan else [])
+    out["guest_diff"] = guest_diff(out) if plan else []
     out["warnings"] = dict(prod=checks(c, pid, out, "prod"), plan=checks(c, pid, out, "plan") if plan else [])
     return out
 
@@ -336,20 +391,22 @@ def checks(c, pid, st, mode):
             m = p[key] or dict(u=None, t=[])
             have = set(([m["u"]] if m["u"] else []) + m["t"])
             for peer in p["peers"]:
-                need = {g["vlan_id"] for g in guests_of.get(peer["id"], []) if g["vlan_id"]}
+                gk = "plan_vlan_id" if key == "plan" else "vlan_id"
+                need = {g[gk] for g in guests_of.get(peer["id"], []) if g.get(gk)}
                 miss = sorted(need - have, key=lambda v: vl[v]["vid"] if v in vl else 0)
                 if miss and have:
-                    names = ", ".join(g["name"] for g in guests_of[peer["id"]] if g["vlan_id"] in miss)[:120]
+                    names = ", ".join(g["name"] for g in guests_of[peer["id"]] if g.get(gk) in miss)[:120]
                     out.append(dict(level="warn", device_id=s["id"], interface_id=p["id"], code="guest_vlan",
                                     text=f"{s['name']} · Port {p['name']} → {peer['name']}: führt {', '.join(lab(v) for v in miss if v in vl)} nicht, "
                                          f"das VMs/Container nutzen ({names}) – als tagged eintragen"))
     seen_vid = set()
     for gl in guests_of.values():
         for g in gl:
-            if g["vid"] and not g["vlan_id"] and g["vid"] not in seen_vid:
-                seen_vid.add(g["vid"])
+            gv, gid = (g.get("plan_vid"), g.get("plan_vlan_id")) if key == "plan" else (g["vid"], g["vlan_id"])
+            if gv and not gid and gv not in seen_vid:
+                seen_vid.add(gv)
                 out.append(dict(level="info", code="guest_unknown_vlan",
-                                text=f"VLAN {g['vid']} wird von {g['name']} (Proxmox) genutzt, ist in díktyo aber noch nicht angelegt"))
+                                text=f"VLAN {gv} wird von {g['name']} (Proxmox) genutzt, ist in díktyo aber noch nicht angelegt"))
     for v in st["vlans"]:
         if v["id"] in used and not v["subnets"] and v["vid"] != 1:
             out.append(dict(level="info", code="no_subnet", text=f"{lab(v['id'])} hat noch kein Subnetz (IPAM) – für die Adressprüfung eines anlegen"))
@@ -370,4 +427,8 @@ def pdf_tables(c, pid, lang="de"):
     for d in st["diff"]:
         a, b = fmt(d["prod"]), fmt(d["plan"])
         chg.append([d["device"], d["port"], f"U {a[0]}" + (f" · T {a[1]}" if a[1] else ""), f"U {b[0]}" + (f" · T {b[1]}" if b[1] else "")])
+    tag = lambda v: f"Tag {v}" if v else ("no tag" if lang == "en" else "ohne Tag")  # noqa: E731
+    for g in st.get("guest_diff") or []:
+        what = f"{'CT' if g['kind'] == 'lxc' else 'VM'} {g['vmid'] or ''} ({g['host']})".replace("  ", " ")
+        chg.append([g["name"], what, tag(g["prod_vid"]), tag(g["plan_vid"])])
     return per, chg
