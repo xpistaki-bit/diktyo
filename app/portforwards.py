@@ -79,10 +79,12 @@ def _devices_by_ip(c, pid):
 def state(c, pid, device_id=None):
     _, pf = _load(c, pid)
     by_ip = _devices_by_ip(c, pid)
-    items, sources = [], []
+    items, sources, problems = [], [], []
     for r in c.execute("SELECT id, name, driver, enabled, state FROM integrations WHERE profile_id=? ORDER BY id", (pid,)):
         res = (json.loads(r["state"] or "{}").get("result") or {})
         if "forwards" not in res:
+            if res.get("forwards_error"):  # Quelle vorhanden, Liste aber nicht lesbar: Grund im Reiter zeigen
+                problems.append(dict(id=r["id"], name=r["name"], driver=r["driver"], error=res["forwards_error"]))
             continue
         sources.append(dict(id=r["id"], name=r["name"], driver=r["driver"], kind=DRIVER_NAMES.get(r["driver"], r["driver"]),
                             count=len(res["forwards"] or []), enabled=bool(r["enabled"])))
@@ -94,7 +96,7 @@ def state(c, pid, device_id=None):
             items.append(dict(f, key=k, integration=r["id"], source=r["name"], driver=r["driver"], device=dev,
                               note=pf["notes"].get(k, ""), new=k in pf["new"], since=pf["known"].get(k)))
     items.sort(key=lambda x: (not x["new"], (x["device"] or {}).get("name", "~" + x["ip"]).lower(), x["proto"], x["ext"]))
-    return dict(items=items, sources=sources, new=sum(1 for x in items if x["new"]),
+    return dict(items=items, sources=sources, problems=problems, new=sum(1 for x in items if x["new"]),
                 upnp=sum(1 for x in items if x["kind"] == "upnp"), total=len(items))
 
 

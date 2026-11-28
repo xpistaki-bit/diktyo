@@ -313,7 +313,8 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
   forwards and UPnP mappings – from FRITZ!Box, ASUS, OpenWrt, MikroTik, OPNsense (25.7+) and UniFi, with the device
   behind the target IP, risky services (SSH, RDP, SMB …) highlighted, a note per entry and CSV export. New forwards
   (or a forward that suddenly points elsewhere) stay marked until confirmed, appear in the overview and trigger a
-  notification. díktyo only reads.
+  notification. díktyo only reads. (FRITZ!Box: the user needs the “FRITZ!Box settings” right; if a list can’t be read,
+  the tab says why.)
 - **Switch (SNMP v2c or v3** with SHA/SHA-256/MD5 authentication and AES-128 encryption), for example the Zyxel XGS1935: port status and speed, traffic per port (from the 64-bit
   counters), MAC addresses learned per port and LLDP neighbours. Devices whose MAC address appears alone on a port
   are connected to that port automatically; on a port with many addresses the switch, access point or router behind

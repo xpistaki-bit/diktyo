@@ -46,7 +46,9 @@ def _call(fc, svc, act, **kw):
     try:
         return fc.call_action(svc, act, **kw)
     except Exception as ex:
-        if "401" in str(ex) or "Authorization" in type(ex).__name__:
+        # HTTP 401 = Anmeldung abgelehnt; UPnP-Fehler 401 („Invalid Action“, FritzActionError) heißt nur: Aktion fehlt
+        if "Authorization" in type(ex).__name__ or ("401" in str(ex) and type(ex).__name__ not in ("FritzActionError", "FritzServiceError")
+                                                     and "errorCode" not in str(ex)):
             raise PermissionError(str(ex))
         raise
 
@@ -648,46 +650,91 @@ def poll_line(fc, conf, state, now=None):
 FORWARDS_S = 300  # je Eintrag eine eigene Abfrage – deshalb nur alle 5 Minuten
 
 
-def forwards(fc):
+def _pf_services(fc):
+    """Dienste mit Portfreigaben: die Standardverbindung zuerst (Layer3Forwarding), dann alle WANIP-/WANPPP-Dienste der Box."""
+    names = list(getattr(fc, "services", None) or [])
+    cand = [n for n in names if n.startswith(("WANIPConn", "WANPPPConn"))] or ["WANIPConn1", "WANPPPConnection1"]
+    try:
+        d = str(_call(fc, "Layer3Forwarding1", "GetDefaultConnectionService").get("NewDefaultConnectionService") or "")
+        pref = "WANPPPConnection" if "WANPPP" in d else "WANIPConn" if "WANIP" in d else ""
+        if pref:
+            cand.sort(key=lambda n: not n.startswith(pref))
+    except Exception:
+        pass
+    return cand
+
+
+def _pf_err(ex):
+    """Fehler einer TR-064-Abfrage als Kurzbeschreibung."""
+    txt = str(ex)
+    if isinstance(ex, PermissionError) or type(ex).__name__ == "FritzSecurityError" or "606" in txt:
+        return "perm"
+    if type(ex).__name__ in ("FritzActionError", "FritzServiceError") or "401" in txt or "Invalid Action" in txt:
+        return "missing"
+    return " ".join(txt.split())[:160] or type(ex).__name__
+
+
+def forwards(fc, errors=None):
     """IPv4-Portfreigaben über TR-064 (WANIPConnection bzw. WANPPPConnection). TR-064 unterscheidet nicht, ob eine Freigabe
     in der Oberfläche eingerichtet oder von einem Gerät (UPnP/PCP) angelegt wurde – mit Laufzeit gilt sie als automatisch.
-    None, wenn die Box die Liste nicht liefert."""
+    Kennt die Box GetPortMappingNumberOfEntries nicht, wird bis zum ersten ungültigen Index gelesen.
+    None, wenn die Box die Liste nicht liefert; die Gründe landen dann in errors."""
     from .controller import forward
+    errors = [] if errors is None else errors
     best = None
-    for svc in ("WANIPConn1", "WANPPPConnection1"):
+    for svc in _pf_services(fc):
+        n = None
         try:
             n = int(_call(fc, svc, "GetPortMappingNumberOfEntries").get("NewPortMappingNumberOfEntries") or 0)
-        except Exception:
-            continue
-        out = []
-        for i in range(min(n, 200)):
+        except Exception as ex:
+            errors.append(_pf_err(ex))
+        out, ok = [], n is not None
+        for i in range(min(n, 200) if n is not None else 200):
             try:
                 r = _call(fc, svc, "GetGenericPortMappingEntry", NewPortMappingIndex=i)
-            except Exception:
+            except Exception as ex:
+                e = _pf_err(ex)
+                if n is None and i == 0 and type(ex).__name__ != "FritzArrayIndexError" and "713" not in str(ex):
+                    errors.append(e)  # Eintrag 0 nicht lesbar und keine Anzahl: dieser Dienst liefert nichts
+                else:
+                    ok = True  # Liste zu Ende (713 = ungültiger Index)
                 break
+            ok = True
             lease = r.get("NewLeaseDuration")
             out.append(forward("upnp" if str(lease or "0") not in ("0", "") else "", r.get("NewProtocol"), r.get("NewExternalPort"),
                                r.get("NewInternalClient"), r.get("NewInternalPort"), r.get("NewPortMappingDescription"),
                                str(r.get("NewEnabled")) in ("1", "True", "true"), r.get("NewRemoteHost") or "", lease))
-        if best is None or len(out) > len(best):
+        if ok and (best is None or len(out) > len(best)):
             best = out
     return best
 
 
+PF_ERR = {
+    "perm": "Keine Berechtigung für die Portfreigaben – der FRITZ!Box-Benutzer braucht das Recht „FRITZ!Box Einstellungen“",
+    "missing": "Diese FRITZ!Box liefert die Portfreigaben nicht über TR-064",
+    "nopw": "Für die Portfreigaben Benutzer und Passwort angeben",
+}
+
+
 def poll_forwards(fc, conf, state, now=None):
-    """-> (liste oder None, aus dem Zwischenspeicher?)"""
+    """-> (liste oder None, aus dem Zwischenspeicher?, fehlertext oder "")"""
     import time
     now = now or time.time()
     if not conf.get("password"):
-        return None, False
-    if state.get("pf_list") is not None and now - (state.get("pf_ts") or 0) < FORWARDS_S:
-        return state["pf_list"], True
+        return None, False, PF_ERR["nopw"]
+    if "pf_list" in state and now - (state.get("pf_ts") or 0) < FORWARDS_S:
+        return state["pf_list"], True, state.get("pf_err") or ""
+    errors = []
     try:
-        lst = forwards(fc)
-    except PermissionError:
-        lst = None
-    state["pf_ts"], state["pf_list"] = now, lst
-    return lst, False
+        lst = forwards(fc, errors)
+    except Exception as ex:
+        lst, errors = None, [_pf_err(ex)]
+    err = ""
+    if lst is None:
+        code = "perm" if "perm" in errors else next((e for e in errors if e not in ("perm", "missing")), "missing")
+        err = PF_ERR.get(code) or f"Portfreigaben nicht lesbar: {code}"
+    state["pf_ts"], state["pf_list"], state["pf_err"] = now, lst, err
+    return lst, False, err
 
 
 def fw_version(s):
@@ -724,9 +771,11 @@ def poll(conf, state):
     if "rx_bps" in res["wan"]:
         metrics = {"wan:rx": res["wan"]["rx_bps"], "wan:tx": res["wan"]["tx_bps"]}
     state = dict(state)
-    fw_list, cached = poll_forwards(fc, conf, state)
+    fw_list, cached, fw_err = poll_forwards(fc, conf, state)
     if fw_list is not None:
         res["forwards"], res["forwards_cached"] = fw_list, cached
+    elif fw_err:
+        res["forwards_error"] = fw_err
     line, lm = poll_line(fc, conf, state)
     if line:
         res["line"] = line

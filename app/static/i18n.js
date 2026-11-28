@@ -1203,6 +1203,7 @@ Object.assign(window.I18N_EN, {
   "1 neue Portfreigabe": "1 new port forward",
   "{n} neue Portfreigaben": "{n} new port forwards",
   "Neue Portfreigabe (auch UPnP)": "New port forward (incl. UPnP)",
+  'in der FRITZ!Box unter System → FRITZ!Box-Benutzer → Benutzer bearbeiten.': 'in the FRITZ!Box under System → FRITZ!Box Users → edit user.',
   'Kabel-Etiketten': 'Cable labels', 'Kabel suchen …': 'Search cables …', 'Kein Kabel passt.': 'No cable matches.',
   'je Kabelende ein Etikett (nennt die Gegenstelle)': 'one label per cable end (names the far end)',
   'Noch keine Kabelnummern. Trage sie im Reiter Verkabelung bei den Kabelwegen ein (Patchkabel, Verlegekabel, Anschlusskabel).': 'No cable numbers yet. Enter them for the cable runs in the Cabling tab (patch cable, installation cable, device cable).',

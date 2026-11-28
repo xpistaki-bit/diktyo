@@ -151,6 +151,8 @@ def _slim(driver, res):
     out = _slim_view(driver, res)
     if res.get("forwards") is not None:  # Portfreigaben (alle Router-Treiber)
         out["forwards"] = res["forwards"]
+    elif res.get("forwards_error"):
+        out["forwards_error"] = res["forwards_error"]
     rates = client_rates(res)
     if rates:
         out["rates"] = rates

@@ -182,6 +182,24 @@ function rangeButtons(cur) {
 /* Integrationen mit Diagrammen oder Port-/Gerätelisten bekommen im Raster doppelte Breite */
 const BIG_CARDS = ['fritzbox', 'snmp', 'devolo', 'asuswrt', 'proxmox', 'omada', 'unifi', 'mikrotik', 'opnsense', 'openwrt'];
 
+/* Kacheln ohne Lücken: jede Kachel belegt so viele 4-px-Zeilen, wie sie hoch ist; neu berechnet, sobald sich ihre Höhe ändert
+   (Diagramme, aufgeklappte Kanaltabellen …). Die Reihenfolge bleibt zeilenweise von links nach rechts. */
+function masonry(grid) {
+  if (!grid) return;
+  masonry.ro?.disconnect();
+  grid.classList.add('masonry');
+  const fit = card => {
+    const hgt = card.getBoundingClientRect().height + 16;
+    card.style.gridRowEnd = `span ${Math.max(1, Math.ceil(hgt / 4))}`;
+  };
+  const cards = [...grid.children].filter(c => c.classList.contains('integ'));
+  cards.forEach(fit);
+  if (window.ResizeObserver) {
+    masonry.ro = new ResizeObserver(es => es.forEach(e => fit(e.target)));
+    cards.forEach(c => masonry.ro.observe(c));
+  }
+}
+
 async function tabIntegrations(ctx) {
   await meta(ctx.pid);  // Auswahllisten für den Gerätedialog („Gerät öffnen“)
   const P = `/api/profiles/${ctx.pid}`;
@@ -296,6 +314,7 @@ async function tabIntegrations(ctx) {
       }
     }
   }
+  masonry($('#ints', ctx.el));
   // Ansicht aktuell halten, solange der Reiter offen ist
   { const hb = document.createElement('div'); hb.style.marginTop = '16px'; ctx.el.appendChild(hb); waits.push(healthPanel(ctx, hb)); }
   clearTimeout(tabIntegrations.timer);

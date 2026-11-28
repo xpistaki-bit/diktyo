@@ -59,7 +59,8 @@ async function tabPortfw(ctx) {
     ctx.el.innerHTML = `<div class="panel">
       <div class="hud-h"><h3>${t('Portfreigaben und UPnP')}</h3>${st.new ? `<span class="hint">${t('{n} neu', { n: st.new })}</span>` : ''}</div>
       <p class="muted small">${t('Was der Router aus dem Internet an Geräte im Heimnetz weiterleitet – eingerichtete Freigaben und solche, die Geräte per UPnP selbst angelegt haben. Neue Einträge bleiben markiert, bis du sie als bekannt bestätigst. díktyo ändert nichts am Router.')}</p>
-      ${!st.sources.length ? `<div class="hint-box small">${t('Noch keine Quelle. Portfreigaben liefern: FRITZ!Box (mit Benutzer), ASUS, OpenWrt, MikroTik (API/REST), OPNsense (ab 25.7) und UniFi – jeweils als Integration.')}</div>` : `
+      ${(st.problems || []).map(x => `<div class="hint-box small warnc"><b>${h(x.name)}:</b> ${h(ts(x.error))}${x.driver === 'fritzbox' && /Recht/.test(x.error) ? ` – ${t('in der FRITZ!Box unter System → FRITZ!Box-Benutzer → Benutzer bearbeiten.')}` : ''}</div>`).join('')}
+      ${!st.sources.length && (st.problems || []).length ? '' : !st.sources.length ? `<div class="hint-box small">${t('Noch keine Quelle. Portfreigaben liefern: FRITZ!Box (mit Benutzer), ASUS, OpenWrt, MikroTik (API/REST), OPNsense (ab 25.7) und UniFi – jeweils als Integration.')}</div>` : `
       <div class="kv small"><span>${t('Freigaben')}: <b>${st.total}</b></span><span>UPnP: <b>${st.upnp}</b></span><span>${t('Quellen')}: ${src}</span></div>
       <div class="row pf-filters" style="margin:10px 0;flex-wrap:wrap;gap:8px">
         <input type="search" id="pfq" placeholder="${h(t('Suchen (IP, Port, Gerät, Beschreibung) …'))}" value="${h(ui.q)}" style="max-width:320px">

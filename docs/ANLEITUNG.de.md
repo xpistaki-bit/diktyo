@@ -512,7 +512,7 @@ Kameras …). díktyo liest nur, am Router ändert sich nichts.
 
 | Quelle | Was | Hinweis |
 |---|---|---|
-| FRITZ!Box | IPv4-Portfreigaben über TR-064 | nur mit Benutzer; alle 5 Minuten (je Eintrag eine Abfrage). TR-064 sagt nicht, ob eine Freigabe eingerichtet oder per UPnP angelegt wurde – Einträge mit Laufzeit gelten als UPnP. IPv6- und MyFRITZ!-Freigaben fehlen. |
+| FRITZ!Box | IPv4-Portfreigaben über TR-064 | nur mit Benutzer, der das Recht **FRITZ!Box Einstellungen** hat; alle 5 Minuten (je Eintrag eine Abfrage). Fehlt das Recht oder liefert die Box die Liste nicht, steht der Grund oben im Reiter. TR-064 sagt nicht, ob eine Freigabe eingerichtet oder per UPnP angelegt wurde – Einträge mit Laufzeit gelten als UPnP. IPv6- und MyFRITZ!-Freigaben fehlen. |
 | ASUS | Portweiterleitungen (*WAN → Virtueller Server*) und die UPnP-Liste | UPnP-Liste alle 5 Minuten, nur wenn UPnP eingeschaltet ist |
 | OpenWrt | Portweiterleitungen (*Firewall → Port Forwards*, DNAT) und UPnP (luci-app-upnp) | die ACL braucht Lesezugriff auf `firewall` und `luci.upnp` (Beispiel oben) |
 | MikroTik | `/ip firewall nat`-Regeln mit `action=dst-nat`; von UPnP angelegte sind dynamisch | RouterOS-API oder REST, nicht über SNMP |
@@ -529,6 +529,8 @@ Kameras …). díktyo liest nur, am Router ändert sich nichts.
   Dazu gibt es die Benachrichtigung *Neue Portfreigabe*. Beim ersten Abruf gilt alles Vorhandene als bekannt.
 - Je Freigabe eine **Notiz** („Nextcloud – bewusst offen“); *CSV speichern* exportiert die Liste mit Notizen.
 - Im **Gerätedialog** steht oben „Aus dem Internet erreichbar“, wenn Freigaben auf das Gerät zeigen.
+- Kann eine Quelle ihre Liste nicht lesen (fehlendes Benutzerrecht, Box ohne diese TR-064-Abfrage), steht der Grund oben im
+  Reiter. Nach dem Ändern der Rechte dauert es bis zu 5 Minuten, bis díktyo es erneut versucht.
 
 ## 5. Überwachung und Ereignisse
 

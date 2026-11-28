@@ -521,3 +521,12 @@ ERR_EN.update({
 ERR_EN.update({
     "Diese Freigabe gibt es nicht (mehr)": "This port forward does not exist (any more)",
 })
+
+# Portfreigaben der FRITZ!Box: Gründe, wenn die Liste fehlt (0.45.1)
+ERR_EN.update({
+    "Keine Berechtigung für die Portfreigaben – der FRITZ!Box-Benutzer braucht das Recht „FRITZ!Box Einstellungen“":
+        "No permission for port forwards – the FRITZ!Box user needs the “FRITZ!Box settings” right",
+    "Diese FRITZ!Box liefert die Portfreigaben nicht über TR-064": "This FRITZ!Box does not provide its port forwards via TR-064",
+    "Für die Portfreigaben Benutzer und Passwort angeben": "Enter user name and password for the port forwards",
+})
+ERR_EN_PREFIX["Portfreigaben nicht lesbar: "] = "Port forwards not readable: "

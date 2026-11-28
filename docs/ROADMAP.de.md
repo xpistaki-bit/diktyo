@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.45.0 (November 2026). Ideen aus NetworkOptimizer, NetAlertX, homelable, reconYa, netronome,
+Stand: Version 0.45.1 (November 2026). Ideen aus NetworkOptimizer, NetAlertX, homelable, reconYa, netronome,
 ZeroTier und ntop sind in Abschnitt 4 eingeordnet (nur Ideen, kein übernommener Code). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
@@ -64,6 +64,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | VLAN-Plan: VMs und Container | Im Plan-Modus geplantes VLAN-Tag je VM/Container (Klick auf den Gast), Anzeige „alt → neu“, eigener Abschnitt in der Umstellungsliste („in Proxmox umstellen“), erledigt sich, sobald Proxmox das neue Tag meldet; Prüfung des Host-Ports mit den geplanten Tags; Abschließen/Verwerfen und PDF berücksichtigen die Gäste | 0.43 |
 | Leitungswerte der FRITZ!Box | DSL über TR-064 (Sync-Rate, möglich, Störabstand, Dämpfung, CRC/FEC, Neusynchronisierungen), Kabel/DOCSIS über die Weboberfläche alle 15 Minuten (alle Kanäle mit Pegel, MSE/MER, Fehlern; Abmeldung danach, eine Stunde Pause nach abgelehnter Anmeldung); Hinweise nach Richtwerten auf der Karte und unter *Braucht Aufmerksamkeit*, Benachrichtigung „Leitung verschlechtert“, Störabstand im Verlauf (anheftbar, Einheit dB), Prometheus-Metriken | 0.44 |
 | Portfreigaben und UPnP | Eigener Reiter: Freigaben und UPnP-Weiterleitungen aus FRITZ!Box (TR-064, alle 5 min), ASUS (Virtueller Server + UPnP-Liste), OpenWrt (DNAT + luci-app-upnp), MikroTik (dst-nat), OPNsense (Destination NAT ab 25.7) und UniFi; Gerät hinter der Ziel-IP, riskante Dienste markiert, Notiz, CSV; neue bzw. umgebogene Freigaben markiert bis zum Bestätigen, in der Übersicht und als Benachrichtigung; Abschnitt im Gerätedialog | 0.45 |
+| Nachbesserungen | Reiterleiste bricht in eine zweite Zeile um statt seitlich zu scrollen; Integrationskacheln rücken nach oben auf (keine Lücken mehr); FRITZ!Box-Portfreigaben robuster (Standardverbindung zuerst, Lesen ohne Eintragsanzahl) und mit sichtbarem Grund, wenn die Liste fehlt (fehlendes Recht „FRITZ!Box Einstellungen“, Box ohne Abfrage); UPnP-Fehler 401 („Aktion fehlt“) gilt nicht mehr als abgelehnte Anmeldung | 0.45.1 |
 | MikroTik und Sprache | MikroTik über die RouterOS-API (Port 8728/8729, RouterOS 6 und 7) als Standard, REST weiter wählbar, kein SSH-Backup mehr (RouterOS hat eigene Backups); alle Server-Meldungen, Aktionen, Diagnosen und gespeicherten Fehler auf Englisch, wenn Englisch gewählt ist (auch in Benachrichtigungen), Test gegen fehlende Übersetzungen; automatisch erzeugte Gerätenamen auf Englisch | 0.33.1 |
 | Netzplan-Export | Topologie als SVG, PNG (doppelte Auflösung), draw.io (Geräte mit IP/MAC/Typ/Modell/Standort als Eigenschaften) und Poster-PDF A4–A0 mit Schriftfeld, wahlweise auf A4 gekachelt mit Überlappung und Blattnummern; Gruppen aufklappbar; in Topologie und Ausgabe | 0.33 |
 

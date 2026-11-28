@@ -18,16 +18,36 @@ def test_common_format():
     assert forward("upnp", "udp", "any", "192.0.2.6", None, lease="3600")["ext"] == "" and forward("upnp", "udp", 1, "x", lease="3600")["lease"] == 3600
 
 
+class FritzActionError(Exception):  # wie fritzconnection: UPnP-Fehler 401 = Aktion/Dienst fehlt (keine Anmeldefrage)
+    pass
+
+
+class FritzSecurityError(Exception):  # UPnP-Fehler 606 = Aktion nicht erlaubt (Benutzerrecht fehlt)
+    pass
+
+
+class FritzArrayIndexError(Exception):  # UPnP-Fehler 713 = Index gibt es nicht (Ende der Liste)
+    pass
+
+
 class FakeFC:
-    def __init__(self, entries, svc="WANIPConn1"):
-        self.entries, self.svc, self.calls = entries, svc, 0
+    def __init__(self, entries, svc="WANIPConn1", count=True, perm=True, default=None):
+        self.entries, self.svc, self.calls, self.count, self.perm, self.default = entries, svc, 0, count, perm, default
 
     def call_action(self, svc, act, **kw):
         self.calls += 1
+        if svc == "Layer3Forwarding1" and self.default:
+            return {"NewDefaultConnectionService": self.default}
         if svc != self.svc:
-            raise Exception("UPnPError 401: invalid action")
+            raise FritzActionError("UPnPError:\nerrorCode: 401\nerrorDescription: Invalid Action")
+        if not self.perm:
+            raise FritzSecurityError("UPnPError:\nerrorCode: 606\nerrorDescription: Action not authorized")
         if act == "GetPortMappingNumberOfEntries":
+            if not self.count:
+                raise FritzActionError("UPnPError:\nerrorCode: 401\nerrorDescription: Invalid Action")
             return {"NewPortMappingNumberOfEntries": len(self.entries)}
+        if kw["NewPortMappingIndex"] >= len(self.entries):
+            raise FritzArrayIndexError("UPnPError:\nerrorCode: 713\nerrorDescription: SpecifiedArrayIndexInvalid")
         return self.entries[kw["NewPortMappingIndex"]]
 
 
@@ -45,13 +65,32 @@ def test_fritzbox_reader_and_interval():
         ("", "TCP", "443", "192.168.178.50", "Nextcloud", None), ("upnp", "UDP", "51413", "192.168.178.77", "Transmission", 3500)]
     assert len(fritzbox.forwards(FakeFC(FB_ENTRIES, svc="WANPPPConnection1"))) == 2  # DSL mit PPPoE
     fc, st = FakeFC(FB_ENTRIES), {}
-    assert fritzbox.poll_forwards(fc, {}, st) == (None, False)  # ohne Benutzer/Passwort nicht lesbar
-    lst, cached = fritzbox.poll_forwards(fc, {"password": "pw"}, st, now=1000)
-    assert len(lst) == 2 and not cached
+    assert fritzbox.poll_forwards(fc, {}, st) == (None, False, fritzbox.PF_ERR["nopw"])  # ohne Benutzer/Passwort nicht lesbar
+    lst, cached, err = fritzbox.poll_forwards(fc, {"password": "pw"}, st, now=1000)
+    assert len(lst) == 2 and not cached and err == ""
     n = fc.calls
-    lst, cached = fritzbox.poll_forwards(fc, {"password": "pw"}, st, now=1000 + 60)
+    lst, cached, _ = fritzbox.poll_forwards(fc, {"password": "pw"}, st, now=1000 + 60)
     assert cached and fc.calls == n  # innerhalb von 5 Minuten keine neuen TR-064-Abfragen
     assert not fritzbox.poll_forwards(fc, {"password": "pw"}, st, now=1000 + fritzbox.FORWARDS_S)[1]
+    # Box ohne GetPortMappingNumberOfEntries: bis zum ungültigen Index (713) lesen
+    assert len(fritzbox.forwards(FakeFC(FB_ENTRIES, count=False))) == 2
+    assert fritzbox.forwards(FakeFC([], count=False)) == []  # keine Freigaben ist kein Fehler
+    # Standardverbindung (Layer3Forwarding) zuerst
+    fc = FakeFC(FB_ENTRIES, svc="WANPPPConnection1", default="InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1")
+    assert len(fritzbox.forwards(fc)) == 2 and fritzbox._pf_services(fc)[0] == "WANPPPConnection1"
+    # Benutzerrecht fehlt (606) -> Grund im Ergebnis statt stiller Lücke
+    lst, _, err = fritzbox.poll_forwards(FakeFC(FB_ENTRIES, perm=False), {"password": "pw"}, {}, now=1)
+    assert lst is None and err == fritzbox.PF_ERR["perm"]
+    # Box ohne die Aktionen
+    lst, _, err = fritzbox.poll_forwards(FakeFC(FB_ENTRIES, svc="X"), {"password": "pw"}, {}, now=1)
+    assert lst is None and err == fritzbox.PF_ERR["missing"]
+    # UPnP-Fehler 401 ist keine abgelehnte Anmeldung
+    try:
+        fritzbox._call(FakeFC([], svc="X"), "WANIPConn1", "GetInfo")
+    except PermissionError:
+        raise AssertionError("Invalid Action als Anmeldefehler gewertet")
+    except FritzActionError:
+        pass
 
 
 def test_router_readers():
@@ -108,7 +147,11 @@ def test_track_events_ack_notes_and_dashboard(monkeypatch):
     out = {"forwards": fb_list[:1], "cached": False}
 
     def fake_poll(conf, state):
-        res = dict(info=dict(model="FRITZ!Box 7590"), wan={}, hosts=[], mesh={}, auth=True, wlan=[], forwards=out["forwards"], forwards_cached=out["cached"])
+        res = dict(info=dict(model="FRITZ!Box 7590"), wan={}, hosts=[], mesh={}, auth=True, wlan=[])
+        if out.get("error"):
+            res["forwards_error"] = out["error"]
+        else:
+            res.update(forwards=out["forwards"], forwards_cached=out["cached"])
         return res, {}, state
     monkeypatch.setattr(fritzbox, "poll", fake_poll)
 
@@ -152,6 +195,14 @@ def test_track_events_ack_notes_and_dashboard(monkeypatch):
     integrations.poll(d["fiid"])
     st = cl.get(f"{P}/portforwards").json()
     assert st["total"] == 2 and st["new"] == 1 and len(events()) == 2
+    # Liste nicht lesbar: Grund erscheint im Reiter, Bekanntes wird nicht verworfen
+    out["error"] = fritzbox.PF_ERR["perm"]
+    integrations.poll(d["fiid"])
+    st = cl.get(f"{P}/portforwards").json()
+    assert st["total"] == 0 and st["problems"] == [dict(id=d["fiid"], name="FRITZ!Box", driver="fritzbox", error=fritzbox.PF_ERR["perm"])]
+    out.pop("error")
+    integrations.poll(d["fiid"])
+    assert cl.get(f"{P}/portforwards").json()["new"] == 1 and len(events()) == 2
     # Lesen-Recht: sehen ja, quittieren nein
     from fastapi.testclient import TestClient
     from app import main, users
@@ -169,4 +220,4 @@ def test_track_events_ack_notes_and_dashboard(monkeypatch):
     with db() as c:
         pf = json.loads(c.execute("SELECT settings FROM profiles WHERE id=?", (pid,)).fetchone()["settings"])["portfw"]
     assert pf["known"] == {} and pf["notes"] == {} and pf["base"] == []
-    assert cl.get(f"{P}/portforwards").json() == dict(items=[], sources=[], new=0, upnp=0, total=0)
+    assert cl.get(f"{P}/portforwards").json() == dict(items=[], sources=[], problems=[], new=0, upnp=0, total=0)
