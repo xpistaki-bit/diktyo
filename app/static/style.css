@@ -881,3 +881,14 @@ label.chk.tg-dev{margin:0;padding:6px 0;border-bottom:1px solid rgba(0,229,255,.
 .line-hints{margin:6px 0 0;padding-left:18px}
 .line-hints li{margin:2px 0}
 .line-chans{max-height:300px;overflow:auto}
+
+/* Portfreigaben */
+.pf-table tr.pf-new td{background:rgba(255,176,32,.07)}
+.pf-table td{vertical-align:top}
+.pf-dev ul{margin:6px 0 0;padding-left:18px}
+.pf-dev li{margin:2px 0}
+.badge.risk{color:var(--err);border-color:var(--err);background:rgba(255,77,106,.1)}
+.pf-filters input[type=search]{width:320px;max-width:100%}
+.pf-filters select{width:auto}
+.pf-filters label{margin:0;text-transform:none;letter-spacing:0}
+.pf-filters{justify-content:flex-start}

@@ -123,6 +123,8 @@ def collect(conf, state):
                    hints=u.call("luci-rpc", "getHostHints", optional=True) or {},
                    wireless=u.call("network.wireless", "status", optional=True) or {},
                    network_uci=(u.call("uci", "get", {"config": "network"}, optional=True) or {}).get("values") or {},
+                   firewall_uci=(u.call("uci", "get", {"config": "firewall"}, optional=True) or {}).get("values"),
+                   upnp=u.call("luci.upnp", "get_status", optional=True),
                    assoc={})
         for radio in out["wireless"].values():
             for w in (radio or {}).get("interfaces") or []:
@@ -178,6 +180,23 @@ def vlans(network_uci, ports):
             elif "*" in flags or not m["untagged"]:
                 m["untagged"] = vid
     return vlan_result(names, members)
+
+
+def forwards(firewall_uci, upnp):
+    """Portfreigaben: Redirects (DNAT) aus /etc/config/firewall und die UPnP-Leases von miniupnpd (luci-app-upnp).
+    None, wenn die Firewall-Konfiguration nicht lesbar ist (ACL)."""
+    from .controller import forward
+    if firewall_uci is None:
+        return None
+    out = []
+    for sec in sorted(firewall_uci.values(), key=lambda s: s.get(".index", 0)):
+        if sec.get(".type") != "redirect" or (sec.get("target") or "DNAT").upper() != "DNAT" or not sec.get("dest_ip"):
+            continue
+        out.append(forward("static", sec.get("proto") or "tcp udp", sec.get("src_dport"), sec.get("dest_ip"), sec.get("dest_port"),
+                           sec.get("name"), str(sec.get("enabled", "1")) != "0", sec.get("src_ip") or ""))
+    for r in (upnp or {}).get("rules") or []:
+        out.append(forward("upnp", r.get("proto"), r.get("extport"), r.get("intaddr"), r.get("intport"), r.get("descr"), True, "", r.get("expires")))
+    return out
 
 
 def normalize(raw, state, now=None):
@@ -263,6 +282,9 @@ def normalize(raw, state, now=None):
     vl = vlans(raw["network_uci"] or {}, ports)
     if vl:
         res["vlans"] = vl
+    fw_list = forwards(raw.get("firewall_uci"), raw.get("upnp"))
+    if fw_list is not None:
+        res["forwards"] = fw_list
     return res, metrics, counters
 
 

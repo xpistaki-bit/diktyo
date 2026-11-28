@@ -644,6 +644,52 @@ def poll_line(fc, conf, state, now=None):
     return dict(line, hints=hints), line_metrics(line, prev)
 
 
+# ------------------------------------------------------------ Portfreigaben (TR-064, nur mit Benutzer)
+FORWARDS_S = 300  # je Eintrag eine eigene Abfrage – deshalb nur alle 5 Minuten
+
+
+def forwards(fc):
+    """IPv4-Portfreigaben über TR-064 (WANIPConnection bzw. WANPPPConnection). TR-064 unterscheidet nicht, ob eine Freigabe
+    in der Oberfläche eingerichtet oder von einem Gerät (UPnP/PCP) angelegt wurde – mit Laufzeit gilt sie als automatisch.
+    None, wenn die Box die Liste nicht liefert."""
+    from .controller import forward
+    best = None
+    for svc in ("WANIPConn1", "WANPPPConnection1"):
+        try:
+            n = int(_call(fc, svc, "GetPortMappingNumberOfEntries").get("NewPortMappingNumberOfEntries") or 0)
+        except Exception:
+            continue
+        out = []
+        for i in range(min(n, 200)):
+            try:
+                r = _call(fc, svc, "GetGenericPortMappingEntry", NewPortMappingIndex=i)
+            except Exception:
+                break
+            lease = r.get("NewLeaseDuration")
+            out.append(forward("upnp" if str(lease or "0") not in ("0", "") else "", r.get("NewProtocol"), r.get("NewExternalPort"),
+                               r.get("NewInternalClient"), r.get("NewInternalPort"), r.get("NewPortMappingDescription"),
+                               str(r.get("NewEnabled")) in ("1", "True", "true"), r.get("NewRemoteHost") or "", lease))
+        if best is None or len(out) > len(best):
+            best = out
+    return best
+
+
+def poll_forwards(fc, conf, state, now=None):
+    """-> (liste oder None, aus dem Zwischenspeicher?)"""
+    import time
+    now = now or time.time()
+    if not conf.get("password"):
+        return None, False
+    if state.get("pf_list") is not None and now - (state.get("pf_ts") or 0) < FORWARDS_S:
+        return state["pf_list"], True
+    try:
+        lst = forwards(fc)
+    except PermissionError:
+        lst = None
+    state["pf_ts"], state["pf_list"] = now, lst
+    return lst, False
+
+
 def fw_version(s):
     """FRITZ!OS lesbar: „161.08.25“ -> „8.25“, „161.07.57-114812“ -> „7.57-114812“; sonst unverändert."""
     import re
@@ -678,6 +724,9 @@ def poll(conf, state):
     if "rx_bps" in res["wan"]:
         metrics = {"wan:rx": res["wan"]["rx_bps"], "wan:tx": res["wan"]["tx_bps"]}
     state = dict(state)
+    fw_list, cached = poll_forwards(fc, conf, state)
+    if fw_list is not None:
+        res["forwards"], res["forwards_cached"] = fw_list, cached
     line, lm = poll_line(fc, conf, state)
     if line:
         res["line"] = line

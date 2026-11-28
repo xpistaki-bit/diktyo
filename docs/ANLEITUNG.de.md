@@ -409,8 +409,8 @@ díktyo spricht OpenWrt über dieselbe Schnittstelle wie LuCI (ubus per JSON-RPC
   { "diktyo": { "description": "díktyo",
       "read":  { "ubus": { "system": ["board", "info"], "network.device": ["status"], "network.interface": ["dump"],
                            "network.wireless": ["status"], "luci-rpc": ["getDHCPLeases", "getHostHints"],
-                           "iwinfo": ["assoclist"], "uci": ["get"] },
-                 "uci": ["network", "wireless"], "cgi-io": ["backup"] },
+                           "iwinfo": ["assoclist"], "uci": ["get"], "luci.upnp": ["get_status"] },
+                 "uci": ["network", "wireless", "firewall"], "cgi-io": ["backup"] },
       "write": { "ubus": { "uci": ["set", "commit"], "network": ["reload"], "system": ["reboot"] },
                  "uci": ["wireless"] } } }
   EOF
@@ -503,6 +503,32 @@ Starten, Stoppen und Neustarten über *Aktionen*. díktyo stoppt weder sich selb
 
 **Hinweis:** OPNsense, OpenWrt, Docker, devolo und die Netgear-Zusatzwerte sind nach der Dokumentation gebaut und gegen
 nachgebildete Geräte getestet, noch nicht an echter Hardware.
+
+### Portfreigaben und UPnP
+
+Der Reiter **Portfreigaben** zeigt, was der Router aus dem Internet an Geräte im Heimnetz weiterleitet – Freigaben, die
+du eingerichtet hast, und solche, die Geräte per **UPnP** selbst angelegt haben (Spielkonsolen, Torrent-Programme,
+Kameras …). díktyo liest nur, am Router ändert sich nichts.
+
+| Quelle | Was | Hinweis |
+|---|---|---|
+| FRITZ!Box | IPv4-Portfreigaben über TR-064 | nur mit Benutzer; alle 5 Minuten (je Eintrag eine Abfrage). TR-064 sagt nicht, ob eine Freigabe eingerichtet oder per UPnP angelegt wurde – Einträge mit Laufzeit gelten als UPnP. IPv6- und MyFRITZ!-Freigaben fehlen. |
+| ASUS | Portweiterleitungen (*WAN → Virtueller Server*) und die UPnP-Liste | UPnP-Liste alle 5 Minuten, nur wenn UPnP eingeschaltet ist |
+| OpenWrt | Portweiterleitungen (*Firewall → Port Forwards*, DNAT) und UPnP (luci-app-upnp) | die ACL braucht Lesezugriff auf `firewall` und `luci.upnp` (Beispiel oben) |
+| MikroTik | `/ip firewall nat`-Regeln mit `action=dst-nat`; von UPnP angelegte sind dynamisch | RouterOS-API oder REST, nicht über SNMP |
+| OPNsense | Destination NAT | erst ab OPNsense 25.7 (vorher gibt es dafür keine API) |
+| UniFi | Portweiterleitungen der Network-App (klassische API) | antwortet die Konsole nicht, versucht díktyo es am nächsten Tag wieder |
+
+- Die Tabelle nennt Protokoll, externen Port, das **Gerät hinter der Ziel-IP** (Klick öffnet es), internen Port,
+  Beschreibung, Quelle und erlaubte Absender, falls eingeschränkt. Abgeschaltete Freigaben sind grau, bei UPnP steht
+  die Restlaufzeit dabei.
+- **Riskante Dienste** auf dem externen Port (SSH, Telnet, RDP, SMB, VNC, Datenbanken, Proxmox, Home Assistant …)
+  sind rot markiert – nicht zwingend falsch, aber eine Prüfung wert.
+- **Neue Freigaben** – auch wenn eine bestehende plötzlich auf ein anderes Gerät oder einen anderen Port zeigt –
+  stehen oben, sind markiert und erscheinen unter *Braucht Aufmerksamkeit*, bis du sie mit *bekannt* bestätigst.
+  Dazu gibt es die Benachrichtigung *Neue Portfreigabe*. Beim ersten Abruf gilt alles Vorhandene als bekannt.
+- Je Freigabe eine **Notiz** („Nextcloud – bewusst offen“); *CSV speichern* exportiert die Liste mit Notizen.
+- Im **Gerätedialog** steht oben „Aus dem Internet erreichbar“, wenn Freigaben auf das Gerät zeigen.
 
 ## 5. Überwachung und Ereignisse
 
@@ -599,6 +625,7 @@ den aktuellen Stand – den Verlauf speichert Prometheus.
 | Konfigurations-Backup fehlgeschlagen | beim automatischen Backup |
 | Integration gestört | wenn eine Integration seit 15 Minuten nicht mehr antwortet (einmal, bis sie wieder klappt) |
 | Leitung verschlechtert | ein neuer Hinweis zu den DSL-/Kabelwerten der FRITZ!Box (einmal je Hinweisart, bis er verschwunden ist) |
+| Neue Portfreigabe | ein Router meldet eine neue Portfreigabe oder UPnP-Weiterleitung (siehe *Portfreigaben und UPnP*) |
 | Wachliste | ein beobachtetes System fällt aus oder wechselt IP, MAC, Name oder Anschluss (siehe *Übersicht*) |
 
 Mehrere Ereignisse werden höchstens einmal pro Minute zu einer Nachricht gebündelt. Beim Einschalten zählen nur neue

@@ -104,6 +104,8 @@ def build(c, pid):
         "SELECT * FROM actions WHERE profile_id=? AND created>=? AND status<>'done' ORDER BY id DESC LIMIT 10", (pid, since))]
     failed += [dict(ts=r["undone"], label=f"Zurückschalten: {r['label']}", message=r["undo_result"]) for r in c.execute(
         "SELECT * FROM actions WHERE profile_id=? AND undone>=? AND undo_result NOT LIKE 'done%'", (pid, since))]
+    from . import portforwards
+    pf_new = portforwards.state(c, pid)["new"]
     quarantine = c.execute("SELECT COUNT(*) FROM quarantine WHERE profile_id=? AND status='active'", (pid,)).fetchone()[0]
     # Infrastruktur: Verfügbarkeit und Antwortzeit
     infra = []
@@ -122,7 +124,7 @@ def build(c, pid):
     return dict(
         layout=dashlayout.get(c, pid),
         counts=dict(devices=len(confirmed), online=sum(1 for d in confirmed if d["online"] == 1), offline=len(offline),
-                    inbox=sum(1 for d in devs if d["status"] == "discovered"), firmware=len(fw_up), quarantine=quarantine,
+                    inbox=sum(1 for d in devs if d["status"] == "discovered"), firmware=len(fw_up), quarantine=quarantine, portfw_new=pf_new,
                     availability=round(sum(avail) / len(avail), 2) if avail else None),
         wan=wan, speed=speed, dns=dns, top_today=top_today, top_now=top_now, offline=offline[:12], firmware=fw_up[:12], broken=broken, line=line_hints[:6], failed=failed[:10], ports=ports, infra=infra[:16],
         rtt=rtt_keys, recent=[x for x in changes.timeline(c, pid, limit=12) if x["cat"] in ("change", "action", "quarantine")][:8],

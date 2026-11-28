@@ -341,9 +341,51 @@ def traffic_analyzer(conf, token, now=None):
     return None
 
 
+# ------------------------------------------------------------ Portfreigaben
+FW_HOOK = ";nvram_get(vts_enable_x);nvram_get(vts_rulelist);nvram_get(upnp_enable)"
+UPNP_S = 300
+
+
+def parse_vts(v, enabled=True):
+    """vts_rulelist: „<Name>Port extern>IP>Port intern>Protokoll[>Quell-IP]“ je Eintrag."""
+    from .controller import forward
+    out = []
+    for ent in str(v or "").split("<"):
+        f = ent.split(">")
+        if len(f) < 3 or not (f[1] or f[2]):
+            continue
+        out.append(forward("static", f[4] if len(f) > 4 and f[4] else "TCP", f[1], f[2], f[3] if len(f) > 3 else "", f[0], enabled,
+                           f[5] if len(f) > 5 else ""))
+    return out
+
+
+def parse_upnp(text):
+    """Ausgabe von get_upnp_array() (Liste von Zeilen wie [\"TCP\", \"51413\", \"192.168.50.20\", \"51413\", \"Beschreibung\"]).
+    Die Reihenfolge der Felder unterscheidet sich je Firmware – deshalb nach Art des Werts zuordnen."""
+    from .controller import forward
+    out = []
+    for grp in re.findall(r"\[([^\[\]]*)\]", text or ""):
+        f = re.findall(r'"([^"]*)"', grp)
+        if not f or f[0].upper() not in ("TCP", "UDP"):
+            continue
+        nums = [x for x in f[1:] if re.fullmatch(r"\d+", x)]
+        ip = next((x for x in f[1:] if re.fullmatch(r"\d+\.\d+\.\d+\.\d+", x)), "")
+        desc = next((x for x in f[1:] if x and x not in nums and x != ip), "")
+        if nums and ip:
+            out.append(forward("upnp", f[0], nums[0], ip, nums[1] if len(nums) > 1 else nums[0], desc))
+    return out
+
+
+def upnp_list(conf, token):
+    with _client(conf) as cl:
+        r = cl.get("/appGet.cgi", params={"hook": "get_upnp_array()"}, cookies={"asus_token": token},
+                   headers={"Referer": f"{_base(conf)}/index.asp"})
+        return parse_upnp(r.text) if r.status_code == 200 else None
+
+
 def poll(conf, state):
     import time as _t
-    data, token = _fetch(conf, state, HOOK + ";netdev(appobj)" + GUEST_HOOK)
+    data, token = _fetch(conf, state, HOOK + ";netdev(appobj)" + GUEST_HOOK + FW_HOOK)
     info, nodes, clients = normalize(data)
     res = dict(info=info, nodes=nodes, clients=clients, keys=sorted(data.keys())[:30])
     res["guest"], res["sdn"] = guests(data)
@@ -364,6 +406,18 @@ def poll(conf, state):
         state.update(ta_checked=now, ta=ta)
     if state.get("ta"):
         res["analyzer"] = state["ta"]
+    if "vts_rulelist" in data:  # Portfreigaben; UPnP-Liste nur alle 5 Minuten
+        res["forwards"] = parse_vts(data.get("vts_rulelist"), str(data.get("vts_enable_x", "1")) == "1")
+        res["forwards_cached"] = False
+        if str(data.get("upnp_enable", "0")) == "1":
+            if now - state.get("upnp_ts", 0) >= UPNP_S:
+                try:
+                    state.update(upnp_ts=now, upnp=upnp_list(conf, token))
+                except httpx.HTTPError:
+                    state.update(upnp_ts=now, upnp=None)
+            else:
+                res["forwards_cached"] = True
+            res["forwards"] += state.get("upnp") or []
     flag = str(data.get("webs_state_flag", ""))
     installed = fw_version(f'{data.get("firmver", "")}_{data.get("buildno", "")}_{data.get("extendno", "")}') or info["firmware"]
     latest = fw_version(data.get("webs_state_info")) if flag in ("1", "2") else ""

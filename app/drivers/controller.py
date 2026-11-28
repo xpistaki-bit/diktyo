@@ -96,3 +96,36 @@ def parse_rate(v):
     if not m:
         return None
     return round(float(m.group(1)) * {"": 1, "k": 1e3, "M": 1e6, "G": 1e9}[m.group(2)])
+
+
+# ------------------------------------------------------------ Portfreigaben (alle Router-Treiber)
+def proto_name(v):
+    """„tcp“, „tcp udp“, „tcp_udp“, „BOTH“, „6“ … -> „TCP“, „UDP“, „TCP/UDP“ oder der Wert in Großbuchstaben."""
+    s = str(v or "").lower()
+    if isinstance(v, (list, tuple)):
+        s = " ".join(str(x).lower() for x in v)
+    if s in ("both", "tcpudp", "tcp_udp", "tcp/udp", "tcp+udp") or ("tcp" in s and "udp" in s):
+        return "TCP/UDP"
+    if s in ("6", "tcp"):
+        return "TCP"
+    if s in ("17", "udp"):
+        return "UDP"
+    return s.upper() if s else "TCP/UDP"
+
+
+def _ports(v):
+    s = str(v if v is not None else "").strip().replace(":", "-").replace(" ", "")
+    return s if s and s.lower() not in ("any", "all", "0") else ""
+
+
+def forward(kind, proto, ext, ip, port="", desc="", enabled=True, remote="", lease=None):
+    """Eine Portfreigabe im gemeinsamen Format: kind „static“ (eingerichtet), „upnp“ (vom Gerät selbst angelegt) oder „“
+    (unbekannt); ext/port als Text (auch Bereich „8000-8010“ oder Liste); ext „“ = alle Ports."""
+    try:
+        lease = int(lease) if lease not in (None, "") and int(lease) > 0 else None
+    except (TypeError, ValueError):
+        lease = None
+    ext = _ports(ext)
+    return dict(kind=kind, proto=proto_name(proto), ext=ext, ip=str(ip or "").strip(), port=_ports(port) or ext,
+                desc=str(desc or "").strip()[:120], enabled=bool(enabled), remote="" if str(remote or "").lower() in ("any", "0.0.0.0/0") else str(remote or "").strip(),
+                lease=lease)

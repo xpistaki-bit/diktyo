@@ -161,7 +161,24 @@ def _collect(conf, state, details=True):
             state["sta"] = _sta(cl, state, [s.get("internalReference") or "default" for s in sites])
         if details and time.time() - (state.get("no_vlans") or 0) > 86400:
             state["vlans"] = _vlans(cl, state, [s.get("internalReference") or "default" for s in sites])
+        if details and time.time() - (state.get("no_pfw") or 0) > 86400:
+            state["pfw"] = _portforwards(cl, state, [s.get("internalReference") or "default" for s in sites])
         return out
+
+
+def _portforwards(cl, state, refs):
+    """Portfreigaben aus der klassischen Network-API (rest/portforward); antwortet sie nicht: am nächsten Tag wieder."""
+    from .controller import forward
+    out = []
+    for ref in refs:
+        rows = _classic(cl, state, f"/api/s/{ref}/rest/portforward")
+        if rows is None:
+            state["no_pfw"] = time.time()
+            return None
+        for r in rows:
+            out.append(forward("static", r.get("proto"), r.get("dst_port"), r.get("fwd"), r.get("fwd_port"), r.get("name"),
+                               r.get("enabled", True) is not False, r.get("src") or ""))
+    return out
 
 
 def _classic(cl, state, path):
@@ -281,6 +298,7 @@ def poll(conf, state):
     sites = _collect(conf, state)
     devices, clients, wan = normalize(sites)
     sta = state.pop("sta", None) or {}
+    pfw = state.pop("pfw", None)
     for dev, vl in (state.pop("vlans", None) or {}).items():
         for d in devices:
             if d["mac"] == dev:
@@ -290,6 +308,8 @@ def poll(conf, state):
             x["_down"], x["_up"] = sta[x["mac"]]
     state["client_counters"] = counter_rates(clients, state.get("client_counters") or {}, time.time())
     res = dict(info=dict(controller="UniFi", sites=[s.get("name", "") for s, *_ in sites]), devices=devices, clients=clients)
+    if pfw is not None:
+        res["forwards"] = pfw
     values = {}
     if wan:
         res["wan"] = wan

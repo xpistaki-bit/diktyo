@@ -127,6 +127,10 @@ async function deviceDialog(ctx, did) {
   const html = `
     ${did && ctx.canEdit ? `<div class="dlg-actions"><button type="button" class="sm danger" data-del>${t('Gerät löschen')}</button></div>` : ''}
     ${d && (d.ident_full || d.seen) ? identBox(d, ctx.canEdit) : ''}
+    ${d?.forwards?.length ? `<div class="hint-box small pf-dev"><b>${t('Aus dem Internet erreichbar')}</b> · <a href="#/p/${ctx.pid}/portfreigaben" data-pfgo>${t('Portfreigaben')}</a>
+      <ul>${d.forwards.map(x => `<li class="${x.enabled ? '' : 'muted'}"><span class="mono">${h(x.proto)} ${h(x.ext || t('alle'))}${x.port && x.port !== x.ext ? ' → ' + h(x.port) : ''}</span>
+        ${x.kind === 'upnp' ? ' · UPnP' : ''}${x.desc ? ' · ' + h(x.desc) : ''} · ${h(x.source)}${x.new ? ` <span class="badge warn">${t('neu')}</span>` : ''}${x.enabled ? '' : ` <span class="badge">${t('aus')}</span>`}
+        ${riskyOf(x.ext).map(r => ` <span class="badge risk">⚠ ${h(t(r))}</span>`).join('')}${x.note ? `<div class="muted">${h(x.note)}</div>` : ''}</li>`).join('')}</ul></div>` : ''}
     <div class="grid2">
       <div><label>${t('Name')}</label><input name="name" required maxlength="120" value="${h(v.name)}" ${dis}></div>
       <div><label>${t('Typ')}</label><select name="type" ${dis}>${META.types.map(x => `<option value="${x.key}" ${x.key === v.type ? 'selected' : ''}>${h(x.name)}</option>`).join('')}</select></div>

@@ -267,7 +267,7 @@ function profileDialog(title, p, ok, save) {
     { ok, onOk: f => save(fd(f)) });
 }
 
-const TABS = [['uebersicht', 'Übersicht'], ['geraete', 'Geräte'], ['topologie', 'Topologie'], ['verlauf', 'Verlauf'], ['posteingang', 'Posteingang'], ['netzscan', 'Netzscan'], ['integrationen', 'Integrationen'], ['ipam', 'IPAM'], ['vlanplan', 'VLAN-Plan'], ['standorte', 'Standorte'], ['verkabelung', 'Verkabelung'], ['ausgabe', 'Ausgabe'], ['aktionen', 'Aktionen']];
+const TABS = [['uebersicht', 'Übersicht'], ['geraete', 'Geräte'], ['topologie', 'Topologie'], ['verlauf', 'Verlauf'], ['posteingang', 'Posteingang'], ['netzscan', 'Netzscan'], ['integrationen', 'Integrationen'], ['ipam', 'IPAM'], ['vlanplan', 'VLAN-Plan'], ['portfreigaben', 'Portfreigaben'], ['standorte', 'Standorte'], ['verkabelung', 'Verkabelung'], ['ausgabe', 'Ausgabe'], ['aktionen', 'Aktionen']];
 async function viewProfile(pid, tab, sub, keep = null) {
   if (tab === 'freigabe') { location.replace(`#/konto/${pid}`); return; }  // Freigabe liegt jetzt unter „Mein Konto“
   if (!TABS.some(x => x[0] === tab)) tab = 'uebersicht';

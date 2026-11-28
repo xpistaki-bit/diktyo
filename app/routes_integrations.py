@@ -169,8 +169,53 @@ def delete(pid: int, iid: int, user=Depends(require_user)):
         _get(c, pid, iid)
         c.execute("DELETE FROM integrations WHERE id=?", (iid,))
         c.execute("DELETE FROM series WHERE profile_id=? AND key LIKE ?", (pid, f"i{iid}:%"))
+        from . import portforwards
+        portforwards.forget_integration(c, pid, iid)
         touch(c, pid, user)
     return dict(ok=True)
+
+
+# ------------------------------------------------------------ Portfreigaben und UPnP
+@router.get("/api/profiles/{pid}/portforwards")
+def portforwards_get(pid: int, device: int = 0, user=Depends(require_user)):
+    from . import portforwards
+    with db() as c:
+        profile_access(c, user, pid)
+        return portforwards.state(c, pid, device or None)
+
+
+@router.get("/api/profiles/{pid}/portforwards.csv")
+def portforwards_csv(pid: int, lang: str = "de", user=Depends(require_user)):
+    from . import portforwards
+    with db() as c:
+        profile_access(c, user, pid)
+        txt = portforwards.csv_text(portforwards.state(c, pid), "en" if lang == "en" else "de")
+    return Response("\ufeff" + txt, media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="portfreigaben.csv"' if lang != "en" else 'attachment; filename="port-forwards.csv"'})
+
+
+@router.post("/api/profiles/{pid}/portforwards/ack")
+def portforwards_ack(pid: int, body: dict = Body(default={}), user=Depends(require_user)):
+    from . import portforwards
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        keys = body.get("keys")
+        portforwards.ack(c, pid, [str(k) for k in keys] if isinstance(keys, list) else None)
+        touch(c, pid, user)
+        return portforwards.state(c, pid)
+
+
+@router.put("/api/profiles/{pid}/portforwards/note")
+def portforwards_note(pid: int, body: dict = Body(...), user=Depends(require_user)):
+    from . import portforwards
+    with db() as c:
+        profile_access(c, user, pid, "edit")
+        try:
+            portforwards.set_note(c, pid, str(body.get("key") or ""), body.get("note"))
+        except portforwards.PortError as ex:
+            raise HTTPException(400, str(ex))
+        touch(c, pid, user)
+        return portforwards.state(c, pid)
 
 
 @router.post("/api/profiles/{pid}/integrations/test")

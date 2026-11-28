@@ -49,6 +49,7 @@ function issuesPanel(r, pid) {
     ...r.firmware.map(x => `<li class="warn"><span class="ic">⬆</span><span>${devLink(x.id, x.name)}: ${t('Firmware {a} → {b}', { a: h(x.installed || '?'), b: h(x.latest || t('neue Version')) })}</span></li>`),
     ...(c.inbox ? [`<li class="info"><span class="ic">✚</span><a href="#/p/${pid}/posteingang">${c.inbox === 1 ? t('1 neues Gerät im Posteingang') : t('{n} neue Geräte im Posteingang', { n: c.inbox })}</a></li>`] : []),
     ...(r.speed?.slow ? [`<li class="warn"><span class="ic">⇣</span><span>${t('Internet langsam: zuletzt ↓ {d}, Leitung ↓ {l}', { d: fmtMbit(r.speed.last.down_bps), l: fmtMbit(r.speed.line_down) })}</span></li>`] : []),
+    ...(c.portfw_new ? [`<li class="warn"><span class="ic">⇄</span><a href="#/p/${pid}/portfreigaben">${c.portfw_new === 1 ? t('1 neue Portfreigabe') : t('{n} neue Portfreigaben', { n: c.portfw_new })}</a></li>`] : []),
     ...(c.quarantine ? [`<li class="warn"><span class="ic">⛔</span><a href="#/einstellungen/${pid}">${t('{n} in Quarantäne', { n: c.quarantine })}</a></li>`] : []),
   ];
   return `<div class="panel s3"><div class="hud-h"><h3>${t('Braucht Aufmerksamkeit')}</h3>${issues.length ? `<span class="hint">${issues.length}</span>` : ''}</div>

@@ -1,6 +1,6 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.44.0 (November 2026). Ideen aus NetworkOptimizer, NetAlertX, homelable, reconYa, netronome,
+Stand: Version 0.45.0 (November 2026). Ideen aus NetworkOptimizer, NetAlertX, homelable, reconYa, netronome,
 ZeroTier und ntop sind in Abschnitt 4 eingeordnet (nur Ideen, kein übernommener Code). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
@@ -63,6 +63,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | ASUS: Aktionen und lesbarer Konfig-Vergleich | Gastnetze (klassisch, wlX.Y) ein/aus mit Zurückschalten und Zeitplan, Neustart über applyapp.cgi; bei „Gastnetz Pro“ (SDN) nur Anzeige; Einstellungsdatei (CFG, HDR1/HDR2) entschlüsselt: Änderungen als sortierte `name=wert`-Zeilen, Download als Text, Passwörter/Schlüssel maskiert mit Prüfsumme, „unverändert“ trotz Zufallsbytes erkannt | 0.42 |
 | VLAN-Plan: VMs und Container | Im Plan-Modus geplantes VLAN-Tag je VM/Container (Klick auf den Gast), Anzeige „alt → neu“, eigener Abschnitt in der Umstellungsliste („in Proxmox umstellen“), erledigt sich, sobald Proxmox das neue Tag meldet; Prüfung des Host-Ports mit den geplanten Tags; Abschließen/Verwerfen und PDF berücksichtigen die Gäste | 0.43 |
 | Leitungswerte der FRITZ!Box | DSL über TR-064 (Sync-Rate, möglich, Störabstand, Dämpfung, CRC/FEC, Neusynchronisierungen), Kabel/DOCSIS über die Weboberfläche alle 15 Minuten (alle Kanäle mit Pegel, MSE/MER, Fehlern; Abmeldung danach, eine Stunde Pause nach abgelehnter Anmeldung); Hinweise nach Richtwerten auf der Karte und unter *Braucht Aufmerksamkeit*, Benachrichtigung „Leitung verschlechtert“, Störabstand im Verlauf (anheftbar, Einheit dB), Prometheus-Metriken | 0.44 |
+| Portfreigaben und UPnP | Eigener Reiter: Freigaben und UPnP-Weiterleitungen aus FRITZ!Box (TR-064, alle 5 min), ASUS (Virtueller Server + UPnP-Liste), OpenWrt (DNAT + luci-app-upnp), MikroTik (dst-nat), OPNsense (Destination NAT ab 25.7) und UniFi; Gerät hinter der Ziel-IP, riskante Dienste markiert, Notiz, CSV; neue bzw. umgebogene Freigaben markiert bis zum Bestätigen, in der Übersicht und als Benachrichtigung; Abschnitt im Gerätedialog | 0.45 |
 | MikroTik und Sprache | MikroTik über die RouterOS-API (Port 8728/8729, RouterOS 6 und 7) als Standard, REST weiter wählbar, kein SSH-Backup mehr (RouterOS hat eigene Backups); alle Server-Meldungen, Aktionen, Diagnosen und gespeicherten Fehler auf Englisch, wenn Englisch gewählt ist (auch in Benachrichtigungen), Test gegen fehlende Übersetzungen; automatisch erzeugte Gerätenamen auf Englisch | 0.33.1 |
 | Netzplan-Export | Topologie als SVG, PNG (doppelte Auflösung), draw.io (Geräte mit IP/MAC/Typ/Modell/Standort als Eigenschaften) und Poster-PDF A4–A0 mit Schriftfeld, wahlweise auf A4 gekachelt mit Überlappung und Blattnummern; Gruppen aufklappbar; in Topologie und Ausgabe | 0.33 |
 
@@ -92,6 +93,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | OPNsense (inkl. Top Talkers), Docker | gegen nachgebildete APIs getestet | Tester |
 | Proxmox: Live-Raten je VM, VLAN-Tags der Gäste im VLAN-Plan | gegen nachgebildete API getestet | Nutzer (Proxmox vorhanden) |
 | iperf3 zu einem Gerät | gegen nachgebildete iperf3-Ausgabe getestet | Nutzer |
+| Portfreigaben: FRITZ!Box (TR-064 GetGenericPortMappingEntry), ASUS (vts_rulelist, get_upnp_array), OpenWrt (uci firewall, luci.upnp), MikroTik (ip/firewall/nat), OPNsense (firewall/d_nat, ab 25.7), UniFi (rest/portforward) | gegen nachgebildete Antworten getestet; ASUS-UPnP-Liste und OPNsense-Feldnamen nach Firmware/Version unterschiedlich, tolerant ausgewertet | Nutzer/Tester |
 | FRITZ!Box-Leitungswerte (Kabel: docInfo der Weboberfläche, DSL: WANDSLInterfaceConfig) | Feldnamen nach bekannten Auswertungen der FRITZ!OS-Seiten, gegen nachgebildete Antworten getestet; Richtwerte sind übliche Empfehlungen, nicht die des Netzbetreibers | Nutzer (6591 Cable) |
 | Switch-Aktionen (SNMP-SET) | gegen Test-Agent getestet; Zyxel mit Schreibrechten offen | Tester |
 | Proxmox-Aktionen | gebaut, Token mit `VM.PowerMgmt` offen | Tester |
@@ -146,7 +148,6 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
-| **Portfreigaben- und UPnP-Übersicht**: alle Weiterleitungen je Gerät (FRITZ!Box per TR-064, ASUS, OpenWrt, OPNsense, MikroTik), Notiz je Eintrag, Hinweis bei neuen – **Priorität 2** | ★★★ | M |
 | **Sicherheits-Check mit Punktzahl**: IoT/Kameras im falschen VLAN, riskante offene Dienste (Telnet, SMB …), veraltete Firmware, ungetrenntes Gastnetz, unbekannte Gerätetypen; Hinweise quittierbar, Punktzahl im Verlauf, PDF – **Priorität 3** | ★★★ | M |
 | Alarme für doppelte IP- oder MAC-Adressen und neue riskante offene Ports – **Priorität 5** | ★★ | S |
 | IPv6-Geräte passiv erkennen (Neighbor-Tabelle) | ★★ | S |
@@ -154,7 +155,7 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 | Passkeys (WebAuthn) und „2FA für alle Pflicht“ | ★★ | M |
 | Abmelden auch beim OIDC-Anbieter (RP-initiated logout) | ★ | S |
 | Audit-Log-Ansicht in der Oberfläche | ★ | S |
-| Erledigt: ~~Quarantäne für neue Geräte~~ (0.13), ~~Vergleich offener Ports~~ (0.14), ~~2FA und Sitzungen~~ (0.20), ~~OIDC~~ (0.32) | | |
+| Erledigt: ~~Portfreigaben- und UPnP-Übersicht~~ (0.45), ~~Quarantäne für neue Geräte~~ (0.13), ~~Vergleich offener Ports~~ (0.14), ~~2FA und Sitzungen~~ (0.20), ~~OIDC~~ (0.32) | | |
 
 ### Dokumentation
 

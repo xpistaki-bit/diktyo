@@ -73,7 +73,8 @@ def poll(iid, log=print):
         if not row:
             return None
         summary = APPLY[row["driver"]](c, row, res)
-        from . import changes, health
+        from . import changes, health, portforwards
+        portforwards.track(c, row, res)
         health.apply_result(c, row, res, summary)
         changes.sync(c, row["profile_id"], row["driver"])
         if summary.get("device_id"):
@@ -148,6 +149,8 @@ def smart_targets(c, pid, conf):
 def _slim(driver, res):
     """Was die Oberfläche anzeigen soll (ohne die vollständige Hostliste), plus Live-Raten je Client."""
     out = _slim_view(driver, res)
+    if res.get("forwards") is not None:  # Portfreigaben (alle Router-Treiber)
+        out["forwards"] = res["forwards"]
     rates = client_rates(res)
     if rates:
         out["rates"] = rates
@@ -685,7 +688,7 @@ def _publish_ha(c, row, conf):
     msgs.append((f"{disc}/event/diktyo_{pid}_events/config", dict(
         name="Ereignis", unique_id=f"diktyo_{pid}_events", state_topic=f"{base}/event", device=hub, icon="mdi:bell-ring",
         event_types=["device_offline", "device_online", "new_device", "action_undo_failed", "quarantined", "schedule_failed",
-                     "firmware_update", "speed_slow", "backup_failed", "integration_failed", "line_degraded"]), True))
+                     "firmware_update", "speed_slow", "backup_failed", "integration_failed", "line_degraded", "port_forward_new"]), True))
     evs = c.execute("SELECT * FROM events WHERE profile_id=? AND delivered='' ORDER BY id LIMIT 200", (pid,)).fetchall()
     for e in evs:
         d = json.loads(e["data"] or "{}")

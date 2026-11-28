@@ -4,7 +4,7 @@
 const NOTIFY_KIND = {
   device_offline: 'Gerät offline', device_online: 'Gerät wieder online', new_device: 'Neues Gerät', quarantined: 'Quarantäne',
   firmware_update: 'Firmware-Update', action_undo_failed: 'Zurückschalten fehlgeschlagen', schedule_failed: 'Zeitplan fehlgeschlagen',
-  speed_slow: 'Internet langsam', backup_failed: 'Konfigurations-Backup fehlgeschlagen', integration_failed: 'Integration gestört', line_degraded: 'Leitung verschlechtert (DSL/Kabel)',
+  speed_slow: 'Internet langsam', backup_failed: 'Konfigurations-Backup fehlgeschlagen', integration_failed: 'Integration gestört', line_degraded: 'Leitung verschlechtert (DSL/Kabel)', port_forward_new: 'Neue Portfreigabe (auch UPnP)',
   watch_change: 'Wachliste: Ausfall oder Änderung',
 };
 

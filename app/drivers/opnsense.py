@@ -71,6 +71,7 @@ def collect(conf, state):
                    interfaces=_req(cl, "GET", "interfaces/overview/export", optional=True),
                    arp=_rows(_req(cl, "GET", "diagnostics/interface/search_arp?resolve=no", optional=True)),
                    vlans=_rows(_req(cl, "GET", "interfaces/vlan_settings/search_item", optional=True)),
+                   dnat=_req(cl, "GET", "firewall/d_nat/search_rule", optional=True),
                    leases=[])
         out["top"] = _req(cl, "GET", "diagnostics/traffic/top/" + ",".join(state.get("lan_ifs") or ["lan"]), optional=True) or {}
         if out["interfaces"] is None:  # Pflicht – sonst stimmt etwas mit Rechten oder Version nicht
@@ -80,6 +81,24 @@ def collect(conf, state):
             if rows:
                 out["leases"] = rows
                 break
+    return out
+
+
+def forwards(dnat):
+    """Portfreigaben (Destination NAT) über die API ab OPNsense 25.7; ältere Versionen haben dafür keine API -> None.
+    Feldnamen tolerant, da sie sich zwischen Versionen unterscheiden."""
+    from .controller import forward
+    if not isinstance(dnat, dict):
+        return None
+    out = []
+    for r in _rows(dnat):
+        ip = _val(r, "target", "redirect_target", "local_ip", "target_ip")
+        if not ip:
+            continue
+        en = r.get("enabled")
+        out.append(forward("static", _val(r, "protocol", "proto"), _val(r, "destination_port", "dstport", "destination.port", "dst_port"), ip,
+                           _val(r, "local-port", "local_port", "target_port", "redirect_port"), _val(r, "description", "descr"),
+                           str(en) != "0" if en is not None else str(r.get("disabled", "0")) != "1", _val(r, "source_net", "source.network", "src") or ""))
     return out
 
 
@@ -196,6 +215,9 @@ def test(conf):
 def poll(conf, state):
     raw = collect(conf, state)
     res, metrics, counters = normalize(raw, state)
+    fw_list = forwards(raw.get("dnat"))
+    if fw_list is not None:
+        res["forwards"] = fw_list
     return res, metrics, dict(state, counters=counters)
 
 

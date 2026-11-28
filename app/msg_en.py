@@ -515,3 +515,9 @@ ERR_EN.update({
     "Keine VM bzw. kein Container aus Proxmox gewählt": "No VM or container from Proxmox selected",
     "Dieses VLAN gibt es nicht – zuerst anlegen (auch als geplantes VLAN möglich)": "This VLAN does not exist – create it first (a planned VLAN works too)",
 })
+
+
+# ------------------------------------------------------------ 0.45: Portfreigaben und UPnP
+ERR_EN.update({
+    "Diese Freigabe gibt es nicht (mehr)": "This port forward does not exist (any more)",
+})

@@ -36,7 +36,11 @@ def device_create(pid: int, body: dict = Body(...), user=Depends(require_user)):
 def device_get(pid: int, did: int, user=Depends(require_user)):
     with db() as c:
         profile_access(c, user, pid)
-        return inventory.device_detail(c, pid, did)
+        out = inventory.device_detail(c, pid, did)
+        from . import portforwards
+        out["forwards"] = [{k: x[k] for k in ("kind", "proto", "ext", "port", "desc", "enabled", "new", "source", "note")}
+                           for x in portforwards.state(c, pid, did)["items"]]
+        return out
 
 
 @router.put("/devices/{did}")

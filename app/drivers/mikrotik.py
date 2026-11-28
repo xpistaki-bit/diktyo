@@ -208,7 +208,8 @@ def collect(conf, state):
                    wan_members=[m for m in (_get(cl, "interface/list/member", optional=True) or []) if m.get("list") == "WAN"],
                    kid=_get(cl, "ip/kid-control/device", optional=True) or [],
                    bridges=_get(cl, "interface/bridge", optional=True) or [], bridge_vlans=_get(cl, "interface/bridge/vlan", optional=True) or [],
-                   bridge_ports=_get(cl, "interface/bridge/port", optional=True) or [], vlan_ifaces=_get(cl, "interface/vlan", optional=True) or [])
+                   bridge_ports=_get(cl, "interface/bridge/port", optional=True) or [], vlan_ifaces=_get(cl, "interface/vlan", optional=True) or [],
+                   nat=_get(cl, "ip/firewall/nat", optional=True))
         out["wifi_menu"], out["wifi"], out["registrations"] = None, [], []
         for menu in WIFI_MENUS:
             ifs = _get(cl, menu, optional=True)
@@ -216,6 +217,21 @@ def collect(conf, state):
                 out["wifi_menu"], out["wifi"] = menu, ifs
                 out["registrations"] = _get(cl, f"{menu}/registration-table", optional=True) or []
                 break
+    return out
+
+
+def forwards(nat):
+    """Portfreigaben aus /ip firewall nat: Regeln mit action=dst-nat; von UPnP angelegte sind dynamisch („upnp …“)."""
+    from .controller import forward
+    if nat is None:
+        return None
+    out = []
+    for r in nat:
+        if r.get("action") != "dst-nat" or not r.get("to-addresses"):
+            continue
+        upnp = _bool(r.get("dynamic")) and str(r.get("comment", "")).lower().startswith("upnp")
+        out.append(forward("upnp" if upnp else "static", r.get("protocol") or "all", r.get("dst-port"), r.get("to-addresses"),
+                           r.get("to-ports"), r.get("comment"), not _bool(r.get("disabled")), r.get("src-address") or ""))
     return out
 
 
@@ -420,6 +436,9 @@ def poll(conf, state):
         res["firmware"] = dict(installed=res["info"]["version"], latest=f"RouterBOOT {rb['upgrade-firmware']}" if upd else "", update=upd, info="")
         res["access"] = "snmp"
         return res, metrics, state
+    fw_list = forwards(raw.get("nat"))
+    if fw_list is not None:
+        res["forwards"] = fw_list
     try:
         res["firmware"] = firmware(conf, state, raw.get("routerboard"))
     except DriverError:
