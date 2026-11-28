@@ -20,6 +20,8 @@ FIELDS = [
     dict(key="export_pass", label="Passwort für die Konfigurationsdatei (sonst das Anmeldepasswort)", type="password", default="", secret=True),
     dict(key="line", label="Leitungswerte bei Kabel (Anmeldung an der Weboberfläche alle 15 Minuten)", type="select", default="yes",
          options=[["yes", "ja"], ["no", "nein"]]),
+    dict(key="pf_web", label="Portfreigaben aus der Weboberfläche (Anmeldung alle 15 Minuten, zusammen mit den Kabelwerten)", type="select",
+         default="yes", options=[["yes", "ja"], ["no", "nein"]]),
     dict(key="totp_secret", label="Authenticator-Schlüssel (optional, für automatische Sicherungen)", type="password", default="",
          secret=True, placeholder="Base32-Schlüssel aus der FRITZ!Box"),
 ]
@@ -519,22 +521,51 @@ def parse_docinfo(data):
                 snr_min=min(snrs, default=None), corr=sum(c["corr"] for c in ds), uncorr=sum(c["uncorr"] for c in ds))
 
 
-def docsis_values(conf):
-    """DOCSIS-Kanäle über die Weboberfläche (TR-064 kennt sie nicht): anmelden, docInfo lesen, abmelden."""
-    with _web_client(conf) as cl:
-        sid = _web_login(cl, conf)
+class WebSession:
+    """Eine Anmeldung an der Weboberfläche je Abfrage, für alle Seiten (Kabelwerte, Portfreigaben). Meldet sich erst an,
+    wenn eine Seite gebraucht wird, und am Ende wieder ab – die FRITZ!Box protokolliert jede Anmeldung."""
+
+    def __init__(self, conf):
+        self.conf, self.cl, self.sid = conf, None, None
+
+    def page(self, name):
+        """data.lua-Seite als JSON (None, wenn die Box kein JSON liefert)."""
+        if self.sid is None:
+            self.cl = _web_client(self.conf)
+            self.sid = _web_login(self.cl, self.conf)
+        r = self.cl.post("/data.lua", data={"xhr": "1", "sid": self.sid, "lang": "de", "page": name, "xhrId": "all", "no_sidrenew": ""})
+        r.raise_for_status()
         try:
-            r = cl.post("/data.lua", data={"xhr": "1", "sid": sid, "lang": "de", "page": "docInfo", "xhrId": "all", "no_sidrenew": ""})
-            r.raise_for_status()
-            try:
-                return parse_docinfo(r.json())
-            except ValueError:
-                return None
+            return r.json()
+        except ValueError:
+            return None
+
+    def close(self):
+        if self.cl is None:
+            return
+        try:
+            if self.sid:
+                self.cl.post("/login_sid.lua", params={"version": "2"}, data={"logout": "1", "sid": self.sid})
+        except httpx.HTTPError:
+            pass
         finally:
-            try:
-                cl.post("/login_sid.lua", params={"version": "2"}, data={"logout": "1", "sid": sid})
-            except httpx.HTTPError:
-                pass
+            self.cl.close()
+            self.cl = self.sid = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        self.close()
+
+
+def docsis_values(conf, web=None):
+    """DOCSIS-Kanäle über die Weboberfläche (TR-064 kennt sie nicht): docInfo lesen."""
+    if web is None:
+        with WebSession(conf) as w:
+            return docsis_values(conf, w)
+    data = web.page("docInfo")
+    return parse_docinfo(data) if data else None
 
 
 def line_hints(line, prev=None):
@@ -603,7 +634,7 @@ def line_metrics(line, prev=None):
     return m
 
 
-def poll_line(fc, conf, state, now=None):
+def poll_line(fc, conf, state, now=None, web=None):
     """Leitungswerte je nach Anschluss; Kabel nur alle LINE_WEB_S Sekunden (sonst die letzte Messung). -> (line, metrics)"""
     import time
     now = now or time.time()
@@ -631,7 +662,7 @@ def poll_line(fc, conf, state, now=None):
         return (dict(prev, hints=state.get("line_hints") or [], cached=True) if prev else
                 dict(kind="cable", error="Anmeldung an der Weboberfläche abgelehnt – nächster Versuch in einer Stunde")), {}
     try:
-        line = docsis_values(conf)
+        line = docsis_values(conf, web) if web is not None else docsis_values(conf)
     except DriverError as ex:
         if "abgelehnt" in str(ex):
             state["line_block_until"] = now + LINE_BLOCK_S
@@ -709,6 +740,93 @@ def forwards(fc, errors=None):
     return best
 
 
+IGD_KEYS = (("TCP_ipv4", "TCP"), ("UDP_ipv4", "UDP"), ("GRP_ipv4", "GRP"), ("GSE_ipv4", "GSE"))  # GRP/GSE: Namen der Box, Bedeutung nicht dokumentiert
+
+
+def _pf_split(v):
+    return [x.strip() for x in str(v or "").replace(";", ",").split(",") if x.strip()]
+
+
+def _pf_rule(d, ip, name):
+    """Eine eingerichtete Freigabe aus der Weboberfläche – Feldnamen je nach FRITZ!OS verschieden, deshalb tolerant."""
+    from .controller import forward
+    low = {str(k).lower(): v for k, v in d.items()}
+
+    def pick(*keys):
+        for k in keys:
+            if low.get(k) not in (None, ""):
+                return low[k]
+        return None
+    ext = pick("port_ext", "extport", "external_port", "externalport", "fwport", "port", "ports", "port_from", "portfrom")
+    end = pick("port_ext_end", "extport_end", "port_to", "portto", "endport")
+    if ext is None:
+        return None
+    if end not in (None, "") and str(end) != str(ext):
+        ext = f"{ext}-{end}"
+    port = pick("port_int", "intport", "internal_port", "internalport", "fwport_int", "port_internal")
+    proto = pick("protocol", "proto", "type")
+    desc = pick("description", "desc", "name", "service", "app", "application") or name
+    act = pick("active", "enabled", "activated", "enable")
+    on = act is None or str(act).lower() in ("1", "true", "on", "yes")
+    tip = pick("ip", "ipv4", "localipv4", "intclient", "internalclient") or ip
+    return forward("static", proto, ext, tip, port or "", str(desc), on)
+
+
+def parse_portoverview(data):
+    """Seite „portoverview“ (Internet → Freigaben → Portfreigaben): je Gerät die eingerichteten Freigaben, die Ports,
+    die das Gerät per UPnP/PCP selbst geöffnet hat (igdrules), und ob es Exposed Host ist. Seit FRITZ!OS 7 stehen
+    diese Freigaben nicht mehr in der TR-064-Tabelle. Nur IPv4. None, wenn die Seite keine Geräteliste liefert."""
+    from .controller import forward
+    if not isinstance(data, dict):
+        return None
+    d0 = data.get("data") if isinstance(data.get("data"), dict) else data
+    devs = d0.get("devices")
+    if not isinstance(devs, list):
+        return None
+    out = []
+    for d in devs:
+        if not isinstance(d, dict):
+            continue
+        ip = str(d.get("localIpv4") or d.get("ipv4") or d.get("ip") or "").strip()
+        name = str(d.get("devicename") or d.get("name") or ip)
+        if not ip:
+            continue
+        for key, val in d.items():
+            if key == "igdrules" and isinstance(val, dict):
+                for k, proto in IGD_KEYS:
+                    for port in _pf_split(val.get(k)):
+                        out.append(forward("upnp", proto, port, ip, port, f"{name} (UPnP/PCP)"))
+            elif isinstance(val, list):  # eingerichtete Freigaben: Liste von Regeln
+                for rule in val:
+                    if isinstance(rule, dict) and any("port" in str(k).lower() for k in rule):
+                        if "ipv6" in str(key).lower() or str(rule.get("type", "")).lower() == "ipv6":
+                            continue
+                        f = _pf_rule(rule, ip, name)
+                        if f:
+                            out.append(f)
+            elif isinstance(val, dict) and key != "igdrules" and any(k in val for k, _ in IGD_KEYS):
+                for k, proto in IGD_KEYS:  # wie igdrules aufgebaut, aber eingerichtet
+                    for port in _pf_split(val.get(k)):
+                        out.append(forward("static", proto, port, ip, port, name))
+        if str(d.get("exposed_ipv4")).lower() in ("true", "1"):
+            out.append(forward("static", "TCP/UDP", "", ip, "", f"{name} (Exposed Host)"))
+    return out
+
+
+def merge_forwards(*lists):
+    """Listen zusammenführen; doppelte (gleiches Protokoll, gleicher Port, gleiches Ziel) nur einmal. None, wenn alle fehlen."""
+    if all(x is None for x in lists):
+        return None
+    seen, out = set(), []
+    for lst in lists:
+        for f in lst or []:
+            k = (f["proto"], f["ext"], f["ip"])
+            if k not in seen:
+                seen.add(k)
+                out.append(f)
+    return out
+
+
 PF_ERR = {
     "perm": "Keine Berechtigung für die Portfreigaben – der FRITZ!Box-Benutzer braucht das Recht „FRITZ!Box Einstellungen“",
     "missing": "Diese FRITZ!Box liefert die Portfreigaben nicht über TR-064",
@@ -716,25 +834,49 @@ PF_ERR = {
 }
 
 
-def poll_forwards(fc, conf, state, now=None):
-    """-> (liste oder None, aus dem Zwischenspeicher?, fehlertext oder "")"""
+def _poll_forwards_web(conf, state, now, web):
+    """Portfreigaben der Weboberfläche, alle LINE_WEB_S Sekunden (sonst die letzte Liste). -> (liste oder None, zwischengespeichert?)"""
+    if web is None or conf.get("pf_web") == "no":
+        return None, True
+    if "pf_web_list" in state and now - (state.get("pf_web_ts") or 0) < LINE_WEB_S:
+        return state["pf_web_list"], True
+    if now < (state.get("line_block_until") or 0):
+        return state.get("pf_web_list"), True
+    try:
+        lst = parse_portoverview(web.page("portoverview"))
+    except DriverError as ex:
+        if "abgelehnt" in str(ex):
+            state["line_block_until"] = now + LINE_BLOCK_S
+        lst = None
+    except httpx.HTTPError:
+        lst = None
+    state["pf_web_ts"], state["pf_web_list"] = now, lst
+    return lst, False
+
+
+def poll_forwards(fc, conf, state, now=None, web=None):
+    """TR-064-Tabelle (alle FORWARDS_S) plus Weboberfläche (alle LINE_WEB_S). -> (liste oder None, zwischengespeichert?, fehlertext)"""
     import time
     now = now or time.time()
     if not conf.get("password"):
         return None, False, PF_ERR["nopw"]
     if "pf_list" in state and now - (state.get("pf_ts") or 0) < FORWARDS_S:
-        return state["pf_list"], True, state.get("pf_err") or ""
-    errors = []
-    try:
-        lst = forwards(fc, errors)
-    except Exception as ex:
-        lst, errors = None, [_pf_err(ex)]
-    err = ""
-    if lst is None:
-        code = "perm" if "perm" in errors else next((e for e in errors if e not in ("perm", "missing")), "missing")
-        err = PF_ERR.get(code) or f"Portfreigaben nicht lesbar: {code}"
-    state["pf_ts"], state["pf_list"], state["pf_err"] = now, lst, err
-    return lst, False, err
+        tr, tr_cached, err = state["pf_list"], True, state.get("pf_err") or ""
+    else:
+        errors = []
+        try:
+            tr = forwards(fc, errors)
+        except Exception as ex:
+            tr, errors = None, [_pf_err(ex)]
+        err = ""
+        if tr is None:
+            code = "perm" if "perm" in errors else next((e for e in errors if e not in ("perm", "missing")), "missing")
+            err = PF_ERR.get(code) or f"Portfreigaben nicht lesbar: {code}"
+        state["pf_ts"], state["pf_list"], state["pf_err"] = now, tr, err
+        tr_cached = False
+    wl, web_cached = _poll_forwards_web(conf, state, now, web)
+    lst = merge_forwards(tr, wl)
+    return lst, tr_cached and web_cached, ("" if lst is not None else err)
 
 
 def fw_version(s):
@@ -771,12 +913,13 @@ def poll(conf, state):
     if "rx_bps" in res["wan"]:
         metrics = {"wan:rx": res["wan"]["rx_bps"], "wan:tx": res["wan"]["tx_bps"]}
     state = dict(state)
-    fw_list, cached, fw_err = poll_forwards(fc, conf, state)
-    if fw_list is not None:
-        res["forwards"], res["forwards_cached"] = fw_list, cached
-    elif fw_err:
-        res["forwards_error"] = fw_err
-    line, lm = poll_line(fc, conf, state)
+    with WebSession(conf) as web:  # höchstens eine Anmeldung an der Weboberfläche je Abfrage
+        fw_list, cached, fw_err = poll_forwards(fc, conf, state, web=web)
+        if fw_list is not None:
+            res["forwards"], res["forwards_cached"] = fw_list, cached
+        elif fw_err:
+            res["forwards_error"] = fw_err
+        line, lm = poll_line(fc, conf, state, web=web)
     if line:
         res["line"] = line
         metrics.update(lm)

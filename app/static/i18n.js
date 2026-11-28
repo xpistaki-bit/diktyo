@@ -1204,6 +1204,8 @@ Object.assign(window.I18N_EN, {
   "{n} neue Portfreigaben": "{n} new port forwards",
   "Neue Portfreigabe (auch UPnP)": "New port forward (incl. UPnP)",
   'in der FRITZ!Box unter System → FRITZ!Box-Benutzer → Benutzer bearbeiten.': 'in the FRITZ!Box under System → FRITZ!Box Users → edit user.',
+  'FRITZ!Box: Seit FRITZ!OS 7 stehen die Freigaben je Gerät nur in der Weboberfläche – díktyo liest sie dort alle 15 Minuten (eine Anmeldung, zusammen mit den Kabelwerten), dazu die TR-064-Tabelle alle 5 Minuten. IPv6- und MyFRITZ!-Freigaben fehlen.': 'FRITZ!Box: since FRITZ!OS 7, per-device forwards are only listed in the web interface – díktyo reads them there every 15 minutes (one login, together with the cable values), plus the TR-064 table every 5 minutes. IPv6 and MyFRITZ! forwards are missing.',
+  'Portfreigaben aus der Weboberfläche (Anmeldung alle 15 Minuten, zusammen mit den Kabelwerten)': 'Port forwards from the web interface (login every 15 minutes, together with the cable values)',
   'Kabel-Etiketten': 'Cable labels', 'Kabel suchen …': 'Search cables …', 'Kein Kabel passt.': 'No cable matches.',
   'je Kabelende ein Etikett (nennt die Gegenstelle)': 'one label per cable end (names the far end)',
   'Noch keine Kabelnummern. Trage sie im Reiter Verkabelung bei den Kabelwegen ein (Patchkabel, Verlegekabel, Anschlusskabel).': 'No cable numbers yet. Enter them for the cable runs in the Cabling tab (patch cable, installation cable, device cable).',

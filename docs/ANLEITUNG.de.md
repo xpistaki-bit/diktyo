@@ -214,7 +214,7 @@ Angaben, bevor gespeichert wird.
   díktyo meldet sich dafür alle **15 Minuten** an der Weboberfläche an (Seite *Kabel-Informationen*), liest alle
   Kanäle (Pegel, MSE/MER, korrigierbare und nicht korrigierbare Fehler) und meldet sich wieder ab. Jede Anmeldung
   steht in der Ereignisliste der FRITZ!Box; wer das nicht möchte, stellt in der Integration „Leitungswerte bei Kabel“
-  auf *nein*. Nach einer abgelehnten Anmeldung wartet díktyo eine Stunde, damit die FRITZ!Box nicht sperrt.
+  auf *nein*. Dieselbe Anmeldung liest auch die Portfreigaben (siehe *Portfreigaben und UPnP*). Nach einer abgelehnten Anmeldung wartet díktyo eine Stunde, damit die FRITZ!Box nicht sperrt.
   Die Karte zeigt die Werte, auf Wunsch alle Kanäle, den Störabstand der letzten 24 Stunden (anheftbar) und
   **Hinweise nach Richtwerten**: DSL-Störabstand unter 6 dB, viele neue CRC-Fehler, Neusynchronisierung; bei Kabel
   Downstream-Pegel außerhalb von −8 bis 15 dBmV, Upstream außerhalb von 35 bis 51 dBmV, MSE unter 32 dB (256QAM)
@@ -512,7 +512,7 @@ Kameras …). díktyo liest nur, am Router ändert sich nichts.
 
 | Quelle | Was | Hinweis |
 |---|---|---|
-| FRITZ!Box | IPv4-Portfreigaben über TR-064 | nur mit Benutzer, der das Recht **FRITZ!Box Einstellungen** hat; alle 5 Minuten (je Eintrag eine Abfrage). Fehlt das Recht oder liefert die Box die Liste nicht, steht der Grund oben im Reiter. TR-064 sagt nicht, ob eine Freigabe eingerichtet oder per UPnP angelegt wurde – Einträge mit Laufzeit gelten als UPnP. IPv6- und MyFRITZ!-Freigaben fehlen. |
+| FRITZ!Box | Freigaben je Gerät, von Geräten per UPnP/PCP geöffnete Ports und Exposed Host aus der **Weboberfläche** (*Internet → Freigaben*), dazu die TR-064-Tabelle | nur mit Benutzer und Passwort. Seit FRITZ!OS 7 stehen die Freigaben je Gerät nicht mehr in der TR-064-Tabelle (die ist dann meist leer); díktyo meldet sich dafür alle **15 Minuten** an der Weboberfläche an – bei Kabel in derselben Anmeldung wie für die Leitungswerte. Abschaltbar in der Integration („Portfreigaben aus der Weboberfläche“). TR-064-Tabelle alle 5 Minuten. IPv6- und MyFRITZ!-Freigaben fehlen. |
 | ASUS | Portweiterleitungen (*WAN → Virtueller Server*) und die UPnP-Liste | UPnP-Liste alle 5 Minuten, nur wenn UPnP eingeschaltet ist |
 | OpenWrt | Portweiterleitungen (*Firewall → Port Forwards*, DNAT) und UPnP (luci-app-upnp) | die ACL braucht Lesezugriff auf `firewall` und `luci.upnp` (Beispiel oben) |
 | MikroTik | `/ip firewall nat`-Regeln mit `action=dst-nat`; von UPnP angelegte sind dynamisch | RouterOS-API oder REST, nicht über SNMP |

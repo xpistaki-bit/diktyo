@@ -73,7 +73,7 @@ async function tabPortfw(ctx) {
         <th>${t('Port intern')}</th><th>${t('Beschreibung')}</th><th>${t('Quelle')}</th><th>${t('Notiz')}</th><th></th></tr></thead>
         <tbody id="pfbody">${bodyHtml()}</tbody></table></div>`
         : `<div class="allok"><b>✓</b>${t('Keine Portfreigaben – der Router leitet nichts aus dem Internet weiter.')}</div>`}
-      ${st.sources.some(s => s.driver === 'fritzbox') ? `<p class="muted small">${t('FRITZ!Box: TR-064 sagt nicht, ob eine Freigabe in der Oberfläche eingerichtet oder von einem Gerät angelegt wurde; Einträge mit Laufzeit gelten als UPnP. IPv6-Freigaben und MyFRITZ!-Freigaben fehlen in der Liste. Abfrage alle 5 Minuten.')}</p>` : ''}`}
+      ${st.sources.some(s => s.driver === 'fritzbox') ? `<p class="muted small">${t('FRITZ!Box: Seit FRITZ!OS 7 stehen die Freigaben je Gerät nur in der Weboberfläche – díktyo liest sie dort alle 15 Minuten (eine Anmeldung, zusammen mit den Kabelwerten), dazu die TR-064-Tabelle alle 5 Minuten. IPv6- und MyFRITZ!-Freigaben fehlen.')}</p>` : ''}`}
     </div>`;
     const q = $('#pfq', ctx.el);
     if (q) q.oninput = () => { ui.q = q.value; drawBody(); };

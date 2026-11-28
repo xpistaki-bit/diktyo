@@ -221,3 +221,98 @@ def test_track_events_ack_notes_and_dashboard(monkeypatch):
         pf = json.loads(c.execute("SELECT settings FROM profiles WHERE id=?", (pid,)).fetchone()["settings"])["portfw"]
     assert pf["known"] == {} and pf["notes"] == {} and pf["base"] == []
     assert cl.get(f"{P}/portforwards").json() == dict(items=[], sources=[], problems=[], new=0, upnp=0, total=0)
+
+
+PORTOVERVIEW = {"data": {"devices": [
+    {"devicename": "nas", "localIpv4": "192.0.2.50", "exposed_ipv4": False,
+     "igdrules": {"UDP_ipv4": "6881", "TCP_ipv4": "16881, 62198", "TCP_ipv6": "443", "GRP_ipv4": ""},
+     "rules": [{"name": "Nextcloud", "protocol": "TCP", "port": "443", "port_int": "8443", "active": "1"},
+               {"name": "alt", "protocol": "UDP", "port": "1194", "active": "0"},
+               {"name": "v6", "type": "ipv6", "protocol": "TCP", "port": "22"}]},
+    {"devicename": "dmz", "localIpv4": "192.0.2.9", "exposed_ipv4": True, "igdrules": {}},
+    {"devicename": "ohne-ip", "localIpv4": "", "igdrules": {"TCP_ipv4": "80"}},
+]}}
+
+
+class FakeWeb:
+    def __init__(self, pages=None, deny=False):
+        self.pages, self.deny, self.calls = pages or {}, deny, []
+
+    def page(self, name):
+        self.calls.append(name)
+        if self.deny:
+            raise fritzbox.DriverError("Anmeldung an der Weboberfläche der FRITZ!Box abgelehnt (Benutzer/Passwort prüfen)")
+        return self.pages.get(name)
+
+
+def test_fritzbox_web_portoverview():
+    lst = fritzbox.parse_portoverview(PORTOVERVIEW)
+    got = [(x["kind"], x["proto"], x["ext"], x["ip"], x["port"], x["desc"], x["enabled"]) for x in lst]
+    assert ("upnp", "TCP", "16881", "192.0.2.50", "16881", "nas (UPnP/PCP)", True) in got
+    assert ("upnp", "TCP", "62198", "192.0.2.50", "62198", "nas (UPnP/PCP)", True) in got
+    assert ("upnp", "UDP", "6881", "192.0.2.50", "6881", "nas (UPnP/PCP)", True) in got
+    assert ("static", "TCP", "443", "192.0.2.50", "8443", "Nextcloud", True) in got
+    assert ("static", "UDP", "1194", "192.0.2.50", "1194", "alt", False) in got
+    assert ("static", "TCP/UDP", "", "192.0.2.9", "", "dmz (Exposed Host)", True) in got
+    assert len(got) == 6  # ohne IPv6 und ohne Gerät ohne IPv4
+    assert fritzbox.parse_portoverview({"data": {}}) is None and fritzbox.parse_portoverview(None) is None
+    # TR-064 leer (FRITZ!OS 7+), Weboberfläche liefert: zusammengeführt, Weboberfläche nur alle 15 Minuten
+    conf, st, web = {"host": "192.0.2.1", "username": "u", "password": "pw"}, {}, FakeWeb({"portoverview": PORTOVERVIEW})
+    lst, cached, err = fritzbox.poll_forwards(FakeFC([]), conf, st, now=1000, web=web)
+    assert len(lst) == 6 and not cached and err == "" and web.calls == ["portoverview"]
+    lst, cached, _ = fritzbox.poll_forwards(FakeFC([]), conf, st, now=1000 + fritzbox.FORWARDS_S, web=web)
+    assert len(lst) == 6 and not cached and web.calls == ["portoverview"]  # TR-064 neu, Weboberfläche aus dem Speicher
+    lst, cached, _ = fritzbox.poll_forwards(FakeFC([]), conf, st, now=1000 + fritzbox.FORWARDS_S + 10, web=web)
+    assert cached
+    fritzbox.poll_forwards(FakeFC([]), conf, st, now=1000 + fritzbox.LINE_WEB_S, web=web)
+    assert web.calls == ["portoverview"] * 2
+    # doppelte Einträge (TR-064 und Weboberfläche) nur einmal
+    tr = [dict(FB_ENTRIES[0], NewInternalClient="192.0.2.50")]
+    lst, _, _ = fritzbox.poll_forwards(FakeFC(tr), conf, {}, now=1, web=FakeWeb({"portoverview": PORTOVERVIEW}))
+    assert len(lst) == 6 and sum(1 for x in lst if x["ext"] == "443") == 1
+    # abgeschaltet: keine Weboberfläche
+    web = FakeWeb({"portoverview": PORTOVERVIEW})
+    assert fritzbox.poll_forwards(FakeFC([]), dict(conf, pf_web="no"), {}, now=1, web=web)[0] == [] and web.calls == []
+    # TR-064 ohne Recht, Weboberfläche liefert: kein Fehler
+    lst, _, err = fritzbox.poll_forwards(FakeFC(FB_ENTRIES, perm=False), conf, {}, now=1, web=FakeWeb({"portoverview": PORTOVERVIEW}))
+    assert len(lst) == 6 and err == ""
+    # Anmeldung abgelehnt: eine Stunde Pause, auch für die Kabelwerte
+    st, web = {}, FakeWeb(deny=True)
+    lst, _, _ = fritzbox.poll_forwards(FakeFC([]), conf, st, now=5000, web=web)
+    assert lst == [] and st["line_block_until"] == 5000 + fritzbox.LINE_BLOCK_S
+    fritzbox.poll_forwards(FakeFC([]), conf, st, now=5000 + fritzbox.LINE_WEB_S, web=web)
+    assert web.calls == ["portoverview"]
+
+
+def test_fritzbox_one_web_login_per_poll(monkeypatch):
+    """Kabelwerte und Portfreigaben teilen sich eine Anmeldung an der Weboberfläche."""
+    logins, logouts = [], []
+
+    class Resp:
+        def __init__(self, data):
+            self.data = data
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self.data
+
+    class Client:
+        def post(self, url, data=None, params=None):
+            if url == "/login_sid.lua":
+                logouts.append(1)
+                return Resp({})
+            return Resp(PORTOVERVIEW if data["page"] == "portoverview" else {"data": {}})
+
+        def close(self):
+            pass
+    monkeypatch.setattr(fritzbox, "_web_client", lambda conf: Client())
+    monkeypatch.setattr(fritzbox, "_web_login", lambda cl, conf: logins.append(1) or "0123456789abcdef")
+    with fritzbox.WebSession({"host": "192.0.2.1", "password": "pw"}) as w:
+        assert len(fritzbox.parse_portoverview(w.page("portoverview"))) == 6
+        fritzbox.docsis_values({}, w)  # zweite Seite, gleiche Anmeldung
+    assert logins == [1] and logouts == [1]
+    with fritzbox.WebSession({}) as w:  # nichts gebraucht: keine Anmeldung
+        pass
+    assert logins == [1]
