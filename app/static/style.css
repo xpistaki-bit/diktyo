@@ -876,3 +876,8 @@ label.chk.tg-dev{margin:0;padding:6px 0;border-bottom:1px solid rgba(0,229,255,.
 /* VLAN-Plan: VM/Container mit geplantem VLAN-Wechsel */
 .vp-guest.chg{outline:1px dashed var(--warn);outline-offset:1px}
 .vp-guest .vp-old{margin-right:3px;font-weight:400;font-size:.8em;color:var(--mute)}
+
+/* Leitungswerte (FRITZ!Box DSL/Kabel) */
+.line-hints{margin:6px 0 0;padding-left:18px}
+.line-hints li{margin:2px 0}
+.line-chans{max-height:300px;overflow:auto}

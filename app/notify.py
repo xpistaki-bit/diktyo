@@ -25,10 +25,11 @@ KINDS = {  # Art -> (deutsch, englisch, ntfy-Priorität, ntfy-Tag)
     "speed_slow": ("Internet langsam: ↓ {down} (Leitung ↓ {line})", "Internet slow: ↓ {down} (line ↓ {line})", 3, "turtle"),
     "backup_failed": ("Konfigurations-Backup fehlgeschlagen: {name} – {message}", "Configuration backup failed: {name} – {message}", 3, "floppy_disk"),
     "integration_failed": ("Integration gestört: {name} – {message}", "Integration failing: {name} – {message}", 3, "warning"),
+    "line_degraded": ("Leitung: {name} – {msg_de}", "Line: {name} – {msg_en}", 3, "chart_with_downwards_trend"),
     "watch_change": ("Wachliste: {name} – {label_de} {old} → {new}", "Watchlist: {name} – {label_en} {old} → {new}", 5, "rotating_light"),
 }
 DEFAULT_KINDS = ["device_offline", "new_device", "quarantined", "action_undo_failed", "schedule_failed", "speed_slow", "backup_failed",
-                 "integration_failed", "watch_change"]
+                 "integration_failed", "line_degraded", "watch_change"]
 DEFAULTS = dict(email=False, email_to="", ntfy=False, ntfy_url="https://ntfy.sh", ntfy_topic="", ntfy_token="", kinds=DEFAULT_KINDS,
                 lang="de", only_infra_offline=False)
 

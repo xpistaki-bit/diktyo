@@ -44,6 +44,7 @@ function issuesPanel(r, pid) {
   const issues = [
     ...r.offline.map(x => `<li class="bad"><span class="ic">●</span><span>${devLink(x.id, x.name)} ${t('ist offline')}</span></li>`),
     ...r.broken.map(x => `<li class="bad"><span class="ic">⚠</span><span><a href="#/p/${pid}/integrationen">${h(x.name)}</a>: ${h(ts(x.error))}</span></li>`),
+    ...(r.line || []).map(x => `<li class="${x.level === 'bad' ? 'bad' : 'warn'}"><span class="ic">∿</span><span><a href="#/p/${pid}/integrationen">${h(x.name)}</a>: ${h(LANG === 'en' ? x.en : x.de)}</span></li>`),
     ...r.failed.map(x => `<li class="bad"><span class="ic">⚡</span><span>${h(t(x.label))}: ${h(ts(x.message || ''))}</span></li>`),
     ...r.firmware.map(x => `<li class="warn"><span class="ic">⬆</span><span>${devLink(x.id, x.name)}: ${t('Firmware {a} → {b}', { a: h(x.installed || '?'), b: h(x.latest || t('neue Version')) })}</span></li>`),
     ...(c.inbox ? [`<li class="info"><span class="ic">✚</span><a href="#/p/${pid}/posteingang">${c.inbox === 1 ? t('1 neues Gerät im Posteingang') : t('{n} neue Geräte im Posteingang', { n: c.inbox })}</a></li>`] : []),
@@ -156,10 +157,11 @@ function dnsPanel(dns, pid) {
 /* ---------- angeheftete Diagramme ---------- */
 const PIN_FMT = {
   bps: fmtBps, ms: fmtMs, W: fmtW, count: v => fmtInt(Math.round(v)),
-  pct: v => `${nf(v, 1)} %`,
+  pct: v => `${nf(v, 1)} %`, dB: v => `${nf(v, 1)} dB`,
 };
 const PIN_SPLIT = { bps: splitBps, ms: v => [v == null ? '–' : nf(v, v < 10 ? 1 : 0), 'ms'], W: v => { const s = fmtW(v).split(' '); return [s[0], s[1] || '']; },
-  count: v => [v == null ? '–' : fmtInt(Math.round(v)), ''], pct: v => [v == null ? '–' : nf(v, 1), '%'] };
+  count: v => [v == null ? '–' : fmtInt(Math.round(v)), ''], pct: v => [v == null ? '–' : nf(v, 1), '%'],
+  dB: v => [v == null ? '–' : nf(v, 1), 'dB'] };
 const PIN_COLORS = ['#00E5FF', '#19F5C8', '#2D7BFF', '#FFB020'];
 
 function pinPanel(it) {

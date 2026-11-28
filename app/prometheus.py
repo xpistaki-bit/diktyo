@@ -164,6 +164,16 @@ def render(c, pid):
                  "blocked_pct": ("diktyo_dns_blocked_ratio", "Anteil blockierter DNS-Anfragen (0–1)")}.get(p[2])
             if m:
                 o.add(m[0], m[1], "gauge", val / 100 if p[2] == "blocked_pct" else val, integration=src)
+        elif p[1] == "line" and len(p) == 3:
+            m = {"snr_down": ("diktyo_line_noise_margin_db", "DSL-Störabstandsmarge in dB", dict(direction="down")),
+                 "snr_up": ("diktyo_line_noise_margin_db", "DSL-Störabstandsmarge in dB", dict(direction="up")),
+                 "rate_down": ("diktyo_line_sync_bits_per_second", "DSL-Synchronisationsrate", dict(direction="down")),
+                 "rate_up": ("diktyo_line_sync_bits_per_second", "DSL-Synchronisationsrate", dict(direction="up")),
+                 "snr_min": ("diktyo_line_weakest_channel_db", "Kabel: MSE/MER des schwächsten Downstream-Kanals in dB", {}),
+                 "us_pwr_max": ("diktyo_line_upstream_power_max_dbmv", "Kabel: höchster Upstream-Pegel in dBmV", {}),
+                 "err": ("diktyo_line_new_errors", "Neue CRC-Fehler (DSL) bzw. nicht korrigierbare Fehler (Kabel) seit der vorigen Messung", {})}.get(p[2])
+            if m:
+                o.add(m[0], m[1], "gauge", val, integration=src, **m[2])
     # Speedtest
     st = c.execute("SELECT * FROM speedtests WHERE profile_id=? AND kind='internet' AND down_bps IS NOT NULL ORDER BY ts DESC LIMIT 1", (pid,)).fetchone()
     if st:

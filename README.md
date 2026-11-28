@@ -11,7 +11,7 @@ in German and English.
 
 [![Topology with live throughput](docs/img/start/en-08-topology.webp)](docs/GETTING-STARTED.md)
 
-> **Status: v0.43 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
+> **Status: v0.44 – MVP (M0–M6) complete, phase 2 in progress.** German step-by-step guide:
 > [docs/ANLEITUNG.de.md](docs/ANLEITUNG.de.md). Plan, add-ons and improvements: [docs/ROADMAP.de.md](docs/ROADMAP.de.md).
 
 ## Installation
@@ -305,6 +305,10 @@ The tab **Integrations** connects devices that díktyo queries directly (read-on
   sets the connections automatically) plus Wi-Fi networks. Create the user under System → FRITZ!Box Users with the
   permission "FRITZ!Box settings"; "Allow access for applications" must be on (Home Network → Network → Network
   Settings). New devices land in the inbox; known ones are updated and shown online/offline.
+  **Line values:** DSL via TR-064 (sync rate, attainable rate, noise margin, attenuation, CRC/FEC errors, resyncs);
+  cable (DOCSIS) via the web interface every 15 minutes (all channels with power, MSE/MER, correctable and
+  uncorrectable errors). Hints based on common guide values appear on the card and in the overview, with a
+  "line degraded" notification, a 24-hour noise-margin chart (pinnable) and Prometheus metrics.
 - **Switch (SNMP v2c or v3** with SHA/SHA-256/MD5 authentication and AES-128 encryption), for example the Zyxel XGS1935: port status and speed, traffic per port (from the 64-bit
   counters), MAC addresses learned per port and LLDP neighbours. Devices whose MAC address appears alone on a port
   are connected to that port automatically; on a port with many addresses the switch, access point or router behind

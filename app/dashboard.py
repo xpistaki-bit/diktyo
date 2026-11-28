@@ -21,10 +21,12 @@ def build(c, pid):
     offline.sort(key=lambda x: (x["type"] not in INFRA, x["name"].lower()))
     # Integrationen: WAN, Fehler, aktivste Ports
     integ = c.execute("SELECT * FROM integrations WHERE profile_id=? AND enabled=1 ORDER BY id", (pid,)).fetchall()
-    wan, broken, ports = None, [], []
+    wan, broken, ports, line_hints = None, [], [], []
     for r in integ:
         st = json.loads(r["state"] or "{}")
         res = st.get("result") or {}
+        for x in (res.get("line") or {}).get("hints") or []:
+            line_hints.append(dict(integration=r["id"], name=r["name"], level=x.get("level"), de=x.get("de"), en=x.get("en")))
         if r["last_error"] and not r["last_ok"]:
             broken.append(dict(id=r["id"], name=r["name"], driver=r["driver"], error=r["last_error"]))
         elif r["last_error"] and r["last_ok"] and r["last_poll"] and r["last_poll"] > r["last_ok"]:
@@ -122,7 +124,7 @@ def build(c, pid):
         counts=dict(devices=len(confirmed), online=sum(1 for d in confirmed if d["online"] == 1), offline=len(offline),
                     inbox=sum(1 for d in devs if d["status"] == "discovered"), firmware=len(fw_up), quarantine=quarantine,
                     availability=round(sum(avail) / len(avail), 2) if avail else None),
-        wan=wan, speed=speed, dns=dns, top_today=top_today, top_now=top_now, offline=offline[:12], firmware=fw_up[:12], broken=broken, failed=failed[:10], ports=ports, infra=infra[:16],
+        wan=wan, speed=speed, dns=dns, top_today=top_today, top_now=top_now, offline=offline[:12], firmware=fw_up[:12], broken=broken, line=line_hints[:6], failed=failed[:10], ports=ports, infra=infra[:16],
         rtt=rtt_keys, recent=[x for x in changes.timeline(c, pid, limit=12) if x["cat"] in ("change", "action", "quarantine")][:8],
         summary=changes.summary(c, pid), watch=watch.state(c, pid))
 

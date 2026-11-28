@@ -145,7 +145,7 @@ def test_homeassistant_import_mqtt_and_events(monkeypatch):
     assert cfg["device_class"] == "connectivity" and cfg["device"]["connections"] == [["mac", "70:49:a2:55:28:34"]]
     assert topics[f"diktyo/{pid}/device/{sw['id']}"] == "OFF"
     assert topics[f"diktyo/{pid}/event"]["event_type"] == "device_offline" and topics[f"diktyo/{pid}/event"]["device"] == "Switch"
-    assert topics[f"homeassistant/event/diktyo_{pid}_events/config"]["event_types"] == ["device_offline", "device_online", "new_device", "action_undo_failed", "quarantined", "schedule_failed", "firmware_update", "speed_slow", "backup_failed", "integration_failed"]
+    assert topics[f"homeassistant/event/diktyo_{pid}_events/config"]["event_types"] == ["device_offline", "device_online", "new_device", "action_undo_failed", "quarantined", "schedule_failed", "firmware_update", "speed_slow", "backup_failed", "integration_failed", "line_degraded"]
     assert f"homeassistant/sensor/diktyo_{pid}_inbox/config" in topics
     # zweite Abfrage: Ereignis wird nicht doppelt gemeldet
     sent.clear()

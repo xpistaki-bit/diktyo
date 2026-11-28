@@ -209,6 +209,19 @@ Angaben, bevor gespeichert wird.
 - Ohne Benutzer: Geräteliste mit MAC-Adressen und WAN-Traffic.
 - Mit Benutzer (*System → FRITZ!Box-Benutzer*, Recht „FRITZ!Box Einstellungen“): zusätzlich Mesh-Topologie (welches
   Gerät an welchem LAN-Port bzw. WLAN hängt), WLAN-Daten und das Konfigurations-Backup.
+- **Leitungswerte:** Bei **DSL** liest díktyo über TR-064 Sync-Rate (aktuell und möglich), Störabstand, Dämpfung,
+  CRC-/FEC-Fehler und Neusynchronisierungen – bei jeder Abfrage. Bei **Kabel** (DOCSIS) kennt TR-064 die Werte nicht;
+  díktyo meldet sich dafür alle **15 Minuten** an der Weboberfläche an (Seite *Kabel-Informationen*), liest alle
+  Kanäle (Pegel, MSE/MER, korrigierbare und nicht korrigierbare Fehler) und meldet sich wieder ab. Jede Anmeldung
+  steht in der Ereignisliste der FRITZ!Box; wer das nicht möchte, stellt in der Integration „Leitungswerte bei Kabel“
+  auf *nein*. Nach einer abgelehnten Anmeldung wartet díktyo eine Stunde, damit die FRITZ!Box nicht sperrt.
+  Die Karte zeigt die Werte, auf Wunsch alle Kanäle, den Störabstand der letzten 24 Stunden (anheftbar) und
+  **Hinweise nach Richtwerten**: DSL-Störabstand unter 6 dB, viele neue CRC-Fehler, Neusynchronisierung; bei Kabel
+  Downstream-Pegel außerhalb von −8 bis 15 dBmV, Upstream außerhalb von 35 bis 51 dBmV, MSE unter 32 dB (256QAM)
+  bzw. MER unter 35 dB (DOCSIS 3.1), viele neue nicht korrigierbare Fehler. Die Hinweise stehen auch in der
+  Übersicht unter *Braucht Aufmerksamkeit*, und es gibt die Benachrichtigung *Leitung verschlechtert*. Die Grenzen
+  deines Netzbetreibers können abweichen – die Richtwerte sind ein Anhaltspunkt, keine Diagnose. Glasfaser-Boxen
+  liefern über diese Wege keine Werte.
 
 ### Switch (SNMP), z. B. Zyxel XGS1935
 
@@ -585,6 +598,7 @@ den aktuellen Stand – den Verlauf speichert Prometheus.
 | Internet langsam | Speedtest unter der Hälfte der Leitung (laut FRITZ!Box) |
 | Konfigurations-Backup fehlgeschlagen | beim automatischen Backup |
 | Integration gestört | wenn eine Integration seit 15 Minuten nicht mehr antwortet (einmal, bis sie wieder klappt) |
+| Leitung verschlechtert | ein neuer Hinweis zu den DSL-/Kabelwerten der FRITZ!Box (einmal je Hinweisart, bis er verschwunden ist) |
 | Wachliste | ein beobachtetes System fällt aus oder wechselt IP, MAC, Name oder Anschluss (siehe *Übersicht*) |
 
 Mehrere Ereignisse werden höchstens einmal pro Minute zu einer Nachricht gebündelt. Beim Einschalten zählen nur neue

@@ -283,6 +283,18 @@ async function tabIntegrations(ctx) {
       $$('[data-port]', card).forEach(b => b.onclick = () => { card.dataset.port = b.dataset.port; $$('.pstrip [data-port]', card).forEach(x => x.classList.toggle('sel', x === b)); $('.pname', card).textContent = b.title; draw(); });
       waits.push(draw());
     }
+    const lc = $('.linechart', card), L = i.result?.line;
+    if (lc && L) {
+      const keys = L.kind === 'dsl' ? [`i${i.id}:line:snr_down`, `i${i.id}:line:snr_up`] : [`i${i.id}:line:snr_min`];
+      const names = L.kind === 'dsl' ? ['Störabstand ↓', 'Störabstand ↑'] : ['schwächster Kanal'];
+      waits.push(drawChart(lc, ctx.pid, keys, names.map(n => t(n)), 86400, { fmt: v => fmtDb(v), height: 110 }).catch(() => { }));
+      if (ctx.canEdit) {
+        const pb = document.createElement('button');
+        pb.type = 'button'; pb.className = 'sm pinbtn-dyn'; pb.innerHTML = PIN_ICON + ' ' + h(t('An die Übersicht anheften'));
+        pb.onclick = () => pinNow(ctx.pid, { title: `Leitung · ${i.name}`, keys, names, unit: 'dB', style: 'line', mirror: false });
+        lc.after(pb);
+      }
+    }
   }
   // Ansicht aktuell halten, solange der Reiter offen ist
   { const hb = document.createElement('div'); hb.style.marginTop = '16px'; ctx.el.appendChild(hb); waits.push(healthPanel(ctx, hb)); }
@@ -310,9 +322,51 @@ function fritzCard(i) {
       <span>${t('Mesh-Topologie')}: <b>${res.auth ? t('ja') : t('nein (ohne Anmeldung)')}</b></span></div>
     ${w.rx_bps != null ? `<div class="wan-now"><span>↓ <b class="mono">${fmtBps(w.rx_bps)}</b></span><span>↑ <b class="mono">${fmtBps(w.tx_bps)}</b></span><small class="muted">${t('aktuell')}</small></div>` : ''}
     ${res.wlan?.length ? `<div class="kv">${res.wlan.map(x => `<span>WLAN: <b>${h(x.ssid)}</b> ${x.channel ? `(${t('Kanal')} ${h(x.channel)})` : ''}${x.enabled ? '' : ' – ' + t('aus')}</span>`).join('')}</div>` : ''}
+    ${lineBlock(i)}
     <div class="row between" style="margin-top:8px"><b class="small">${t('WAN-Traffic')}</b>${rangeButtons(tabIntegrations.since || 7200)}</div>
     <div class="chartbox"></div>
     ${i.summary ? `<p class="muted small">${t('Letzte Abfrage: {n} aktive Geräte, {m} neu im Posteingang, {l} Verbindungen gesetzt.', { n: i.summary.hosts, m: i.summary.new, l: i.summary.links })}</p>` : ''}`;
+}
+
+/* Leitungswerte der FRITZ!Box: DSL (TR-064) oder Kabel (DOCSIS-Kanäle). Richtwerte wie im Treiber (fritzbox.py). */
+const LINE_DS_PWR = [-8, 15], LINE_US_PWR = [35, 51];
+const fmtDb = (v, u = 'dB') => v == null ? '–' : `${nf(v, 1)} ${u}`;
+const outside = (v, [lo, hi]) => v != null && (v < lo || v > hi);
+function lineBlock(i) {
+  const L = i.result?.line;
+  if (!L) return '';
+  const hints = (L.hints || []).map(x => `<li class="${x.level === 'bad' ? 'errtxt' : 'warnc'}">${h(LANG === 'en' ? x.en : x.de)}</li>`).join('');
+  const head = `<div class="row between" style="margin-top:10px"><b class="small">${L.kind === 'dsl' ? t('DSL-Leitung') : t('Kabelanschluss (DOCSIS)')}</b>
+    ${L.ts ? `<small class="muted">${t('Stand {d}', { d: h(fmtDate(new Date(L.ts * 1000).toISOString())) })}</small>` : ''}</div>`;
+  if (L.error) return `${head}<p class="small warnc">${h(t(L.error))}</p>`;
+  let body;
+  if (L.kind === 'dsl') {
+    body = `<div class="kv">${L.status ? `<span>${t('Status')}: <b class="${L.status === 'Up' ? 'okc' : 'offc'}">${h(L.status)}</b></span>` : ''}
+      <span>${t('Synchronisiert')}: <b class="mono">↓ ${fmtBps(L.rate_down)} · ↑ ${fmtBps(L.rate_up)}</b></span>
+      ${L.max_down ? `<span>${t('möglich')}: <b class="mono">↓ ${fmtBps(L.max_down)} · ↑ ${fmtBps(L.max_up)}</b></span>` : ''}
+      <span>${t('Störabstand')}: <b class="mono">↓ ${fmtDb(L.snr_down)} · ↑ ${fmtDb(L.snr_up)}</b></span>
+      <span>${t('Dämpfung')}: <b class="mono">↓ ${fmtDb(L.att_down)} · ↑ ${fmtDb(L.att_up)}</b></span>
+      ${L.crc != null ? `<span>${t('CRC-Fehler')}: <b class="mono">${fmtInt(L.crc)}</b></span>` : ''}${L.fec != null ? `<span>FEC: <b class="mono">${fmtInt(L.fec)}</b></span>` : ''}
+      ${L.retrain != null ? `<span>${t('Neusynchronisierungen')}: <b class="mono">${fmtInt(L.retrain)}</b></span>` : ''}</div>`;
+  } else {
+    const rng = (a, b) => a == null ? '–' : a === b ? fmtDb(a, 'dBmV') : `${nf(a, 1)} … ${fmtDb(b, 'dBmV')}`;
+    const ds = (L.ds || []).map(c => `<tr><td>${h(c.id ?? '')}</td><td>${h(c.docsis)}</td><td class="mono">${c.freq != null ? nf(c.freq, 1) : ''}</td><td>${h(c.mod || '')}</td>
+      <td class="mono ${outside(c.power, LINE_DS_PWR) ? 'warnc' : ''}">${fmtDb(c.power, 'dBmV')}</td><td class="mono">${fmtDb(c.snr)}</td>
+      <td class="mono">${fmtInt(c.corr || 0)}</td><td class="mono ${c.uncorr ? 'warnc' : ''}">${fmtInt(c.uncorr || 0)}</td></tr>`).join('');
+    const us = (L.us || []).map(c => `<tr><td>${h(c.id ?? '')}</td><td>${h(c.docsis)}</td><td class="mono">${c.freq != null ? nf(c.freq, 1) : ''}</td><td>${h(c.mod || '')}</td>
+      <td>${h(c.multiplex || '')}</td><td class="mono ${outside(c.power, LINE_US_PWR) ? 'warnc' : ''}">${fmtDb(c.power, 'dBmV')}</td></tr>`).join('');
+    body = `<div class="kv"><span>${t('Kanäle')}: <b class="mono">↓ ${L.ds_30 || 0} × 3.0${L.ds_31 ? ` + ${L.ds_31} × 3.1` : ''} · ↑ ${L.us_30 || 0} × 3.0${L.us_31 ? ` + ${L.us_31} × 3.1` : ''}</b></span>
+      <span>${t('Pegel')} ↓: <b class="mono">${rng(L.ds_pwr_min, L.ds_pwr_max)}</b></span><span>${t('Pegel')} ↑: <b class="mono">${rng(L.us_pwr_min, L.us_pwr_max)}</b></span>
+      <span>${t('schwächster Kanal (MSE/MER)')}: <b class="mono">${fmtDb(L.snr_min)}</b></span>
+      <span>${t('Fehler korrigierbar / nicht korrigierbar')}: <b class="mono">${fmtInt(L.corr || 0)} / ${fmtInt(L.uncorr || 0)}</b></span></div>
+      <details class="small"><summary>${t('Alle Kanäle')}</summary>
+        <div class="table-wrap line-chans"><table class="compact"><thead><tr><th>↓ ${t('Kanal')}</th><th>DOCSIS</th><th>MHz</th><th>${t('Modulation')}</th><th>${t('Pegel')}</th><th>MSE/MER</th><th>${t('korr.')}</th><th>${t('nicht korr.')}</th></tr></thead><tbody>${ds}</tbody></table></div>
+        ${us ? `<div class="table-wrap"><table class="compact"><thead><tr><th>↑ ${t('Kanal')}</th><th>DOCSIS</th><th>MHz</th><th>${t('Modulation')}</th><th>${t('Verfahren')}</th><th>${t('Pegel')}</th></tr></thead><tbody>${us}</tbody></table></div>` : ''}
+        <p class="muted">${t('Richtwerte: Pegel ↓ {a} bis {b} dBmV, ↑ {c} bis {d} dBmV; MSE bei 256QAM ab 32 dB, MER bei DOCSIS 3.1 ab 35 dB. Die Grenzen deines Netzbetreibers können abweichen.', { a: LINE_DS_PWR[0], b: LINE_DS_PWR[1], c: LINE_US_PWR[0], d: LINE_US_PWR[1] })}</p>
+      </details>`;
+  }
+  return `${head}${body}${hints ? `<ul class="small line-hints">${hints}</ul>` : ''}
+    <div class="row between" style="margin-top:6px"><b class="small">${t('Störabstand')} · 24 h</b></div><div class="linechart"></div>`;
 }
 
 function snmpCard(i) {

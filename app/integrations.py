@@ -191,7 +191,7 @@ def _slim_view(driver, res):
                                      update=(a.get("firmware_info") or {}).get("update"), latest=(a.get("firmware_info") or {}).get("latest", ""))
                               for a in res.get("adapters", [])])
     if driver == "fritzbox":
-        return dict(info=res.get("info"), wan=res.get("wan"), auth=res.get("auth"), wlan=res.get("wlan"),
+        return dict(info=res.get("info"), wan=res.get("wan"), auth=res.get("auth"), wlan=res.get("wlan"), line=res.get("line"),
                     hosts=len(res.get("hosts", [])), active=sum(1 for h in res.get("hosts", []) if h["active"]))
     return dict(info=res.get("info"), ports=res.get("ports"), fdb_size=res.get("fdb_size"))
 
@@ -324,8 +324,21 @@ def apply_fritz(c, row, res):
             d = by_mac[cmac]
             if d["id"] != target and set_auto_uplink(c, pid, d["id"], target, medium, port_name=iface if medium == "lan" else None, source="fritzbox"):
                 links += 1
+    line_events(c, row, res, fritz)
     return dict(device_id=fritz, hosts=stats["hosts"], new=stats["new"], known=stats["known"], offline=stats["offline"], links=links,
                 mesh=bool(res.get("mesh")))
+
+
+def line_events(c, row, res, device_id):
+    """Neue Hinweise zur Leitung (DSL/Kabel) als Ereignis melden – einmal je Hinweisart, bis er wieder verschwunden ist."""
+    line = res.get("line") or {}
+    if line.get("cached") or "hints" not in line:
+        return
+    old = {x.get("code") for x in (((json.loads(row["state"] or "{}").get("result") or {}).get("line") or {}).get("hints") or [])}
+    new = [x for x in line["hints"] if x["code"] not in old]
+    if new:
+        runner.event(c, row["profile_id"], "line_degraded", device_id, name=row["name"],
+                     msg_de="; ".join(x["de"] for x in new), msg_en="; ".join(x["en"] for x in new))
 
 
 # ------------------------------------------------------------ SNMP-Switch
@@ -672,7 +685,7 @@ def _publish_ha(c, row, conf):
     msgs.append((f"{disc}/event/diktyo_{pid}_events/config", dict(
         name="Ereignis", unique_id=f"diktyo_{pid}_events", state_topic=f"{base}/event", device=hub, icon="mdi:bell-ring",
         event_types=["device_offline", "device_online", "new_device", "action_undo_failed", "quarantined", "schedule_failed",
-                     "firmware_update", "speed_slow", "backup_failed", "integration_failed"]), True))
+                     "firmware_update", "speed_slow", "backup_failed", "integration_failed", "line_degraded"]), True))
     evs = c.execute("SELECT * FROM events WHERE profile_id=? AND delivered='' ORDER BY id LIMIT 200", (pid,)).fetchall()
     for e in evs:
         d = json.loads(e["data"] or "{}")

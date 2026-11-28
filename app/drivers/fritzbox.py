@@ -2,6 +2,8 @@
 
 Ohne Anmeldung: Hosts (MAC, IP, Name, LAN/WLAN, aktiv) und WAN-Übertragungsraten.
 Mit einem FRITZ!Box-Benutzer zusätzlich: Mesh-Topologie (welches Gerät an welchem LAN-Port bzw. WLAN hängt), Geräteinfo, WLAN-Netze.
+Leitungswerte: DSL über TR-064 (Sync, Störabstand, Dämpfung, Fehler), Kabel (DOCSIS-Kanäle mit Pegel, MSE/MER, Fehler) über die
+Weboberfläche, nur alle 15 Minuten.
 """
 import json
 
@@ -16,6 +18,8 @@ FIELDS = [
     dict(key="cfg_schedule", label="Konfiguration sichern", type="select", default="weekly", options=[
         ["weekly", "wöchentlich"], ["daily", "täglich"], ["no", "nein"]]),
     dict(key="export_pass", label="Passwort für die Konfigurationsdatei (sonst das Anmeldepasswort)", type="password", default="", secret=True),
+    dict(key="line", label="Leitungswerte bei Kabel (Anmeldung an der Weboberfläche alle 15 Minuten)", type="select", default="yes",
+         options=[["yes", "ja"], ["no", "nein"]]),
     dict(key="totp_secret", label="Authenticator-Schlüssel (optional, für automatische Sicherungen)", type="password", default="",
          secret=True, placeholder="Base32-Schlüssel aus der FRITZ!Box"),
 ]
@@ -401,6 +405,245 @@ def test(conf):
     return res
 
 
+# ------------------------------------------------------------ Leitungswerte (DSL über TR-064, Kabel/DOCSIS über die Weboberfläche)
+LINE_WEB_S = 900  # DOCSIS-Werte nur alle 15 Minuten: jede Abfrage ist eine Anmeldung (steht in der Ereignisliste der FRITZ!Box)
+LINE_BLOCK_S = 3600  # nach abgelehnter Anmeldung so lange nicht erneut versuchen (die FRITZ!Box sperrt sonst immer länger)
+# Richtwerte (übliche Empfehlungen der Netzbetreiber; keine harten Grenzen)
+DSL_SNR_WARN, DSL_SNR_BAD = 6.0, 3.0  # Störabstandsmarge in dB
+DS_PWR = (-8.0, 15.0)  # Kabel Downstream-Pegel in dBmV
+US_PWR = (35.0, 51.0)  # Kabel Upstream-Pegel in dBmV
+SNR_MIN = {"1024QAM": 37.0, "256QAM": 32.0, "64QAM": 26.0}  # DOCSIS 3.0: MSE (als positiver Wert) je Modulation
+MER_MIN_31 = 35.0  # DOCSIS 3.1: MER
+ERR_DELTA_WARN = 50  # neue nicht korrigierbare Fehler (Kabel) bzw. CRC-Fehler (DSL) zwischen zwei Messungen
+
+HINTS = {  # Code -> (deutsch, englisch)
+    "snr_low": ("Störabstand niedrig: {v} dB (Richtwert ab {lim} dB)", "Low noise margin: {v} dB (guide value from {lim} dB)"),
+    "snr_bad": ("Störabstand sehr niedrig: {v} dB – Abbrüche wahrscheinlich", "Noise margin very low: {v} dB – dropouts likely"),
+    "crc": ("{n} neue CRC-Fehler seit der letzten Messung", "{n} new CRC errors since the last measurement"),
+    "retrain": ("Leitung hat neu synchronisiert ({n}×)", "Line resynchronised ({n}×)"),
+    "ds_pwr": ("Downstream-Pegel außerhalb des üblichen Bereichs: {v} dBmV (Kanal {ch}, Richtwert {lo} bis {hi})",
+               "Downstream power outside the usual range: {v} dBmV (channel {ch}, guide value {lo} to {hi})"),
+    "us_pwr": ("Upstream-Pegel außerhalb des üblichen Bereichs: {v} dBmV (Kanal {ch}, Richtwert {lo} bis {hi})",
+               "Upstream power outside the usual range: {v} dBmV (channel {ch}, guide value {lo} to {hi})"),
+    "mse": ("Signalqualität schwach: {v} dB auf Kanal {ch} ({mod}, Richtwert ab {lim} dB)",
+            "Weak signal quality: {v} dB on channel {ch} ({mod}, guide value from {lim} dB)"),
+    "uncorr": ("{n} neue nicht korrigierbare Fehler seit der letzten Messung", "{n} new uncorrectable errors since the last measurement"),
+}
+
+
+def _hint(code, level="warn", **kw):
+    import re
+    de, en = HINTS[code]
+    kw_de = {k: v.replace(".", ",") if isinstance(v, str) and re.fullmatch(r"-?\d+\.\d+", v) else v for k, v in kw.items()}
+    return dict(code=code, level=level, de=de.format(**kw_de), en=en.format(**kw))
+
+
+def _num(v):
+    """Zahl aus den Feldern der FRITZ!Box („-36.6“, „3,9“, „42 dB“, 0) – sonst None."""
+    import re
+    if isinstance(v, bool) or v is None:
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    m = re.search(r"-?\d+(?:[.,]\d+)?", str(v))
+    return float(m.group(0).replace(",", ".")) if m else None
+
+
+def _fmt(v):
+    return f"{v:.1f}".rstrip("0").rstrip(".") if v is not None else "?"
+
+
+def access_type(fc):
+    try:
+        return str(_call(fc, "WANCommonIFC1", "GetCommonLinkProperties").get("NewWANAccessType") or "")
+    except Exception:
+        return ""
+
+
+def dsl_values(fc):
+    """DSL-Leitung über TR-064 (WANDSLInterfaceConfig). None, wenn die Box keine DSL-Schnittstelle hat."""
+    try:
+        r = _call(fc, "WANDSLInterfaceConfig1", "GetInfo")
+    except Exception:
+        return None
+    tenth = lambda k: (_num(r.get(k)) / 10) if _num(r.get(k)) is not None else None  # noqa: E731  AVM liefert 1/10 dB
+    kbit = lambda k: int(_num(r.get(k)) * 1000) if _num(r.get(k)) is not None else None  # noqa: E731
+    out = dict(kind="dsl", status=str(r.get("NewStatus") or ""), rate_down=kbit("NewDownstreamCurrRate"), rate_up=kbit("NewUpstreamCurrRate"),
+               max_down=kbit("NewDownstreamMaxRate"), max_up=kbit("NewUpstreamMaxRate"),
+               snr_down=tenth("NewDownstreamNoiseMargin"), snr_up=tenth("NewUpstreamNoiseMargin"),
+               att_down=tenth("NewDownstreamAttenuation"), att_up=tenth("NewUpstreamAttenuation"),
+               power_down=tenth("NewDownstreamPower"), power_up=tenth("NewUpstreamPower"))
+    try:
+        s = _call(fc, "WANDSLInterfaceConfig1", "GetStatisticsTotal")
+        for k, f in (("crc", "NewCRCErrors"), ("fec", "NewFECErrors"), ("hec", "NewHECErrors"), ("es", "NewErroredSecs"),
+                     ("ses", "NewSeverelyErroredSecs"), ("retrain", "NewLinkRetrain")):
+            if _num(s.get(f)) is not None:
+                out[k] = int(_num(s[f]))
+    except Exception:
+        pass
+    return out
+
+
+def parse_docinfo(data):
+    """Antwort von data.lua?page=docInfo (FRITZ!Box Cable) -> Kanallisten und Zusammenfassung."""
+    d = (data or {}).get("data") or data or {}
+
+    def chans(side):
+        out = []
+        for ver, rows in ((d.get(side) or {}).items() if isinstance(d.get(side), dict) else []):
+            for x in rows or []:
+                if not isinstance(x, dict):
+                    continue
+                mod = str(x.get("type") or x.get("modulation") or "")
+                ch = dict(docsis="3.1" if "31" in ver else "3.0", id=x.get("channelID", x.get("channel")), freq=_num(x.get("frequency")),
+                          power=_num(x.get("powerLevel")), mod=mod)
+                if side == "channelDs":
+                    mse, mer = _num(x.get("mse")), _num(x.get("mer"))
+                    ch.update(snr=abs(mse) if mse is not None else mer, corr=int(_num(x.get("corrErrors")) or 0),
+                              uncorr=int(_num(x.get("nonCorrErrors")) or 0), latency=_num(x.get("latency")))
+                else:
+                    ch["multiplex"] = str(x.get("multiplex") or "")
+                out.append(ch)
+        return sorted(out, key=lambda c: (c["docsis"], _num(c["freq"]) or 0))
+    ds, us = chans("channelDs"), chans("channelUs")
+    if not ds and not us:
+        return None
+    pw = lambda xs: [c["power"] for c in xs if c["power"] is not None]  # noqa: E731
+    snrs = [c["snr"] for c in ds if c.get("snr") is not None]
+    return dict(kind="cable", ds=ds, us=us, ds_30=sum(c["docsis"] == "3.0" for c in ds), ds_31=sum(c["docsis"] == "3.1" for c in ds),
+                us_30=sum(c["docsis"] == "3.0" for c in us), us_31=sum(c["docsis"] == "3.1" for c in us),
+                ds_pwr_min=min(pw(ds), default=None), ds_pwr_max=max(pw(ds), default=None),
+                us_pwr_min=min(pw(us), default=None), us_pwr_max=max(pw(us), default=None),
+                snr_min=min(snrs, default=None), corr=sum(c["corr"] for c in ds), uncorr=sum(c["uncorr"] for c in ds))
+
+
+def docsis_values(conf):
+    """DOCSIS-Kanäle über die Weboberfläche (TR-064 kennt sie nicht): anmelden, docInfo lesen, abmelden."""
+    with _web_client(conf) as cl:
+        sid = _web_login(cl, conf)
+        try:
+            r = cl.post("/data.lua", data={"xhr": "1", "sid": sid, "lang": "de", "page": "docInfo", "xhrId": "all", "no_sidrenew": ""})
+            r.raise_for_status()
+            try:
+                return parse_docinfo(r.json())
+            except ValueError:
+                return None
+        finally:
+            try:
+                cl.post("/login_sid.lua", params={"version": "2"}, data={"logout": "1", "sid": sid})
+            except httpx.HTTPError:
+                pass
+
+
+def line_hints(line, prev=None):
+    """Hinweise zur Leitung nach Richtwerten; prev = vorherige Messung (für neue Fehler)."""
+    out = []
+    if not line:
+        return out
+    prev = prev if prev and prev.get("kind") == line.get("kind") else {}
+    if line["kind"] == "dsl":
+        snr = line.get("snr_down")
+        if snr is not None and line.get("status", "Up") in ("Up", ""):
+            if snr < DSL_SNR_BAD:
+                out.append(_hint("snr_bad", "bad", v=_fmt(snr)))
+            elif snr < DSL_SNR_WARN:
+                out.append(_hint("snr_low", v=_fmt(snr), lim=_fmt(DSL_SNR_WARN)))
+        for k, code in (("crc", "crc"), ("retrain", "retrain")):
+            if line.get(k) is not None and prev.get(k) is not None and line[k] >= prev[k]:
+                n = line[k] - prev[k]
+                if (code == "crc" and n >= ERR_DELTA_WARN) or (code == "retrain" and n > 0):
+                    out.append(_hint(code, n=n))
+        return out
+    for c in line.get("ds") or []:
+        if c["power"] is not None and not DS_PWR[0] <= c["power"] <= DS_PWR[1]:
+            out.append(_hint("ds_pwr", v=_fmt(c["power"]), ch=c["id"], lo=_fmt(DS_PWR[0]), hi=_fmt(DS_PWR[1])))
+            break
+    for c in line.get("us") or []:
+        if c["power"] is not None and not US_PWR[0] <= c["power"] <= US_PWR[1]:
+            out.append(_hint("us_pwr", v=_fmt(c["power"]), ch=c["id"], lo=_fmt(US_PWR[0]), hi=_fmt(US_PWR[1])))
+            break
+    weak = []
+    for c in line.get("ds") or []:
+        if c.get("snr") is None:
+            continue
+        lim = MER_MIN_31 if c["docsis"] == "3.1" else next((v for k, v in SNR_MIN.items() if k in c["mod"].upper().replace("-", "")), None)
+        if lim and c["snr"] < lim:
+            weak.append((c["snr"] - lim, c, lim))
+    if weak:
+        _, c, lim = min(weak, key=lambda x: x[0])
+        out.append(_hint("mse", v=_fmt(c["snr"]), ch=c["id"], mod=c["mod"] or c["docsis"], lim=_fmt(lim)))
+    if prev.get("uncorr") is not None and line.get("uncorr") is not None and line["uncorr"] >= prev["uncorr"]:
+        n = line["uncorr"] - prev["uncorr"]
+        if n >= ERR_DELTA_WARN:
+            out.append(_hint("uncorr", n=n))
+    return out
+
+
+def line_metrics(line, prev=None):
+    """Messwerte für den Verlauf: Störabstand (dB), Sync-Rate (bit/s), neue Fehler seit der letzten Messung."""
+    if not line:
+        return {}
+    prev = prev if prev and prev.get("kind") == line.get("kind") else {}
+    m = {}
+    if line["kind"] == "dsl":
+        for k in ("snr_down", "snr_up", "rate_down", "rate_up"):
+            if line.get(k) is not None:
+                m[f"line:{k}"] = line[k]
+        err = "crc"
+    else:
+        if line.get("snr_min") is not None:
+            m["line:snr_min"] = line["snr_min"]
+        if line.get("us_pwr_max") is not None:
+            m["line:us_pwr_max"] = line["us_pwr_max"]
+        err = "uncorr"
+    if line.get(err) is not None and prev.get(err) is not None:
+        m["line:err"] = max(0, line[err] - prev[err])  # Zähler beginnt nach einem Neustart bei 0
+    return m
+
+
+def poll_line(fc, conf, state, now=None):
+    """Leitungswerte je nach Anschluss; Kabel nur alle LINE_WEB_S Sekunden (sonst die letzte Messung). -> (line, metrics)"""
+    import time
+    now = now or time.time()
+    prev = state.get("line_last")
+    kind = state.get("line_kind") or ""
+    if kind != "cable":
+        line = dsl_values(fc)
+        if line:
+            state["line_kind"] = "dsl"
+            line["ts"] = int(now)
+            line["hints"] = line_hints(line, prev)
+            state["line_last"] = {k: v for k, v in line.items() if k != "hints"}
+            return line, line_metrics(line, prev)
+        if "cable" not in access_type(fc).lower():
+            state["line_kind"] = "none"
+            return None, {}
+        state["line_kind"] = kind = "cable"
+    if conf.get("line") == "no":
+        return None, {}
+    if not conf.get("password"):
+        return dict(kind="cable", error="Für die Kabelwerte Benutzer und Passwort angeben"), {}
+    if prev and now - (prev.get("ts") or 0) < LINE_WEB_S:
+        return dict(prev, hints=state.get("line_hints") or [], cached=True), {}
+    if now < (state.get("line_block_until") or 0):
+        return (dict(prev, hints=state.get("line_hints") or [], cached=True) if prev else
+                dict(kind="cable", error="Anmeldung an der Weboberfläche abgelehnt – nächster Versuch in einer Stunde")), {}
+    try:
+        line = docsis_values(conf)
+    except DriverError as ex:
+        if "abgelehnt" in str(ex):
+            state["line_block_until"] = now + LINE_BLOCK_S
+        return dict(kind="cable", error=str(ex)), {}
+    except httpx.HTTPError:
+        return dict(kind="cable", error="Kabelwerte nicht lesbar (Weboberfläche)"), {}
+    if not line:
+        return dict(kind="cable", error="Kabelwerte nicht lesbar (Weboberfläche)"), {}
+    line["ts"] = int(now)
+    hints = line_hints(line, prev)
+    state["line_last"], state["line_hints"] = line, hints
+    return dict(line, hints=hints), line_metrics(line, prev)
+
+
 def fw_version(s):
     """FRITZ!OS lesbar: „161.08.25“ -> „8.25“, „161.07.57-114812“ -> „7.57-114812“; sonst unverändert."""
     import re
@@ -434,4 +677,9 @@ def poll(conf, state):
     metrics = {}
     if "rx_bps" in res["wan"]:
         metrics = {"wan:rx": res["wan"]["rx_bps"], "wan:tx": res["wan"]["tx_bps"]}
+    state = dict(state)
+    line, lm = poll_line(fc, conf, state)
+    if line:
+        res["line"] = line
+        metrics.update(lm)
     return res, metrics, state

@@ -1,6 +1,7 @@
 # díktyo – Plan, Erweiterungen und Verbesserungen
 
-Stand: Version 0.33.0 (November 2026). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
+Stand: Version 0.44.0 (November 2026). Ideen aus NetworkOptimizer, NetAlertX, homelable, reconYa, netronome,
+ZeroTier und ntop sind in Abschnitt 4 eingeordnet (nur Ideen, kein übernommener Code). Die ausführliche Bedienung steht in [ANLEITUNG.de.md](ANLEITUNG.de.md),
 der technische Aufbau in [architecture.md](architecture.md).
 
 ## 1. Erledigt
@@ -61,6 +62,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | Aufgeräumte Navigation | Klick auf die E-Mail oben öffnet *Mein Konto* (Passwort, zweiter Faktor, Sitzungen, OIDC, Profile und Freigaben – ersetzt den Reiter *Freigabe*); *Einstellungen* mit *Profil-Einstellungen* (Benachrichtigungen und Quarantäne, vorher unter Integrationen) und *System*, jede Kachel mit gleichem Kopf; neuer Reiter *Aktionen* mit Zeitplänen und letzten Aktionen; Verlauf speichern (CSV mit Filter) und löschen (Besitzer, nach Art und Alter) | 0.41 |
 | ASUS: Aktionen und lesbarer Konfig-Vergleich | Gastnetze (klassisch, wlX.Y) ein/aus mit Zurückschalten und Zeitplan, Neustart über applyapp.cgi; bei „Gastnetz Pro“ (SDN) nur Anzeige; Einstellungsdatei (CFG, HDR1/HDR2) entschlüsselt: Änderungen als sortierte `name=wert`-Zeilen, Download als Text, Passwörter/Schlüssel maskiert mit Prüfsumme, „unverändert“ trotz Zufallsbytes erkannt | 0.42 |
 | VLAN-Plan: VMs und Container | Im Plan-Modus geplantes VLAN-Tag je VM/Container (Klick auf den Gast), Anzeige „alt → neu“, eigener Abschnitt in der Umstellungsliste („in Proxmox umstellen“), erledigt sich, sobald Proxmox das neue Tag meldet; Prüfung des Host-Ports mit den geplanten Tags; Abschließen/Verwerfen und PDF berücksichtigen die Gäste | 0.43 |
+| Leitungswerte der FRITZ!Box | DSL über TR-064 (Sync-Rate, möglich, Störabstand, Dämpfung, CRC/FEC, Neusynchronisierungen), Kabel/DOCSIS über die Weboberfläche alle 15 Minuten (alle Kanäle mit Pegel, MSE/MER, Fehlern; Abmeldung danach, eine Stunde Pause nach abgelehnter Anmeldung); Hinweise nach Richtwerten auf der Karte und unter *Braucht Aufmerksamkeit*, Benachrichtigung „Leitung verschlechtert“, Störabstand im Verlauf (anheftbar, Einheit dB), Prometheus-Metriken | 0.44 |
 | MikroTik und Sprache | MikroTik über die RouterOS-API (Port 8728/8729, RouterOS 6 und 7) als Standard, REST weiter wählbar, kein SSH-Backup mehr (RouterOS hat eigene Backups); alle Server-Meldungen, Aktionen, Diagnosen und gespeicherten Fehler auf Englisch, wenn Englisch gewählt ist (auch in Benachrichtigungen), Test gegen fehlende Übersetzungen; automatisch erzeugte Gerätenamen auf Englisch | 0.33.1 |
 | Netzplan-Export | Topologie als SVG, PNG (doppelte Auflösung), draw.io (Geräte mit IP/MAC/Typ/Modell/Standort als Eigenschaften) und Poster-PDF A4–A0 mit Schriftfeld, wahlweise auf A4 gekachelt mit Überlappung und Blattnummern; Gruppen aufklappbar; in Topologie und Ausgabe | 0.33 |
 
@@ -69,8 +71,8 @@ der technische Aufbau in [architecture.md](architecture.md).
 | # | Inhalt | Anmerkung |
 |---|---|---|
 | P2.4 | Weitere Integrationen: Netgear (Smart Switches/Router), devolo (Powerline) | Docker erledigt in 0.16, Netgear (SNMP-Profil) und devolo in 0.38 |
-| P2.8 | Passive DHCP-Erkennung (Fingerprinting aus DHCP-Anfragen) | braucht einen Lauscher im Netz bzw. DHCP-Logs vom Router |
-| Phase 3 | REST-API mit Tokens | für Skripte, Home Assistant, eigene Auswertungen; Token-Verfahren wie beim Prometheus-Endpunkt |
+| P2.8 | Passive DHCP-Erkennung (Fingerprinting aus DHCP-Anfragen) | braucht einen Lauscher im Netz bzw. DHCP-Logs vom Router; erster Schritt: DHCP-Leases allgemein einlesen (dnsmasq, ISC, Kea, Pi-hole – Idee aus NetAlertX) |
+| Phase 3 | REST-API mit Tokens | für Skripte, Home Assistant, eigene Auswertungen; Token-Verfahren wie beim Prometheus-Endpunkt; dazu Swagger-Doku (FastAPI) und ein kleiner Statistik-Endpunkt für gethomepage (Idee aus homelable) – **Priorität 4** |
 | ~~Phase 3~~ | ~~Änderungsverlauf zwischen Scans~~ (0.14), ~~Kabel- und Patchpanel-Dokumentation~~ (0.29), ~~Prometheus-Endpunkt~~ (0.31) | erledigt |
 
 ## 3. An echter Hardware noch zu testen
@@ -90,6 +92,7 @@ der technische Aufbau in [architecture.md](architecture.md).
 | OPNsense (inkl. Top Talkers), Docker | gegen nachgebildete APIs getestet | Tester |
 | Proxmox: Live-Raten je VM, VLAN-Tags der Gäste im VLAN-Plan | gegen nachgebildete API getestet | Nutzer (Proxmox vorhanden) |
 | iperf3 zu einem Gerät | gegen nachgebildete iperf3-Ausgabe getestet | Nutzer |
+| FRITZ!Box-Leitungswerte (Kabel: docInfo der Weboberfläche, DSL: WANDSLInterfaceConfig) | Feldnamen nach bekannten Auswertungen der FRITZ!OS-Seiten, gegen nachgebildete Antworten getestet; Richtwerte sind übliche Empfehlungen, nicht die des Netzbetreibers | Nutzer (6591 Cable) |
 | Switch-Aktionen (SNMP-SET) | gegen Test-Agent getestet; Zyxel mit Schreibrechten offen | Tester |
 | Proxmox-Aktionen | gebaut, Token mit `VM.PowerMgmt` offen | Tester |
 | Anmeldung über OIDC mit echtem Authentik, Keycloak, Logto | gegen nachgebildeten Anbieter getestet (ES384, RS256, HS256), Browser-Ablauf mit lokalem Test-Anbieter | Nutzer |
@@ -115,6 +118,9 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 |---|---|---|
 | pfSense: wartet auf Netgates offizielle REST-API (das Community-Paket „pfrest“ ist im Wartungsmodus und endet nach pfSense 26.10) | ★★ | M |
 | Synology / QNAP / TrueNAS / Unraid: Status, Laufwerke, Dienste | ★★ | M |
+| ZeroTier und Tailscale/Headscale: Teilnehmer als virtuelle Geräte, direkt oder über Relay verbunden, zugewiesene IPs (ZeroTier: lokale API auf Port 9993 mit Token) | ★★ | M |
+| Zigbee2MQTT / Z-Wave JS über MQTT: Funknetz als eigene Gruppe in der Topologie mit Verbindungsqualität (LQI) | ★★ | M |
+| ntopng als Datenquelle (Top-Talker, Alarme je Gerät) statt eigener Flow-Analyse | ★ | M |
 | Erledigt: ~~OPNsense~~ (0.16), ~~Docker~~ (0.16), ~~Shelly/Tasmota~~ (0.22), ~~Aktionen UniFi/Omada~~ (0.22), ~~Pi-hole/AdGuard~~ (0.23), ~~Netgear (SNMP-Profile), devolo Powerline~~ (0.38), ~~VLANs aus MikroTik/OPNsense/UniFi/Omada~~ (0.39), ~~OpenWrt~~ (0.40), ~~ASUS: Aktionen und lesbarer Konfig-Vergleich~~ (0.42) | | |
 
 ### Wünsche aus dem Test
@@ -130,13 +136,21 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 | **Verfügbarkeitsbericht als PDF** (je Monat: Verfügbarkeit, Ausfälle, Antwortzeiten der Infrastruktur, Speedtests) | ★★★ | S |
 | TLS-Zertifikate: Warnung vor Ablauf (Daten aus dem Dienste-Scan) | ★★ | S |
 | iperf zwischen zwei beliebigen Geräten (per SSH auf einem der beiden), díktyo als iperf3-Gegenstelle für Handy-Apps | ★ | S |
-| Weitere Benachrichtigungswege: Telegram, Gotify, Webhook | ★★ | S |
-| Erledigt: ~~Latenz/Verfügbarkeit~~ (0.15), ~~Firmware-Hinweise~~ (0.15), ~~Speedtest/iperf~~ (0.19), ~~E-Mail/ntfy~~ (0.21) | | |
+| Weitere Benachrichtigungswege: Telegram, Gotify, Webhook, Apprise (ein Anschluss für über 80 Dienste) – **Priorität 5** | ★★ | S |
+| Latenz und Paketverlust zu festen Zielen (Router, 1.1.1.1, DNS-Server) als Dauermessung, Traceroute auf Knopfdruck, Bufferbloat (Latenz unter Last) beim Speedtest | ★★ | S–M |
+| Prüfung per HTTP/HTTPS/TCP je Gerät statt nur Ping (Statuscode, zusammen mit dem TLS-Ablauf) | ★★ | S |
+| WLAN-Kanäle und Nachbarnetze (FRITZ!Box, ASUS, UniFi) mit Warnung bei Überlappung | ★★ | M |
+| Erledigt: ~~Leitungswerte der FRITZ!Box (DSL/Kabel)~~ (0.44), ~~Latenz/Verfügbarkeit~~ (0.15), ~~Firmware-Hinweise~~ (0.15), ~~Speedtest/iperf~~ (0.19), ~~E-Mail/ntfy~~ (0.21) | | |
 
 ### Sicherheit
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
+| **Portfreigaben- und UPnP-Übersicht**: alle Weiterleitungen je Gerät (FRITZ!Box per TR-064, ASUS, OpenWrt, OPNsense, MikroTik), Notiz je Eintrag, Hinweis bei neuen – **Priorität 2** | ★★★ | M |
+| **Sicherheits-Check mit Punktzahl**: IoT/Kameras im falschen VLAN, riskante offene Dienste (Telnet, SMB …), veraltete Firmware, ungetrenntes Gastnetz, unbekannte Gerätetypen; Hinweise quittierbar, Punktzahl im Verlauf, PDF – **Priorität 3** | ★★★ | M |
+| Alarme für doppelte IP- oder MAC-Adressen und neue riskante offene Ports – **Priorität 5** | ★★ | S |
+| IPv6-Geräte passiv erkennen (Neighbor-Tabelle) | ★★ | S |
+| Regeln für neue Geräte („Hersteller X → Gruppe IoT, Standort Keller“) als Erweiterung der Quarantäne | ★★ | M |
 | Passkeys (WebAuthn) und „2FA für alle Pflicht“ | ★★ | M |
 | Abmelden auch beim OIDC-Anbieter (RP-initiated logout) | ★ | S |
 | Audit-Log-Ansicht in der Oberfläche | ★ | S |
@@ -146,6 +160,9 @@ Einschätzung: Nutzen ★–★★★, Aufwand S/M/L.
 
 | Idee | Nutzen | Aufwand |
 |---|---|---|
+| Markdown-Doku je Gerät mit Versionen, Vorlage aus den Scan-Daten, Links wie `[[gerät]]`, dazu Runbooks | ★★ | M |
+| Kiosk-/Wandansicht: Topologie oder Übersicht nur lesend über einen geheimen Link | ★ | S |
+| MCP-Server für KI-Assistenten (lesend; nach der REST-API) | ★ | M |
 | Erledigt: ~~Änderungsverlauf~~ (0.14), ~~QR-Etiketten~~ (0.28), ~~Kabel und Patchpanels~~ (0.29), ~~Kabel-Etiketten~~ (0.35), ~~Grundriss/Raumplan und Rack-Ansicht~~ (0.36), ~~VLAN-Plan~~ (0.30), ~~Export nach draw.io / SVG / PNG, Netzplan als Poster-PDF~~ (0.33) | | |
 
 ### Automatisierung

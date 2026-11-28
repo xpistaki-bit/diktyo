@@ -13,7 +13,7 @@ import secrets
 BUILTINS = [("wan", 5), ("speed", 4), ("issues", 3), ("watch", 4), ("ports", 4), ("live", 4), ("today", 4), ("rtt", 4), ("infra", 8),
             ("dns", 4), ("recent", 4)]
 SIZES = (3, 4, 5, 6, 8, 12)
-UNITS = ("bps", "ms", "W", "count", "pct")
+UNITS = ("bps", "ms", "W", "count", "pct", "dB")
 STYLES = ("bars", "line")
 MAX_PINS = 24
 ASUS_IF = {"lan": "LAN", "bridge": "Bridge", "wl0": "WLAN 2,4 GHz", "wl1": "WLAN 5 GHz-1", "wl2": "WLAN 5 GHz-2", "wl3": "WLAN 6 GHz"}
@@ -108,7 +108,8 @@ def add_pin(c, pid, pin, size=6):
 
 
 EN = {"Schnittstellen": "Interfaces", "DNS-Filter": "DNS filter", "Antwortzeit je Gerät": "Response time per device",
-      "Leistung je Gerät": "Power per device", "Antwortzeit": "Response time", "Leistung": "Power", "blockiert %": "blocked %"}
+      "Leistung je Gerät": "Power per device", "Antwortzeit": "Response time", "Leistung": "Power", "blockiert %": "blocked %",
+      "Leitung (DSL/Kabel)": "Line (DSL/cable)", "neue Fehler": "new errors", "Leitung": "Line"}
 
 
 def _tr(s, lang):
@@ -151,6 +152,14 @@ def candidates(c, pid, lang="de"):
         if f"i{iid}:dns:qpm" in keys:
             out.append(dict(group="DNS-Filter", title=f"DNS · {r['name']}", keys=[f"i{iid}:dns:qpm"] + ([f"i{iid}:dns:bpm"] if f"i{iid}:dns:bpm" in keys else []),
                             names=["Anfragen/min", "blockiert/min"], unit="count", style="bars", mirror=False))
+        snr = [k for k in (f"i{iid}:line:snr_down", f"i{iid}:line:snr_up", f"i{iid}:line:snr_min") if k in keys]
+        if snr:
+            out.append(dict(group="Leitung (DSL/Kabel)", title=f"Leitung · {r['name']}", keys=snr,
+                            names=["schwächster Kanal"] if snr[0].endswith("snr_min") else ["Störabstand ↓", "Störabstand ↑"][:len(snr)],
+                            unit="dB", style="line", mirror=False))
+        if f"i{iid}:line:err" in keys:
+            out.append(dict(group="Leitung (DSL/Kabel)", title=f"Leitung · {r['name']} · neue Fehler", keys=[f"i{iid}:line:err"],
+                            names=["Fehler"], unit="count", style="bars", mirror=False))
         if f"i{iid}:dns:blocked_pct" in keys:
             out.append(dict(group="DNS-Filter", title=f"DNS · {r['name']} · blockiert %", keys=[f"i{iid}:dns:blocked_pct"],
                             names=["blockiert"], unit="pct", style="line", mirror=False))
